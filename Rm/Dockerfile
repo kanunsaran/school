@@ -9,6 +9,8 @@ COPY . .
 # frontend calls the backend through nginx at /api
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
+# small servers (1 GB RAM) run out of heap during vite build; needs swap
+ENV NODE_OPTIONS=--max-old-space-size=2048
 RUN npm run build
 
 FROM nginx:alpine
