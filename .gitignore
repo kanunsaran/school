@@ -1,0 +1,15 @@
+# dependencies / build output
+node_modules/
+dist/
+
+# secrets
+.env
+!.env.example
+
+# real data (copy to the server by hand)
+db/init/*.sql
+projectrmb/uploads/*
+!projectrmb/uploads/.gitkeep
+
+.DS_Store
+*.log

@@ -1,0 +1,17 @@
+# Run the backend only (use docker-compose.yml in the parent folder to run backend + frontend)
+# Database = MySQL in XAMPP running on this machine
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: ${DB_PORT:-3306}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    volumes:
+      - ./uploads:/app/uploads

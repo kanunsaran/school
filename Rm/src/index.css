@@ -1,0 +1,80 @@
+:root {
+  font-family: 'Prompt', Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  height: 100%;
+
+  color-scheme: light dark;
+  /* color: rgba(255, 255, 255, 0.87); */
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+
+body {
+  margin: 0;
+  /* display: flex; */
+  /* place-items: center; */
+  display: block;
+  min-width: 320px;
+  min-height: 100vh;
+  
+}
+
+/* h1 {
+  /* font-size: 3.2em;
+  line-height: 1.1;
+} */ */
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:focus-visible {
+  outline: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  
+}
+/* 5ตัวเลือก */
+/* ให้ฟอนต์/ขนาดเข้ากับเว็บ */
+.ck-content {
+  font-family: 'Prompt', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ทำให้ editor โค้งและดูเป็นการ์ด */
+.ck.ck-editor__main > .ck-editor__editable {
+  min-height: 180px;
+  border-radius: 12px;
+  background: #f9fafb; /* ใกล้ bg-gray-50 */
+  border-color: #e5e7eb; /* gray-200 */
+  padding: 12px 14px;
+}
+
+/* toolbar ให้โค้งเหมือน UI ของคุณ */
+.ck.ck-toolbar {
+  border-radius: 12px 12px 0 0;
+  border-color: #e5e7eb;
+}

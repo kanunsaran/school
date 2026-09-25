@@ -1,0 +1,63 @@
+# Full stack: MariaDB (same as XAMPP) + phpMyAdmin + backend (projectrmb) + frontend (Rm)
+# Settings come from .env in this folder (copy .env.example)
+services:
+  db:
+    image: mariadb:10.4
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASS}
+      TZ: Asia/Bangkok
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+    volumes:
+      - db_data:/var/lib/mysql
+      # imported only on the first start (when db_data is empty)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  phpmyadmin:
+    image: phpmyadmin:5.2
+    restart: unless-stopped
+    environment:
+      PMA_HOST: db
+      UPLOAD_LIMIT: 100M
+    ports:
+      - "${PMA_PORT:-8081}:80"
+    depends_on:
+      - db
+
+  backend:
+    build: ./projectrmb
+    restart: unless-stopped
+    env_file:
+      - ./projectrmb/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      - ./projectrmb/uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./Rm
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
