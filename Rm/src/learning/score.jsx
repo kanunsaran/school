@@ -132,11 +132,11 @@ export default function ScorePage({ embedded = false, gradeId } = {}) {
           {!embedded && (
             <div className="mb-8">
 
-              <h1 className="text-[18px] font-medium">
+              <h1 className="page-title">
                 คะแนนนักเรียน
               </h1>
 
-              <p className="text-sm text-gray-400">
+              <p className="page-subtitle">
                 {students.length} คน
               </p>
 

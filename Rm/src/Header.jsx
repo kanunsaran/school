@@ -1,8 +1,15 @@
 import { FaBell } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import { getCurrentUser } from "./utils/auth.js";
+import Avatar from "./components/Avatar.jsx";
+import useCurrentUserProfile from "./hooks/useCurrentUserProfile.js";
 
 export default function Header() {
   const navigate = useNavigate();
+  const user = getCurrentUser();
+  const { avatarUrl } = useCurrentUserProfile();
+
+  const goToProfile = () => navigate(user?.role === "teacher" ? "/TeacherProfile" : "/profile");
 
   return (
     <div
@@ -19,9 +26,9 @@ export default function Header() {
       <div className="flex items-center cursor-pointer gap-3 h-full -ml-2">
 
         <img
-          src="/image/logo2.jpeg"
+          src="/image/guidance-kkw-logo.png"
           alt="School Logo"
-          className="h-16 w-auto object-contain"
+          className="h-30 w-auto object-contain"
         />
 
       </div>
@@ -29,12 +36,14 @@ export default function Header() {
       {/* RIGHT */}
       <div className="flex items-center gap-4">
 
-        <FaBell className="text-gray-500 cursor-pointer hover:text-black transition" />
+        <FaBell size={20} className="text-gray-500 cursor-pointer hover:text-black transition" />
 
-        <img
-          onClick={() => navigate("/profile")}
-          src="https://i.pravatar.cc/120?img=12"
-          className="w-10 h-10 rounded-full cursor-pointer hover:scale-105 transition"
+        <Avatar
+          onClick={goToProfile}
+          src={avatarUrl}
+          name={user?.name}
+          size={44}
+          className="hover:scale-105 transition"
         />
 
       </div>

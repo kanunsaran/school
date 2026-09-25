@@ -1,7 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import SidebarNav from "../../nav.jsx";
+import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header";
+import PageLoading from "../../components/PageLoading.jsx";
 import Select from "react-select";
 import Swal from "sweetalert2";
 import {
@@ -199,23 +200,15 @@ export default function StudentCommunityPage() {
     };
 
     return (
-        <div className="min-h-screen w-full bg-white flex text-[14px] text-gray-800">
+        <div className="min-h-screen w-full bg-white flex text-[15.5px] text-gray-800">
             <Header />
             <SidebarNav />
 
             {/* ===== Main (เต็มจอ + ธีม YC) ===== */}
             <main className="flex-1 min-w-0 w-full pt-15 bg-white">
-                <div className="w-full border-b border-gray-100 bg-gradient-to-b from-[#FFF1F7] to-white">
+                <div className="w-full border-b border-gray-100 bg-gradient-to-b from-[#FFF1F7] to-white py-8">
                     <div className="flex justify-center">
-                        <div className="text-center">
-                            <div className="text-[44px] font-semibold tracking-tight">
-                                <span className="text-pink-400">Y</span>
-                                <span className="text-gray-700">outh </span>
-                                <span className="text-yellow-300">C</span>
-                                <span className="text-gray-700">ounselor</span>
-                                <span className="inline-block ml-3 text-blue-300">✦✦</span>
-                            </div>
-                        </div>
+                        <img src="/image/youth-counselor-logo.png" alt="Youth Counselor" className="h-20 w-auto object-contain" />
                     </div>
                 </div>
 
@@ -249,12 +242,12 @@ export default function StudentCommunityPage() {
                         {/* Chips */}
                         <div className="mt-3 flex flex-wrap gap-2">
                             {chips.map((c) => (
-                                <button style={{ backgroundColor: "white" }}
+                                <button
                                     key={c}
                                     type="button"
                                     onClick={() => setActiveChip(c)}
-                                    className={`h-9 px-4 rounded-full border text-[13px] transition-colors ${activeChip === c
-                                            ? "border-pink-200 bg-pink-50 text-pink-700 font-semibold"
+                                    className={`h-9 px-4 rounded-full border text-[14.5px] font-medium transition-colors ${activeChip === c
+                                            ? "bg-pink-500 border-pink-500 text-white"
                                             : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                                         }`}
                                 >
@@ -270,14 +263,14 @@ export default function StudentCommunityPage() {
                     <div className="w-full max-w-[1080px]">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {loading ? (
-                                <div className="text-center text-gray-500">กำลังโหลดโพสต์…</div>
+                                <PageLoading label="กำลังโหลดโพสต์…" />
                             ) : (
                                 filtered.map((p) => (
                                     <PostItCard
                                         key={p.id}
                                         post={p}
                                         isOwner={String(p.ownerId) === String(CURRENT_USER_ID)}
-                                        onClick={() => navigate(`/yc/${p.id}`)}
+                                        onClick={() => navigate(`/studentyc/${p.id}`)}
                                         onLikeClick={(e) => handleToggleLike(p.id, e)}
                                         onEdit={() => {
                                             setEditingPost(p);
@@ -290,7 +283,7 @@ export default function StudentCommunityPage() {
                         </div>
 
                         {/* Quote */}
-                        <div className="mt-8 text-center text-[18px] text-gray-700">
+                        <div className="mt-8 text-center text-[19.5px] text-gray-700">
                             "ทุกเรื่องราว มีคนรับฟัง"
                         </div>
                     </div>
@@ -344,7 +337,7 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
 
                 {/* React Select */}
                 <div className="mb-6 max-w-[200px]">
-                    <div className="text-sm mb-2">เลือกหัวข้อ</div>
+                    <div className="text-[14.5px] mb-2">เลือกหัวข้อ</div>
 
                     <Select
                         options={topicOptions}
@@ -352,19 +345,19 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                         onChange={(e) => setTopic(e)}
                         placeholder="เลือกหัวข้อ"
                         isSearchable={false}
-                        className="text-sm"
+                        className="text-[14.5px]"
                         styles={{
-                            control: (base) => ({
+                            control: (base, state) => ({
                                 ...base,
                                 minHeight: "36px",
                                 height: "36px",
                                 borderRadius: "10px",
-                                borderColor: "#e5e7eb",
+                                borderColor: state.isFocused ? "#ec4899" : "#e5e7eb",
                                 backgroundColor: "#f9fafb",
                                 boxShadow: "none",
                                 outline: "none",
                                 "&:hover": {
-                                    borderColor: "#d1d5db",
+                                    borderColor: "#ec4899",
                                 },
                             }),
                             valueContainer: (base) => ({
@@ -389,7 +382,7 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                                 padding: "4px",
                                 color: "#9ca3af",
                                 "&:hover": {
-                                    color: "#6b7280",
+                                    color: "#ec4899",
                                 },
                             }),
                             menu: (base) => ({
@@ -404,11 +397,11 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                                 fontSize: "13px",
                                 padding: "8px 12px",
                                 backgroundColor: state.isSelected
-                                    ? "#e5e7eb"
+                                    ? "#ec4899"
                                     : state.isFocused
-                                        ? "#f3f4f6"
+                                        ? "#fdf2f8"
                                         : "white",
-                                color: "#374151",
+                                color: state.isSelected ? "#ffffff" : "#374151",
                                 cursor: "pointer",
                             }),
                         }}
@@ -416,16 +409,16 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                             ...theme,
                             colors: {
                                 ...theme.colors,
-                                primary: "#e5e7eb",
-                                primary25: "#f3f4f6",
-                                primary50: "#e5e7eb",
+                                primary: "#ec4899",
+                                primary25: "#fdf2f8",
+                                primary50: "#f9a8d4",
                             },
                         })}
                     />
                 </div>
 
                 <div className="mb-6">
-                    <div className="text-sm mb-2">เลือกสี Post it</div>
+                    <div className="text-[14.5px] mb-2">เลือกสี Post it</div>
                     <div className="flex gap-3 items-center">
                         {PRESET_COLORS.map((c) => (
                             <div
@@ -458,7 +451,7 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                 </div>
 
                 <div className="mb-6">
-                    <div className="text-sm mb-2">เลือกสีเทป</div>
+                    <div className="text-[14.5px] mb-2">เลือกสีเทป</div>
                     <div className="flex gap-3 items-center">
                         {PRESET_TAPES.map((c) => (
                             <div
@@ -503,7 +496,7 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                         </div>
 
                         {/* topic preview */}
-                        <div className="text-[11px] mb-1 text-gray-500 text-center">
+                        <div className="text-[13px] mb-1 text-gray-500 text-center">
                             {topic.label}
                         </div>
 
@@ -517,17 +510,23 @@ function CreatePostModal({ onClose, onSubmit, initialData }) {
                 </div>
 
                 <div className="flex justify-end gap-4 mt-6">
-                    <button style={{backgroundColor: "white"}} onClick={onClose}>ยกเลิก</button>
-                    <button style={{backgroundColor: "white"}}
-                        onClick={() => {
-                            if (!text) return;
-                            onSubmit(text, color, tapeColor, topic.value);
-                        }}
-                        className="px-4 py-2 bg-blue-500 text-black rounded-xl"
-                    >
-                        {isEditing ? "บันทึก" : "ส่งคำถาม"}
-                    </button>
-                </div>
+    <button
+        onClick={onClose}
+        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300"
+    >
+        ยกเลิก
+    </button>
+
+    <button
+        onClick={() => {
+            if (!text) return;
+            onSubmit(text, color, tapeColor, topic.value);
+        }}
+        className="px-4 py-2 bg-pink-500 text-white rounded-xl hover:bg-pink-600"
+    >
+        {isEditing ? "บันทึก" : "ส่งคำถาม"}
+    </button>
+</div>
             </div>
         </div>
     );
@@ -575,7 +574,7 @@ function PostMenu({ onEdit, onDelete }) {
             </button>
 
             {open && (
-                <div className="absolute right-0 top-8 z-20 w-28 bg-white rounded-xl shadow-lg border border-gray-100 py-1 text-[13px]">
+                <div className="absolute right-0 top-8 z-20 w-28 bg-white rounded-xl shadow-lg border border-gray-100 py-1 text-[13.5px]">
                     <button
                         type="button"
                         style={{ backgroundColor: "white" }}
@@ -626,23 +625,25 @@ function PostItCard({ post, isOwner, onClick, onLikeClick, onEdit, onDelete }) {
                     {isOwner && <PostMenu onEdit={onEdit} onDelete={onDelete} />}
                 </div>
 
-                {/* tape */}
-                <div className="flex justify-center -mt-2">
-                    <div className={`h-4 w-20 rounded-md ${tapeStyle.className} opacity-80`} style={tapeStyle.style} />
-                </div>
+                {/* post-it (เทปแปะทับขอบบน เอียงเหมือนแปะเทปจริง — สไตล์เดียวกับหน้าครู) */}
+                <div className="relative">
+                    <div
+                        className={`absolute left-1/2 -top-3 h-5 w-24 rounded-sm ${tapeStyle.className} opacity-80 shadow-sm z-10`}
+                        style={{ ...tapeStyle.style, transform: "translateX(-50%) rotate(-4deg)" }}
+                    />
 
-                {/* post-it */}
-                <div className={`mt-3 rounded-xl ${colorStyle.className} p-5 min-h-[150px] relative`} style={colorStyle.style}>
-                    <div className="whitespace-pre-line text-[15px] leading-relaxed text-gray-800">
-                        {post.text}
+                    <div className={`rounded-xl ${colorStyle.className} p-5 min-h-[150px] relative`} style={colorStyle.style}>
+                        <div className="whitespace-pre-line text-[16.5px] leading-relaxed text-gray-800">
+                            {post.text}
+                        </div>
+
+                        {/* tiny folded corner */}
+                        <div className="absolute right-0 bottom-0 w-10 h-10 bg-white/35 rounded-tl-2xl" />
                     </div>
-
-                    {/* tiny folded corner */}
-                    <div className="absolute right-0 bottom-0 w-10 h-10 bg-white/35 rounded-tl-2xl" />
                 </div>
 
                 {/* footer icons */}
-                <div className="mt-3 flex items-center gap-6 text-gray-600 text-[12px]">
+                <div className="mt-3 flex items-center gap-6 text-gray-600 text-[13.5px]">
                     <button
                         type="button"
                         style={{ backgroundColor: "white" }}

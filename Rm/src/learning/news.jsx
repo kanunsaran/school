@@ -1,4 +1,3 @@
-import { API_URL } from "../config.js";
 import { useState, useEffect } from "react";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
@@ -6,6 +5,7 @@ import { FaCog, FaEllipsisH } from "react-icons/fa";
 import PostComposerModal from "../components/PostComposerModal.jsx";
 import AttachmentGallery from "../components/AttachmentGallery.jsx";
 import CommentThread from "../components/CommentThread.jsx";
+import Avatar from "../components/Avatar.jsx";
 import { getYoutubeEmbedUrl } from "../utils/media.js";
 
 import Swal from "sweetalert2";
@@ -24,12 +24,13 @@ import {
   getNewsFiles,
   deleteNewsFile,
 } from "../callapi/callapi_user.jsx";
+import { API_BASE_URL } from "../config/api.js";
 
 // ⚠️ TODO: ทดไว้ก่อน รอทำหน้า login ค่อยเอา user_id จริงของอาจารย์มาแทน
 const CURRENT_USER_ID = "2";
 
 // ต้องตรงกับ base url ของ backend (multer เสิร์ฟไฟล์ผ่าน /uploads)
-const API_BASE = API_URL;
+const API_BASE = API_BASE_URL;
 
 function HeartIcon({ filled }) {
   return (
@@ -66,12 +67,12 @@ export default function NewsPage() {
 
   const teacher = {
     name: "คุณครู สุพรรณี",
-    avatar: "https://i.pravatar.cc/120?img=47",
+    avatar: null,
   };
 
   const student = {
     name: "นักเรียน",
-    avatar: "https://i.pravatar.cc/120?img=12",
+    avatar: null,
   };
 
   const [openPost, setOpenPost] = useState(false);
@@ -554,10 +555,7 @@ export default function NewsPage() {
   "
           >
 
-            <img
-              src={teacher.avatar}
-              className="w-10 h-10 rounded-full"
-            />
+            <Avatar src={teacher.avatar} name={teacher.name} size={40} />
 
             <div className="
   flex-1
@@ -588,10 +586,7 @@ export default function NewsPage() {
 
                 <div className="px-6 pt-6 pb-4 flex gap-4">
 
-                  <img
-                    src={post.avatar}
-                    className="w-10 h-10 rounded-full"
-                  />
+                  <Avatar src={post.avatar} name={post.author} size={40} />
 
                   <div className="flex-1">
 
@@ -739,6 +734,7 @@ export default function NewsPage() {
                     comments={post.comments}
                     currentUserId={CURRENT_USER_ID}
                     currentUserAvatar={teacher.avatar}
+                    currentUserName={teacher.name}
                     onAddComment={handleAddNewComment}
                     onEditComment={saveEditComment}
                     onDeleteComment={handleDeleteComment}

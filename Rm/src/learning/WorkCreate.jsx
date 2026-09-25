@@ -1,6 +1,5 @@
-import { API_URL } from "../config.js";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import {
   FaTimes,
   FaRegClipboard,
@@ -10,31 +9,64 @@ import {
   FaVideo,
   FaFileAlt,
   FaUsers,
-  FaRegCalendarAlt,
   FaPaperclip,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
+import Select from "react-select";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
-import { getStudent, getClasses, getEnrollments } from "../callapi/callapi_user.jsx";
-import { setWorkTypeLocal } from "../utils/submissionExtras.js";
+import { getStudent, getClasses, getEnrollments, getAssignmentById, getAssignmentFiles, getAssignmentClasses, updateAssignment } from "../callapi/callapi_user.jsx";
+import { API_BASE, formatFullThaiDate, formatThaiTimeLabel } from "../utils/feedShared.js";
+import { resolveFileUrl } from "../utils/media.js";
+import PromptModal from "../components/PromptModal.jsx";
+import ThaiCalendarPicker from "../components/ThaiCalendarPicker.jsx";
+import ThaiTimeField from "../components/ThaiTimeField.jsx";
+
+const dateToStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const timeToStr = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
 // วันนี้/เวลานี้ ใช้กันเลือกวันหรือเวลาย้อนหลัง
-const getTodayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-const getNowTimeStr = () => {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-};
+const getTodayStr = () => dateToStr(new Date());
+const getNowTimeStr = () => timeToStr(new Date());
 
 // แสดงห้องจาก grades เป็น "ม.6/17 (วิทย์-คณิต)"
 const gradeLabel = (c) => `${c.grade_name}/${c.section}${c.track ? ` (${c.track})` : ""}`;
 
+// สไตล์ react-select แบบ form field เต็มความสูง h-12 ให้เข้าชุดกับ input อื่นในฟอร์มนี้ (bg-gray-50, rounded-xl)
+const formSelectStyles = {
+  control: (base, state) => ({
+    ...base,
+    minHeight: "48px",
+    height: "48px",
+    borderRadius: "12px",
+    borderColor: state.isFocused ? "#f472b6" : "#e5e7eb",
+    backgroundColor: "#f9fafb",
+    boxShadow: "none",
+    fontSize: "16px",
+    cursor: "pointer",
+    "&:hover": { borderColor: "#f472b6" },
+  }),
+  valueContainer: (base) => ({ ...base, height: "48px", padding: "0 16px" }),
+  input: (base) => ({ ...base, margin: 0, padding: 0 }),
+  indicatorSeparator: () => ({ display: "none" }),
+  indicatorsContainer: (base) => ({ ...base, height: "48px" }),
+  singleValue: (base) => ({ ...base, color: "#111827" }),
+  menu: (base) => ({ ...base, borderRadius: "12px", overflow: "hidden", zIndex: 20 }),
+  menuList: (base) => ({ ...base, padding: 4 }),
+  option: (base, state) => ({
+    ...base,
+    borderRadius: "8px",
+    fontSize: "16px",
+    backgroundColor: state.isSelected ? "#ec4899" : state.isFocused ? "#fdf2f8" : "white",
+    color: state.isSelected ? "white" : "#374151",
+    cursor: "pointer",
+  }),
+};
+
 export default function WorkCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id } = useParams(); // มีค่า = โหมดแก้ไขงานเดิม, ไม่มี = สร้างใหม่
 
   const pointsList = useMemo(() => [100, 50, 20, 10, 5, 0], []);
 
@@ -47,7 +79,7 @@ export default function WorkCreatePage() {
   const [points, setPoints] = useState(100);
   const [chapters, setChapters] = useState([]);
   const [chapter, setChapter] = useState(null);
-  // ⚠️ backend ยังไม่มีคอลัมน์เก็บประเภทงาน ส่งไปเป็น work_type เผื่อไว้ก่อน (เก็บสำรองไว้ฝั่ง local ด้วยผ่าน setWorkType ของ submissionExtras)
+  const [existingFiles, setExistingFiles] = useState([]); // ไฟล์ที่แนบไว้เดิม (โหมดแก้ไข) — แสดงอ่านอย่างเดียว
   const [workType, setWorkType] = useState("individual"); // "individual" | "group"
 
   // ===== สำหรับ (หลายห้องได้จริงจาก grades) — ห้องที่ครูกดเข้ามาจาก ?gradeId=... จะถูกติ๊กไว้ให้อัตโนมัติ เพิ่มห้องอื่นได้อีก =====
@@ -57,6 +89,8 @@ export default function WorkCreatePage() {
 
   // ===== attachments (ไฟล์/ลิงก์/youtube) เหมือน PostComposerModal =====
   const [attachments, setAttachments] = useState([]);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [chapterDialogOpen, setChapterDialogOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   // ===== มอบหมายให้ (multi-select นักเรียนจริง — กรองตามห้องที่เลือกไว้ผ่าน enroll) =====
@@ -103,7 +137,7 @@ export default function WorkCreatePage() {
   const canAssign = title.trim().length > 0 && selectedClassIds.length > 0;
 
   useEffect(() => {
-    fetch(`${API_URL}/chapter`, { method: "GET" })
+    fetch(`${API_BASE}/chapter`, { method: "GET" })
       .then(res => res.json())
       .then(data => {
         setChapters(data);
@@ -124,6 +158,9 @@ export default function WorkCreatePage() {
         const list = (data || []).map((c) => ({ ...c, id: c.id ?? c.grade_id ?? c.idgrade }));
         setClassesList(list);
 
+        // โหมดแก้ไข: ห้องที่เลือกไว้มาจากข้อมูลงานเดิม (เติมใน useEffect โหลดข้อมูลแก้ไขด้านล่าง) ไม่ใช้ ?gradeId= เดา
+        if (id) return;
+
         // ห้องที่ครูกดเข้ามาจาก ?gradeId=... ให้ติ๊กไว้อัตโนมัติ ไม่งั้น default เป็นห้องแรกในรายการ
         const gradeIdFromUrl = searchParams.get("gradeId");
         const matched = list.find((c) => String(c.id) === gradeIdFromUrl);
@@ -134,26 +171,52 @@ export default function WorkCreatePage() {
         }
       })
       .catch((err) => console.error("โหลดรายชื่อห้องเรียนไม่สำเร็จ:", err));
-  }, []);
+  }, [id, searchParams]);
+
+  // โหมดแก้ไข: โหลดข้อมูลงานเดิมมา prefill ฟอร์ม
+  useEffect(() => {
+    if (!id) return;
+    const loadForEdit = async () => {
+      try {
+        const [assignment, files, links] = await Promise.all([
+          getAssignmentById(id),
+          getAssignmentFiles(id).catch(() => []),
+          getAssignmentClasses({ ass_id: id }).catch(() => []),
+        ]);
+        setTitle(assignment.title || "");
+        setDesc(assignment.description || "");
+        setPoints(assignment.max_score ?? 100);
+        if (assignment.chapter_chapter_id) setChapter(assignment.chapter_chapter_id);
+        setWorkType(assignment.work_type || "individual");
+        setExistingFiles(files || []);
+        setSelectedClassIds((links || []).map((l) => l.grade_id));
+
+        if (assignment.deadline) {
+          const d = new Date(assignment.deadline);
+          setDueDate(dateToStr(d));
+          setDueTime(timeToStr(d));
+        }
+        if (assignment.scheduled_at) {
+          const d = new Date(assignment.scheduled_at);
+          setPostMode("scheduled");
+          setPostDate(dateToStr(d));
+          setPostTime(timeToStr(d));
+        }
+      } catch (err) {
+        console.error("โหลดข้อมูลงานเดิมไม่สำเร็จ:", err);
+        Swal.fire({ icon: "error", title: "โหลดข้อมูลงานไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
+      }
+    };
+    loadForEdit();
+  }, [id]);
 
   // ============ แนบลิงก์ (auto-detect youtube ตอน submit ไม่ต้องมีปุ่มแยก) ============
-  const attachLink = async () => {
-    const result = await Swal.fire({
-      title: "แนบลิงก์",
-      input: "text",
-      inputPlaceholder: "วาง URL ที่นี่... (วางลิงก์ YouTube ได้เลย)",
-      showCancelButton: true,
-      confirmButtonText: "แนบ",
-      cancelButtonText: "ยกเลิก",
-      confirmButtonColor: "#db2777",
-    });
-
-    if (!result.isConfirmed || !result.value) return;
-
+  const confirmAttachLink = (url) => {
     setAttachments((prev) => [
       ...prev.filter((a) => a.type !== "link"),
-      { id: Date.now(), type: "link", url: result.value },
+      { id: Date.now(), type: "link", url },
     ]);
+    setLinkDialogOpen(false);
   };
 
   // ============ อัปโหลดไฟล์จากเครื่อง (รูปภาพ/ไฟล์/วิดีโอ เลือกได้หลายไฟล์) ============
@@ -230,39 +293,17 @@ export default function WorkCreatePage() {
           .join(", ");
 
   // ============ เพิ่มหัวข้อใหม่ (ป็อปอัพธีมเดียวกับหน้าอื่น แทน prompt() ของเบราว์เซอร์) ============
-  const handleAddChapter = async () => {
-    const { value: formValues } = await Swal.fire({
-      title: "เพิ่มหัวข้อใหม่",
-      html:
-        '<input id="swal-chapter-title" class="swal2-input" placeholder="ชื่อหัวข้อ">' +
-        '<textarea id="swal-chapter-desc" class="swal2-textarea" placeholder="คำอธิบายหัวข้อ (ไม่บังคับ)"></textarea>',
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: "เพิ่มหัวข้อ",
-      cancelButtonText: "ยกเลิก",
-      confirmButtonColor: "#db2777",
-      preConfirm: () => {
-        const titleVal = document.getElementById("swal-chapter-title").value.trim();
-        const descVal = document.getElementById("swal-chapter-desc").value.trim();
-        if (!titleVal) {
-          Swal.showValidationMessage("กรอกชื่อหัวข้อก่อนนะคะ");
-          return false;
-        }
-        return { title: titleVal, description: descVal };
-      },
-    });
-
-    if (!formValues) return;
-
+  const confirmAddChapter = async ({ title: titleVal, description: descVal }) => {
     try {
-      const res = await fetch(`${API_URL}/chapter/chapter`, {
+      const res = await fetch(`${API_BASE}/chapter/chapter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
+        body: JSON.stringify({ title: titleVal, description: descVal }),
       });
       const newChapter = await res.json();
       setChapters((prev) => [newChapter, ...prev]);
       setChapter(newChapter.chapter_id);
+      setChapterDialogOpen(false);
     } catch (err) {
       console.error("เพิ่มหัวข้อไม่สำเร็จ:", err);
       Swal.fire({ icon: "error", title: "เพิ่มหัวข้อไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
@@ -297,7 +338,6 @@ export default function WorkCreatePage() {
       "assignees",
       JSON.stringify(assigneeMode === "all" ? [] : selectedStudentIds)
     );
-    // ⚠️ backend ยังไม่มีคอลัมน์นี้ ส่งไปเผื่อไว้ (เผื่อ backend อ่านแล้วเก็บ) แต่หลักยึดค่าจาก setWorkTypeLocal ด้านล่างเป็นความจริงตอนนี้
     formData.append("work_type", workType);
     if (link && isYoutubeLink) formData.append("youtube_url", link.url);
     if (link && !isYoutubeLink) formData.append("link_url", link.url);
@@ -308,24 +348,19 @@ export default function WorkCreatePage() {
     files.forEach((f) => formData.append("files", f));
 
     try {
-      // เปลี่ยนเป็น URL backend จริง + ส่ง cookie สำหรับ auth
-      const res = await fetch(`${API_URL}/assignment`, {
-        method: "POST",
-        body: formData,
-      });
+      if (id) {
+        await updateAssignment(id, formData);
+      } else {
+        // เปลี่ยนเป็น URL backend จริง + ส่ง cookie สำหรับ auth
+        const res = await fetch(`${API_BASE}/assignment`, {
+          method: "POST",
+          body: formData,
+        });
 
-      const text = await res.text();
-      console.log(res.status, text); // debug ดูว่าตอบอะไร
+        const text = await res.text();
+        console.log(res.status, text); // debug ดูว่าตอบอะไร
 
-      if (!res.ok) throw new Error(text || "ส่งงานไม่สำเร็จ");
-
-      // backend ยังไม่มีคอลัมน์ work_type ให้จำไว้ฝั่งนี้ก่อน หน้าให้คะแนนงานจะได้รู้ว่างานนี้เป็นงานเดี่ยวหรือกลุ่ม
-      try {
-        const created = JSON.parse(text);
-        const newAssId = created?.ass_id ?? created?.insertId ?? created?.id;
-        if (newAssId) setWorkTypeLocal(newAssId, workType);
-      } catch {
-        // เผื่อ backend ไม่ได้ตอบ JSON กลับมา ไม่ต้องพังทั้งฟอร์ม
+        if (!res.ok) throw new Error(text || "ส่งงานไม่สำเร็จ");
       }
 
       // ถ้าเปิดมาจากแท็บ "งานในชั้นเรียน" ของห้องใดห้องหนึ่ง (?gradeId=...) ก็กลับไปที่แท็บนั้นของห้องนั้น ไม่งั้นกลับไปหน้า /work แบบเดิม
@@ -333,7 +368,7 @@ export default function WorkCreatePage() {
       navigate(returnGradeId ? `/classroom/${returnGradeId}/work` : "/work");
     } catch (err) {
       console.error(err);
-      alert("เกิดข้อผิดพลาด: " + err.message);
+      Swal.fire({ icon: "error", title: id ? "บันทึกการแก้ไขไม่สำเร็จ" : "สร้างงานไม่สำเร็จ", text: err.message || "ลองใหม่อีกครั้ง" });
     }
   };
 
@@ -355,7 +390,7 @@ export default function WorkCreatePage() {
             <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
               <FaRegClipboard className="text-gray-700" />
             </div>
-            <div className="text-[18px] font-semibold text-gray-900">งาน</div>
+            <div className="text-[19.5px] font-semibold text-gray-900">{id ? "แก้ไขงาน" : "งาน"}</div>
           </div>
         </div>
 
@@ -364,11 +399,11 @@ export default function WorkCreatePage() {
             type="button"
             disabled={!canAssign}
             onClick={onAssign}
-            className={`h-11 px-6 rounded-full font-semibold text-sm transition-colors ${
-              canAssign ? "bg-pink-600 text-white hover:bg-pink-700" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            className={`h-11 px-6 rounded-xl font-semibold text-[16px] transition-colors ${
+              canAssign ? "bg-pink-500 text-white hover:bg-pink-600" : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >
-            มอบหมาย
+            {id ? "บันทึกการแก้ไข" : "มอบหมาย"}
           </button>
         </div>
       </header>
@@ -379,7 +414,7 @@ export default function WorkCreatePage() {
           {/* LEFT */}
           <div className="col-span-12 xl:col-span-9">
             <div className="rounded-2xl border border-gray-200 bg-white p-6">
-              <label className="block text-[13px] font-semibold text-pink-700">
+              <label className="block text-[14.5px] font-semibold text-pink-700">
                 ชื่อ<span className="text-red-500">*</span>
               </label>
 
@@ -389,7 +424,7 @@ export default function WorkCreatePage() {
                 className="mt-3 w-full h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 outline-none focus:border-pink-400"
               />
 
-              <div className="mt-3 text-[12px] text-gray-500">*จำเป็น</div>
+              <div className="mt-3 text-[13.5px] text-gray-500">*จำเป็น</div>
 
               <div className="mt-6 rounded-xl border border-gray-200 overflow-hidden">
                 <CKEditor
@@ -402,6 +437,26 @@ export default function WorkCreatePage() {
                   }}
                 />
               </div>
+
+              {existingFiles.length > 0 && (
+                <div className="mt-4">
+                  <div className="text-[14px] text-gray-500 mb-1.5">ไฟล์ที่แนบไว้เดิม</div>
+                  <div className="flex flex-col gap-2">
+                    {existingFiles.map((f, i) => (
+                      <a
+                        key={f.file_id ?? i}
+                        href={resolveFileUrl(API_BASE, f.file_path || f.file_url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 text-[16px] text-blue-600 hover:underline"
+                      >
+                        <FaPaperclip className="text-blue-500 shrink-0" />
+                        <span className="truncate">{f.file_name}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {attachments.length > 0 && (
                 <div className="mt-4 flex flex-col gap-3">
@@ -429,9 +484,9 @@ export default function WorkCreatePage() {
                         {item.type === "file" && !item.isVideo && <FaPaperclip className="text-blue-500 shrink-0" />}
 
                         {item.type === "file" ? (
-                          <span className="text-sm text-gray-700 truncate">{item.name}</span>
+                          <span className="text-[16px] text-gray-700 truncate">{item.name}</span>
                         ) : (
-                          <a href={item.url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline truncate">
+                          <a href={item.url} target="_blank" rel="noreferrer" className="text-[16px] text-blue-600 hover:underline truncate">
                             {item.url}
                           </a>
                         )}
@@ -455,11 +510,11 @@ export default function WorkCreatePage() {
             />
 
             <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
-              <div className="text-[14px] font-semibold text-gray-900">แนบ</div>
+              <div className="text-[16px] font-semibold text-gray-900">แนบ</div>
               <div className="mt-4 flex flex-wrap gap-6">
                 <AttachButton icon={<FaImage className="text-emerald-500" />} label="รูปภาพ" onClick={() => openFilePicker("image/*")} />
                 <AttachButton icon={<FaFileAlt className="text-blue-500" />} label="ไฟล์" onClick={() => openFilePicker(".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip")} />
-                <AttachButton icon={<FaLink className="text-purple-500" />} label="ลิงก์" onClick={attachLink} />
+                <AttachButton icon={<FaLink className="text-purple-500" />} label="ลิงก์" onClick={() => setLinkDialogOpen(true)} />
                 <AttachButton icon={<FaVideo className="text-red-500" />} label="วิดีโอ" onClick={() => openFilePicker("video/*")} />
               </div>
             </div>
@@ -468,21 +523,21 @@ export default function WorkCreatePage() {
           {/* RIGHT */}
           <div className="col-span-12 xl:col-span-3">
             <div className="rounded-2xl border border-gray-200 bg-white p-6">
-              <div className="text-[14px] font-semibold text-gray-900">ประเภทงาน</div>
+              <div className="text-[16px] font-semibold text-gray-900">ประเภทงาน</div>
               <div className="mt-3 flex flex-col gap-2">
                 <label className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer ${workType === "individual" ? "border-pink-400 bg-pink-50" : "border-gray-200 hover:bg-gray-50"}`}>
                   <input type="radio" name="workType" checked={workType === "individual"} onChange={() => setWorkType("individual")} className="accent-pink-500" />
-                  <span className="text-[14px] text-gray-800">งานเดี่ยว</span>
+                  <span className="text-[16px] text-gray-800">งานเดี่ยว</span>
                 </label>
                 <label className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer ${workType === "group" ? "border-pink-400 bg-pink-50" : "border-gray-200 hover:bg-gray-50"}`}>
                   <input type="radio" name="workType" checked={workType === "group"} onChange={() => setWorkType("group")} className="accent-pink-500" />
-                  <span className="text-[14px] text-gray-800">งานกลุ่ม</span>
+                  <span className="text-[16px] text-gray-800">งานกลุ่ม</span>
                 </label>
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl border border-gray-200 bg-white p-6">
-              <div className="text-[14px] font-semibold text-gray-900">สำหรับ</div>
+              <div className="text-[16px] font-semibold text-gray-900">สำหรับ</div>
               <ClassesPopover
                 open={classesOpen}
                 onOpenChange={setClassesOpen}
@@ -492,7 +547,7 @@ export default function WorkCreatePage() {
                 label={classesLabel}
               />
 
-              <div className="mt-6 text-[14px] font-semibold text-gray-900">มอบหมายให้</div>
+              <div className="mt-6 text-[16px] font-semibold text-gray-900">มอบหมายให้</div>
               <AssigneesPopover
                 open={assigneesOpen}
                 onOpenChange={setAssigneesOpen}
@@ -505,7 +560,7 @@ export default function WorkCreatePage() {
                 label={assigneesLabel}
               />
 
-              <div className="mt-6 text-[14px] font-semibold text-gray-900">คะแนน</div>
+              <div className="mt-6 text-[16px] font-semibold text-gray-900">คะแนน</div>
               <input
                 type="number"
                 min="0"
@@ -521,7 +576,7 @@ export default function WorkCreatePage() {
                     type="button"
                     onClick={() => setPoints(p)}
                     style={{ backgroundColor: "white" }}
-                    className={`h-8 px-3 rounded-full border text-[12px] transition-colors ${
+                    className={`h-8 px-3 rounded-full border text-[13.5px] transition-colors ${
                       points === p
                         ? "border-pink-400 bg-pink-50 text-pink-700 font-semibold"
                         : "border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -532,7 +587,7 @@ export default function WorkCreatePage() {
                 ))}
               </div>
 
-              <div className="mt-6 text-[14px] font-semibold text-gray-900">เวลาโพสต์</div>
+              <div className="mt-6 text-[16px] font-semibold text-gray-900">เวลาโพสต์</div>
               <PostTimePopover
                 open={postOpen}
                 onOpenChange={setPostOpen}
@@ -544,7 +599,7 @@ export default function WorkCreatePage() {
                 setPostTime={setPostTime}
               />
 
-              <div className="mt-6 text-[14px] font-semibold text-gray-900" >ครบกำหนด</div>
+              <div className="mt-6 text-[16px] font-semibold text-gray-900" >ครบกำหนด</div>
               <DueDatePopover
   open={dueOpen}
   onOpenChange={setDueOpen}
@@ -554,25 +609,23 @@ export default function WorkCreatePage() {
   setDueTime={setDueTime}
 />
 
-              <div className="mt-6 text-[14px] font-semibold text-gray-900">หัวข้อ</div>
+              <div className="mt-6 text-[16px] font-semibold text-gray-900">หัวข้อ</div>
 
-              <select
-                value={chapter || ''}
-                onChange={(e) => setChapter(e.target.value)}
-                className="mt-3 w-full h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 outline-none focus:border-pink-400"
-              >
-                {chapters.map((c) => (
-                  <option key={c.chapter_id} value={c.chapter_id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
+              <Select
+                className="mt-3"
+                styles={formSelectStyles}
+                value={chapters.map((c) => ({ value: c.chapter_id, label: c.title })).find((o) => String(o.value) === String(chapter)) || null}
+                onChange={(opt) => setChapter(opt.value)}
+                options={chapters.map((c) => ({ value: c.chapter_id, label: c.title }))}
+                placeholder="เลือกหัวข้อ"
+                isSearchable={false}
+              />
 
               <button
                 type="button"
                 style={{ backgroundColor: "#ffff" }}
-                onClick={handleAddChapter}
-                className="mt-2 w-full h-10 rounded-full border border-gray-300 bg-white hover:bg-gray-50 text-pink-700 font-semibold"
+                onClick={() => setChapterDialogOpen(true)}
+                className="mt-2 w-full h-10 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-pink-700 font-semibold"
               >
                 + เพิ่มหัวข้อใหม่
               </button>
@@ -580,6 +633,22 @@ export default function WorkCreatePage() {
           </div>
         </div>
       </div>
+
+      {linkDialogOpen && (
+        <PromptModal
+          title="แนบลิงก์"
+          icon={FaLink}
+          label="URL"
+          placeholder="วาง URL ที่นี่... (วางลิงก์ YouTube ได้เลย)"
+          confirmLabel="แนบ"
+          onConfirm={confirmAttachLink}
+          onClose={() => setLinkDialogOpen(false)}
+        />
+      )}
+
+      {chapterDialogOpen && (
+        <AddChapterDialog onConfirm={confirmAddChapter} onClose={() => setChapterDialogOpen(false)} />
+      )}
     </div>
   );
 }
@@ -587,162 +656,92 @@ export default function WorkCreatePage() {
 /* ===== DueDate Popover (Material-like) ===== */
 function DueDatePopover({ open, onOpenChange, dueDate, setDueDate, dueTime, setDueTime }) {
   const wrapRef = useRef(null);
-  const dateRef = useRef(null);
-  const timeRef = useRef(null);
+  const [mode, setMode] = useState(dueDate ? "scheduled" : "none");
 
-  const formatThaiLike = (yyyy_mm_dd) => {
-    if (!yyyy_mm_dd) return "";
-    const [y, m, d] = yyyy_mm_dd.split("-");
-    return `${d}/${m}/${y}`;
-  };
-
-  // click outside close
-  useMemo(() => {
+  useEffect(() => {
     const onDoc = (e) => {
       if (!wrapRef.current) return;
-      if (!wrapRef.current.contains(e.target)) onOpenChange(false);
+      if (!wrapRef.current.contains(e.target)) {
+        onOpenChange(false);
+      }
     };
     if (open) document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open, onOpenChange]);
 
-  const openNativeDatePicker = () => {
-    if (!dateRef.current) return;
-    // Chrome/Edge: เปิดปฏิทินจริง ๆ
-    if (typeof dateRef.current.showPicker === "function") {
-      dateRef.current.showPicker();
-    } else {
-      // fallback
-      dateRef.current.focus();
-      dateRef.current.click();
-    }
+  const chooseNone = () => {
+    setMode("none");
+    setDueDate("");
+    setDueTime("");
   };
 
   return (
     <div className="relative mt-3" ref={wrapRef}>
-      {/* trigger row (เหมือน dropdown) */}
       <button style={{backgroundColor: "white"}}
         type="button"
         onClick={() => onOpenChange(!open)}
         className="w-full h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 flex items-center justify-between hover:bg-gray-50"
       >
-        <span className="text-[13px] text-gray-700">
-          {dueDate ? `กำหนดแล้ว: ${formatThaiLike(dueDate)}${dueTime ? ` ${dueTime}` : ""}` : "ไม่มีวันครบกำหนด"}
+        <span className="text-[14.5px] text-gray-700">
+          {dueDate ? `กำหนดแล้ว: ${formatFullThaiDate(dueDate)}${dueTime ? ` ${formatThaiTimeLabel(dueTime)}` : ""}` : "ไม่มีวันครบกำหนด"}
         </span>
-        <FaChevronDown className="text-[12px] text-gray-400" />
+        <FaChevronDown className="text-[13.5px] text-gray-400" />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-3 w-[340px] rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] overflow-hidden z-50">
-          <div className="px-5 py-4 text-[14px] font-semibold text-gray-900">
-            วันที่และเวลาที่ครบกำหนด
+        <div className="absolute right-0 mt-3 w-[340px] rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] z-50">
+          <div className="p-3 border-b border-gray-100">
+            <button style={{backgroundColor: mode === "none" ? "" : "white"}}
+              type="button"
+              onClick={chooseNone}
+              className={`w-full text-left px-3 py-2 rounded-xl text-[16px] ${mode === "none" ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"}`}
+            >
+              ไม่มีวันครบกำหนด
+            </button>
+            <button style={{backgroundColor: mode === "scheduled" ? "" : "white"}}
+              type="button"
+              onClick={() => setMode("scheduled")}
+              className={`mt-1 w-full text-left px-3 py-2 rounded-xl text-[16px] ${mode === "scheduled" ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"}`}
+            >
+              ตั้งวันครบกำหนด
+            </button>
           </div>
-          <div className="border-t border-gray-200" />
 
-          <div className="p-5 space-y-4">
-            {/* Date field (หน้าตาแบบรูป) */}
-            <div>
-              <div className="rounded-xl bg-[#E9EEF6] px-4 py-3 relative">
-                <div className="text-[13px] font-semibold text-pink-700">วันที่ครบกำหนด</div>
+          {mode === "scheduled" && (
+            <div className="p-4 space-y-4">
+              <ThaiCalendarPicker value={dueDate} min={getTodayStr()} onChange={setDueDate} />
 
-                <div className="mt-1 text-[16px] text-gray-900">
-                  {dueDate ? formatThaiLike(dueDate) : "ไม่มีวันที่ครบกำหนด"}
-                </div>
-
-                {/* bottom accent line */}
-                <div className="absolute left-0 right-0 bottom-0 h-[3px] bg-pink-600 rounded-b-xl" />
-
-                {/* calendar icon */}
-                <button style={{backgroundColor: "white"}}
-                  type="button"
-                  onClick={openNativeDatePicker}
-                  title="เปิดปฏิทิน"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-gray-200/60 hover:bg-gray-200 flex items-center justify-center"
-                >
-                  <FaRegCalendarAlt className="text-gray-700" />
-                </button>
-
-                {/* real input (hidden but functional) */}
-                <input
-                  ref={dateRef}
-                  type="date"
-                  min={getTodayStr()}
-                  value={dueDate}
-                  onChange={(e) => {
-                    // กันเลือกวันย้อนหลัง (เผื่อพิมพ์เองข้าม min)
-                    if (e.target.value && e.target.value < getTodayStr()) {
-                      Swal.fire("เลือกวันย้อนหลังไม่ได้", "กรุณาเลือกวันนี้หรือวันในอนาคต", "warning");
-                      return;
-                    }
-                    setDueDate(e.target.value);
-                    // ถ้าเลือกวันแล้ว ยังไม่มีเวลา ให้เด้งไปเลือกเวลาได้
-                    setTimeout(() => timeRef.current?.focus(), 0);
-                  }}
-                  className="absolute opacity-0 pointer-events-none"
-                  tabIndex={-1}
+              <div>
+                <div className="text-[14.5px] font-semibold text-gray-900 mb-2">เวลา (ไม่บังคับ)</div>
+                <ThaiTimeField
+                  value={dueTime}
+                  onChange={setDueTime}
+                  min={dueDate === getTodayStr() ? getNowTimeStr() : undefined}
+                  disabled={!dueDate}
                 />
+                {!dueDate && <div className="mt-1 text-[12.5px] text-gray-500">เลือกวันก่อนถึงจะเลือกเวลาได้</div>}
               </div>
-
-              <div className="mt-2 text-[12px] text-gray-500">DD/MM/YYYY</div>
 
               {dueDate && (
                 <button style={{backgroundColor: "white"}}
                   type="button"
-                  onClick={() => {
-                    setDueDate("");
-                    setDueTime("");
-                  }}
-                  className="mt-2 text-[12px] text-gray-500 hover:text-gray-700 underline"
+                  onClick={chooseNone}
+                  className="text-[13.5px] text-gray-500 hover:text-gray-700 underline"
                 >
                   ล้างวันครบกำหนด
                 </button>
               )}
             </div>
+          )}
 
-            {/* Time field */}
-            <div>
-              <div className="text-[13px] font-semibold text-gray-900">เวลา (ไม่บังคับ)</div>
-              <input
-                ref={timeRef}
-                type="time"
-                min={dueDate === getTodayStr() ? getNowTimeStr() : undefined}
-                value={dueTime}
-                onChange={(e) => {
-                  // ถ้าเลือกวันที่เป็นวันนี้ ห้ามเลือกเวลาย้อนหลัง
-                  if (dueDate === getTodayStr() && e.target.value && e.target.value < getNowTimeStr()) {
-                    Swal.fire("เลือกเวลาย้อนหลังไม่ได้", "กรุณาเลือกเวลาปัจจุบันหรือหลังจากนี้", "warning");
-                    return;
-                  }
-                  setDueTime(e.target.value);
-                }}
-                disabled={!dueDate}
-                className={`mt-2 w-full h-12 rounded-xl border px-4 outline-none ${dueDate
-                    ? "border-gray-200 bg-gray-50 focus:border-pink-400"
-                    : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                  }`}
-              />
-              <div className="mt-1 text-[11px] text-gray-500">
-                เลือกวันก่อนถึงจะเลือกเวลาได้
-              </div>
-            </div>
-
-            {/* actions */}
-            <div className="flex justify-end gap-2 pt-1">
-              <button style={{backgroundColor: "white"}}
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="h-10 px-4 rounded-xl hover:bg-gray-100 text-gray-700 font-medium"
-              >
-                ปิด
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-semibold"
-              >
-                ตกลง
-              </button>
-            </div>
+          <div className="flex justify-end gap-2 p-3 pt-1">
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold"
+            >
+              ตกลง
+            </button>
           </div>
         </div>
       )}
@@ -779,7 +778,7 @@ function AssigneesPopover({
         type="button"
         style={{ backgroundColor: "#ffff" }}
         onClick={() => onOpenChange(!open)}
-        className="mt-3 w-full h-12 rounded-full border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center gap-3 text-pink-700 font-semibold"
+        className="mt-3 w-full h-12 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center gap-3 text-pink-700 font-semibold"
       >
         <FaUsers />
         {label}
@@ -792,7 +791,7 @@ function AssigneesPopover({
               type="button"
               style={{ backgroundColor: "white" }}
               onClick={() => setAssigneeMode("all")}
-              className={`w-full text-left px-3 py-2 rounded-xl text-sm ${
+              className={`w-full text-left px-3 py-2 rounded-xl text-[16px] ${
                 assigneeMode === "all" ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -802,7 +801,7 @@ function AssigneesPopover({
               type="button"
               style={{ backgroundColor: "white" }}
               onClick={() => setAssigneeMode("some")}
-              className={`mt-1 w-full text-left px-3 py-2 rounded-xl text-sm ${
+              className={`mt-1 w-full text-left px-3 py-2 rounded-xl text-[16px] ${
                 assigneeMode === "some" ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -813,13 +812,13 @@ function AssigneesPopover({
           {assigneeMode === "some" && (
             <div className="max-h-[280px] overflow-y-auto p-2">
               {students.length === 0 && (
-                <div className="px-3 py-4 text-sm text-gray-400 text-center">ไม่พบรายชื่อนักเรียน</div>
+                <div className="px-3 py-4 text-[16px] text-gray-400 text-center">ไม่พบรายชื่อนักเรียน</div>
               )}
 
               {students.map((s) => (
                 <label
                   key={s.user_id}
-                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer text-sm text-gray-700"
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer text-[16px] text-gray-700"
                 >
                   <input
                     type="checkbox"
@@ -837,7 +836,7 @@ function AssigneesPopover({
                     type="button"
                     style={{ backgroundColor: "white" }}
                     onClick={() => setSelectedStudentIds(students.map((s) => s.user_id))}
-                    className="text-xs text-blue-600 hover:underline"
+                    className="text-[13.5px] text-blue-600 hover:underline"
                   >
                     เลือกทั้งหมด
                   </button>
@@ -845,7 +844,7 @@ function AssigneesPopover({
                     type="button"
                     style={{ backgroundColor: "white" }}
                     onClick={() => setSelectedStudentIds([])}
-                    className="text-xs text-gray-400 hover:underline"
+                    className="text-[13.5px] text-gray-400 hover:underline"
                   >
                     ไม่เลือกเลย
                   </button>
@@ -880,31 +879,36 @@ function ClassesPopover({ open, onOpenChange, classesList, selectedClassIds, tog
         onClick={() => onOpenChange(!open)}
         className="w-full h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 flex items-center justify-between hover:bg-gray-50"
       >
-        <span className="text-[13px] text-gray-700 truncate text-left">{label}</span>
-        <FaChevronDown className="text-[12px] text-gray-400 shrink-0 ml-2" />
+        <span className="text-[14.5px] text-gray-700 truncate text-left">{label}</span>
+        <FaChevronDown className="text-[13.5px] text-gray-400 shrink-0 ml-2" />
       </button>
 
       {open && (
         <div className="absolute right-0 mt-2 w-[280px] rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] overflow-hidden z-50">
           <div className="max-h-[280px] overflow-y-auto p-2">
             {classesList.length === 0 && (
-              <div className="px-3 py-4 text-sm text-gray-400 text-center">ไม่พบห้องเรียน</div>
+              <div className="px-3 py-4 text-[16px] text-gray-400 text-center">ไม่พบห้องเรียน</div>
             )}
 
-            {classesList.map((c) => (
-              <label
-                key={c.id}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-50 cursor-pointer text-sm text-gray-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedClassIds.includes(c.id)}
-                  onChange={() => toggleClass(c.id)}
-                  className="w-4 h-4"
-                />
-                {gradeLabel(c)}
-              </label>
-            ))}
+            {classesList.map((c) => {
+              const checked = selectedClassIds.includes(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer text-[16px] ${
+                    checked ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleClass(c.id)}
+                    className="w-4 h-4 accent-pink-500"
+                  />
+                  {gradeLabel(c)}
+                </label>
+              );
+            })}
           </div>
         </div>
       )}
@@ -915,12 +919,6 @@ function ClassesPopover({ open, onOpenChange, classesList, selectedClassIds, tog
 /* ===== Post-time Popover (โพสต์ทันที หรือ ตั้งเวลาโพสต์ล่วงหน้า) ===== */
 function PostTimePopover({ open, onOpenChange, postMode, setPostMode, postDate, setPostDate, postTime, setPostTime }) {
   const wrapRef = useRef(null);
-
-  const formatThaiLike = (yyyy_mm_dd) => {
-    if (!yyyy_mm_dd) return "";
-    const [y, m, d] = yyyy_mm_dd.split("-");
-    return `${d}/${m}/${y}`;
-  };
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -935,7 +933,7 @@ function PostTimePopover({ open, onOpenChange, postMode, setPostMode, postDate, 
     postMode === "now"
       ? "โพสต์ทันที"
       : postDate
-        ? `ตั้งเวลา: ${formatThaiLike(postDate)}${postTime ? ` ${postTime}` : ""}`
+        ? `ตั้งเวลา: ${formatFullThaiDate(postDate)}${postTime ? ` ${formatThaiTimeLabel(postTime)}` : ""}`
         : "ตั้งเวลาโพสต์";
 
   return (
@@ -946,18 +944,18 @@ function PostTimePopover({ open, onOpenChange, postMode, setPostMode, postDate, 
         onClick={() => onOpenChange(!open)}
         className="w-full h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 flex items-center justify-between hover:bg-gray-50"
       >
-        <span className="text-[13px] text-gray-700">{label}</span>
-        <FaChevronDown className="text-[12px] text-gray-400" />
+        <span className="text-[14.5px] text-gray-700">{label}</span>
+        <FaChevronDown className="text-[13.5px] text-gray-400" />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[300px] rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] overflow-hidden z-50">
+        <div className="absolute right-0 mt-2 w-[300px] rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] z-50">
           <div className="p-3 border-b border-gray-100">
             <button
               type="button"
               style={{ backgroundColor: "white" }}
               onClick={() => setPostMode("now")}
-              className={`w-full text-left px-3 py-2 rounded-xl text-sm ${
+              className={`w-full text-left px-3 py-2 rounded-xl text-[16px] ${
                 postMode === "now" ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -967,7 +965,7 @@ function PostTimePopover({ open, onOpenChange, postMode, setPostMode, postDate, 
               type="button"
               style={{ backgroundColor: "white" }}
               onClick={() => setPostMode("scheduled")}
-              className={`mt-1 w-full text-left px-3 py-2 rounded-xl text-sm ${
+              className={`mt-1 w-full text-left px-3 py-2 rounded-xl text-[16px] ${
                 postMode === "scheduled" ? "bg-pink-50 text-pink-700 font-semibold" : "text-gray-700 hover:bg-gray-50"
               }`}
             >
@@ -976,44 +974,13 @@ function PostTimePopover({ open, onOpenChange, postMode, setPostMode, postDate, 
           </div>
 
           {postMode === "scheduled" && (
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-4">
               <div>
-                <div className="text-[13px] font-semibold text-gray-900">วันที่โพสต์</div>
-                <input
-                  type="date"
-                  min={getTodayStr()}
-                  value={postDate}
-                  onChange={(e) => {
-                    if (e.target.value && e.target.value < getTodayStr()) {
-                      Swal.fire("เลือกวันย้อนหลังไม่ได้", "กรุณาเลือกวันนี้หรือวันในอนาคต", "warning");
-                      return;
-                    }
-                    setPostDate(e.target.value);
-                  }}
-                  className="mt-2 w-full h-12 rounded-xl border border-gray-200 bg-gray-50 px-4 outline-none focus:border-pink-400"
-                />
+                <div className="text-[14.5px] font-semibold text-gray-900 mb-2">วันที่โพสต์</div>
+                <ThaiCalendarPicker value={postDate} min={getTodayStr()} onChange={setPostDate} />
               </div>
 
-              <div>
-                <div className="text-[13px] font-semibold text-gray-900">เวลาโพสต์</div>
-                <input
-                  type="time"
-                  min={postDate === getTodayStr() ? getNowTimeStr() : undefined}
-                  value={postTime}
-                  disabled={!postDate}
-                  onChange={(e) => {
-                    if (postDate === getTodayStr() && e.target.value && e.target.value < getNowTimeStr()) {
-                      Swal.fire("เลือกเวลาย้อนหลังไม่ได้", "กรุณาเลือกเวลาปัจจุบันหรือหลังจากนี้", "warning");
-                      return;
-                    }
-                    setPostTime(e.target.value);
-                  }}
-                  className={`mt-2 w-full h-12 rounded-xl border px-4 outline-none ${postDate
-                      ? "border-gray-200 bg-gray-50 focus:border-pink-400"
-                      : "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                    }`}
-                />
-              </div>
+              <PostTimeField postDate={postDate} postTime={postTime} setPostTime={setPostTime} />
             </div>
           )}
 
@@ -1021,13 +988,28 @@ function PostTimePopover({ open, onOpenChange, postMode, setPostMode, postDate, 
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-semibold"
+              className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold"
             >
               ตกลง
             </button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ===== ปุ่มเลือกเวลาโพสต์ (คลิกแล้วเปิดนาฬิกาไทยแบบ custom) ===== */
+function PostTimeField({ postDate, postTime, setPostTime }) {
+  return (
+    <div>
+      <div className="text-[14.5px] font-semibold text-gray-900 mb-2">เวลาโพสต์</div>
+      <ThaiTimeField
+        value={postTime}
+        onChange={setPostTime}
+        min={postDate === getTodayStr() ? getNowTimeStr() : undefined}
+        disabled={!postDate}
+      />
     </div>
   );
 }
@@ -1039,7 +1021,75 @@ function AttachButton({ icon, label, onClick }) {
       <div className="w-14 h-14 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center text-gray-700">
         {icon}
       </div>
-      <div className="text-[13px] text-gray-700">{label}</div>
+      <div className="text-[14.5px] text-gray-700">{label}</div>
     </button>
+  );
+}
+
+/* ===== เพิ่มหัวข้อใหม่ — ชื่อหัวข้อ (บังคับ) + คำอธิบาย (ไม่บังคับ) หน้าตาเข้าชุดกับ PromptModal ===== */
+function AddChapterDialog({ onConfirm, onClose }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const trimmed = title.trim();
+
+  const confirm = () => {
+    if (!trimmed) return;
+    onConfirm({ title: trimmed, description: description.trim() });
+  };
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative bg-white rounded-2xl shadow-2xl w-[440px] max-w-full overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-[17.5px] font-bold text-gray-900">เพิ่มหัวข้อใหม่</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 bg-transparent">
+            <FaTimes size={16} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5 flex flex-col gap-4">
+          <div>
+            <label className="block text-[14.5px] font-medium text-gray-700 mb-1.5">ชื่อหัวข้อ</label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="ชื่อหัวข้อ"
+              autoFocus
+              className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-4 text-[16.5px] outline-none focus:border-pink-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[14.5px] font-medium text-gray-700 mb-1.5">คำอธิบายหัวข้อ (ไม่บังคับ)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="คำอธิบายหัวข้อ (ไม่บังคับ)"
+              rows={3}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-[16.5px] leading-relaxed outline-none focus:border-pink-400 resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 h-11 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-[16px] font-medium"
+          >
+            ยกเลิก
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={!trimmed}
+            className="flex-1 h-11 rounded-xl bg-pink-500 hover:bg-pink-600 disabled:opacity-50 text-white text-[16px] font-semibold"
+          >
+            เพิ่มหัวข้อ
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

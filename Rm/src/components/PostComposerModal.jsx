@@ -12,6 +12,7 @@ import {
 import Select from "react-select";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+import PromptModal from "./PromptModal.jsx";
 
 const MAX_FILES = 10;
 const MAX_SIZE_MB = 10;
@@ -25,23 +26,11 @@ export default function PostComposerModal({
 
     const [attachments, setAttachments] = useState([]);
     const [removedFileIds, setRemovedFileIds] = useState([]);
+    const [linkDialogType, setLinkDialogType] = useState(null); // null | "youtube" | "link"
     const fileInputRef = useRef(null);
 
-    const attachLink = async (type) => {
-
-        const result = await Swal.fire({
-            title: type === "youtube" ? "แนบ YouTube" : "แนบลิงก์",
-            input: "text",
-            inputPlaceholder: "วาง URL ที่นี่...",
-            showCancelButton: true,
-            confirmButtonText: "แนบ",
-            cancelButtonText: "ยกเลิก"
-        });
-
-        if (!result.isConfirmed || !result.value) return;
-
-        const url = result.value;
-
+    const confirmAttachLink = (url) => {
+        const type = linkDialogType;
         setAttachments(prev => [
             // youtube/ลิงก์ แนบได้อย่างละ 1 อัน ถ้าแนบใหม่ให้แทนที่อันเดิม
             ...prev.filter(a => a.type !== type),
@@ -51,7 +40,7 @@ export default function PostComposerModal({
                 url: url
             }
         ]);
-
+        setLinkDialogType(null);
     };
 
     // ============ อัปโหลดไฟล์จากเครื่อง (เลือกได้หลายไฟล์พร้อมกัน) ============
@@ -344,7 +333,7 @@ export default function PostComposerModal({
                         <Attach
                             icon={<FaYoutube />}
                             label="YouTube"
-                            onClick={() => attachLink("youtube")}
+                            onClick={() => setLinkDialogType("youtube")}
                         />
 
                         <Attach icon={<FaUpload />} label="อัปโหลด" onClick={openFilePicker} />
@@ -352,7 +341,7 @@ export default function PostComposerModal({
                         <Attach
                             icon={<FaLink />}
                             label="ลิงก์"
-                            onClick={() => attachLink("link")}
+                            onClick={() => setLinkDialogType("link")}
                         />
 
                     </div>
@@ -403,6 +392,19 @@ className={`
                 </div>
 
             </div>
+
+            {linkDialogType && (
+                <PromptModal
+                    title={linkDialogType === "youtube" ? "แนบ YouTube" : "แนบลิงก์"}
+                    icon={linkDialogType === "youtube" ? FaYoutube : FaLink}
+                    iconColorClass={linkDialogType === "youtube" ? "text-red-500" : "text-purple-500"}
+                    label="URL"
+                    placeholder="วาง URL ที่นี่..."
+                    confirmLabel="แนบ"
+                    onConfirm={confirmAttachLink}
+                    onClose={() => setLinkDialogType(null)}
+                />
+            )}
 
         </div>
     );

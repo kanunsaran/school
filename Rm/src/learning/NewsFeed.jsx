@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
-import SidebarNav from "../nav.jsx";
+import TeacherSidebarNav from "../nav.jsx";
+import StudentSidebarNav from "../navstudent.jsx";
 import Header from "../Header";
-import { FaSearch, FaThumbtack, FaImage, FaPaperclip, FaVideo, FaLink } from "react-icons/fa";
+import FeedPostSkeleton from "../components/FeedPostSkeleton.jsx";
+import { FaSearch, FaThumbtack, FaImage, FaPaperclip, FaVideo, FaLink, FaYoutube, FaExclamationTriangle, FaRegCalendarAlt } from "react-icons/fa";
 import {
   createFeedPost,
   getFeedPosts,
   getFeedPostFiles,
   getFeedPostComments,
   createFeedPostComment,
+  updateFeedPostComment,
+  deleteFeedPostComment,
   getFeedPostLikes,
   toggleFeedPostLike,
   toggleFeedPostPin,
@@ -16,11 +20,15 @@ import {
   deleteFeedPost,
   uploadFeedPostFiles,
   deleteFeedPostFile,
+  getTeacherGeneralInfo,
+  getStudentGeneralInfo,
 } from "../callapi/callapi_user.jsx";
-import { FEED_CATEGORIES } from "./newsFeedMockData.js";
+import { getFilterOptions, loadFeedCategories } from "../utils/feedCategories.js";
 import FeedPostCard from "../components/FeedPostCard.jsx";
 import FeedPostComposerModal from "../components/FeedPostComposerModal.jsx";
 import ComposerIconButton from "../components/ComposerIconButton.jsx";
+import Avatar from "../components/Avatar.jsx";
+import useCurrentUserProfile from "../hooks/useCurrentUserProfile.js";
 import { CURRENT_USER_ID, CURRENT_TEACHER, getTodayStr, toDateOnlyStr } from "../utils/feedShared.js";
 
 const formatEventDate = (yyyy_mm_dd) => {
@@ -28,7 +36,20 @@ const formatEventDate = (yyyy_mm_dd) => {
   return { day: d.getDate(), month: d.toLocaleDateString("th-TH", { month: "short" }) };
 };
 
-export default function NewsFeedPage() {
+// รูปโปรไฟล์จริงของเจ้าของโพสต์/คอมเมนต์แต่ละคน (ไม่รู้ล่วงหน้าว่าเป็นครูหรือนักเรียน ลองทั้งสองตาราง)
+const fetchAvatarUrl = async (userId) => {
+  const teacherInfo = await getTeacherGeneralInfo(userId).catch(() => null);
+  if (teacherInfo?.avatar_url) return teacherInfo.avatar_url;
+  const studentInfo = await getStudentGeneralInfo(userId).catch(() => null);
+  return studentInfo?.avatar_url || null;
+};
+
+// ⚠️ TODO: ทดไว้ก่อน รอทำหน้า login ค่อยเอา user_id นักเรียนจริงมาแทน (ใช้ค่าเดียวกับที่ placeholder อื่นๆ ในฝั่งนักเรียนใช้)
+const CURRENT_STUDENT_ID = "1";
+
+export default function NewsFeedPage({ studentMode = false }) {
+  const { name: myName, avatarUrl: myAvatarUrl } = useCurrentUserProfile();
+  const viewerId = studentMode ? CURRENT_STUDENT_ID : CURRENT_USER_ID;
   const [posts, setPosts] = useState([]);
   const [likes, setLikes] = useState({}); // post_id -> { count, liked }
   const [loading, setLoading] = useState(true);
@@ -41,6 +62,7 @@ export default function NewsFeedPage() {
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [categoryOptions, setCategoryOptions] = useState(() => getFilterOptions());
 
   const postRefs = useRef({});
 
@@ -50,6 +72,7 @@ export default function NewsFeedPage() {
       setLoading(true);
       setLoadError(false);
       try {
+        loadFeedCategories().then(() => setCategoryOptions(getFilterOptions()));
         const raw = await getFeedPosts();
 
         const formatted = await Promise.all(
@@ -66,17 +89,19 @@ export default function NewsFeedPage() {
               const rawComments = await getFeedPostComments(p.post_id);
               comments = rawComments.map((c) => ({
                 comment_id: c.comment_id,
-                user: { name: c.author_name || "ผู้ใช้", avatar: `https://i.pravatar.cc/80?u=user-${c.user_id}` },
+                userId: c.user_id,
+                user: { name: c.author_name || "ผู้ใช้", avatar_url: null },
                 text: c.content,
                 time: c.created_at,
                 parent_comment_id: c.parent_comment_id || null,
+                edited: false,
               }));
             } catch (err) {
               console.error("โหลดคอมเมนต์ไม่สำเร็จ:", err);
             }
 
             try {
-              const likeData = await getFeedPostLikes(p.post_id, CURRENT_USER_ID);
+              const likeData = await getFeedPostLikes(p.post_id, viewerId);
               setLikes((prev) => ({ ...prev, [p.post_id]: likeData }));
             } catch (err) {
               console.error("โหลดไลก์ไม่สำเร็จ:", err);
@@ -85,8 +110,15 @@ export default function NewsFeedPage() {
             return {
               post_id: p.post_id,
               authorId: p.author_id,
-              author: { name: p.author_name || CURRENT_TEACHER.name, role: "ครูแนะแนว", avatar: `https://i.pravatar.cc/80?u=teacher-${p.author_id}` },
+              // avatar_url ใส่ทีหลังหลัง Promise.all นี้เสร็จ (ดึงรูปจริงของทุกคนที่เกี่ยวข้องทีเดียว ด้านล่าง)
+              author: {
+                name: p.author_name || CURRENT_TEACHER.name,
+                role: "ครูแนะแนว",
+                avatar_url: null,
+              },
               createdAt: p.created_at,
+              updatedAt: p.updated_at,
+              edited: !!(p.updated_at && p.updated_at !== p.created_at),
               pinned: !!p.pinned,
               category: p.category,
               eventDate: p.event_date,
@@ -95,10 +127,31 @@ export default function NewsFeedPage() {
               content: p.content,
               files,
               link: p.link_url ? { title: p.link_url, url: p.link_url } : null,
+              youtubeUrl: p.youtube_url || null,
               comments,
             };
           })
         );
+
+        // ดึงรูปโปรไฟล์จริงของทุกคนที่เกี่ยวข้อง (เจ้าของโพสต์ + คนคอมเมนต์) ทีเดียวหลังโหลดฟีดเสร็จ ไม่ต้องยิงทีละคนซ้ำๆ
+        // ห่อ try/catch แยกไว้ — ถ้าดึงรูปพลาดไม่ควรทำให้โพสต์ทั้งหน้าหายไปด้วย (แค่ไม่มีรูปแสดงเฉยๆ)
+        try {
+          const uniqueUserIds = new Set();
+          formatted.forEach((p) => {
+            uniqueUserIds.add(String(p.authorId));
+            p.comments.forEach((c) => uniqueUserIds.add(String(c.userId)));
+          });
+          const avatarEntries = await Promise.all(
+            [...uniqueUserIds].map(async (id) => [id, await fetchAvatarUrl(id)])
+          );
+          const avatarMap = Object.fromEntries(avatarEntries);
+          formatted.forEach((p) => {
+            p.author.avatar_url = avatarMap[String(p.authorId)] || null;
+            p.comments.forEach((c) => { c.user.avatar_url = avatarMap[String(c.userId)] || null; });
+          });
+        } catch (err) {
+          console.error("โหลดรูปโปรไฟล์เจ้าของโพสต์ไม่สำเร็จ:", err);
+        }
 
         setPosts(formatted);
       } catch (err) {
@@ -111,6 +164,11 @@ export default function NewsFeedPage() {
 
     fetchFeed();
   }, []);
+
+  // รีเฟรชรายการหมวดหมู่ตัวกรองทุกครั้งที่โพสต์เปลี่ยน เผื่อครูเพิ่งเพิ่มหมวดหมู่ใหม่ตอนโพสต์/แก้ไข
+  useEffect(() => {
+    setCategoryOptions(getFilterOptions());
+  }, [posts]);
 
   const filteredPosts = useMemo(() => {
     let list = posts;
@@ -162,6 +220,15 @@ export default function NewsFeedPage() {
     });
   };
 
+  // มาจากลิงก์ #post-<id> (เช่นกดชื่อโพสต์จากหน้ารายละเอียดรูปภาพกิจกรรม) ให้เลื่อนไปหาโพสต์นั้นอัตโนมัติ
+  useEffect(() => {
+    if (posts.length === 0) return;
+    const match = window.location.hash.match(/^#post-(.+)$/);
+    if (!match) return;
+    scrollToPost(match[1]);
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  }, [posts]);
+
   const toggleExpanded = (id) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -180,7 +247,7 @@ export default function NewsFeedPage() {
 
   const toggleLike = async (postId) => {
     try {
-      const res = await toggleFeedPostLike(postId, CURRENT_USER_ID);
+      const res = await toggleFeedPostLike(postId, viewerId);
       setLikes((prev) => ({ ...prev, [postId]: res }));
     } catch (err) {
       console.error("กดถูกใจไม่สำเร็จ:", err);
@@ -192,24 +259,72 @@ export default function NewsFeedPage() {
     const trimmed = (text || "").trim();
     if (!trimmed) return;
     try {
-      await createFeedPostComment({ post_id: postId, user_id: CURRENT_USER_ID, content: trimmed, parent_comment_id: parentCommentId });
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.post_id === postId
-            ? {
-                ...p,
-                comments: [
-                  ...p.comments,
-                  { comment_id: Date.now(), user: CURRENT_TEACHER, text: trimmed, time: new Date().toISOString(), parent_comment_id: parentCommentId },
-                ],
-              }
-            : p
-        )
-      );
+      await createFeedPostComment({ post_id: postId, user_id: viewerId, content: trimmed, parent_comment_id: parentCommentId });
+
+      if (studentMode) {
+        // ฝั่งนักเรียนยังไม่มีระบบล็อกอินจริง ไม่รู้ชื่อ-รูปนักเรียนที่แสดงผลล่วงหน้า จึงดึงคอมเมนต์ชุดล่าสุดจาก backend มาแทนการต่อข้อมูลจำลองเอง
+        try {
+          const rawComments = await getFeedPostComments(postId);
+          const freshComments = rawComments.map((c) => ({
+            comment_id: c.comment_id,
+            userId: c.user_id,
+            user: { name: c.author_name || "ผู้ใช้", avatar_url: null },
+            text: c.content,
+            time: c.created_at,
+            parent_comment_id: c.parent_comment_id || null,
+            edited: false,
+          }));
+          setPosts((prev) => prev.map((p) => (p.post_id === postId ? { ...p, comments: freshComments } : p)));
+        } catch (err) {
+          console.error("โหลดคอมเมนต์ใหม่ไม่สำเร็จ:", err);
+        }
+      } else {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.post_id === postId
+              ? {
+                  ...p,
+                  comments: [
+                    ...p.comments,
+                    { comment_id: Date.now(), userId: viewerId, user: { name: myName, avatar_url: myAvatarUrl }, text: trimmed, time: new Date().toISOString(), parent_comment_id: parentCommentId, edited: false },
+                  ],
+                }
+              : p
+          )
+        );
+      }
       setOpenCommentsIds((prev) => new Set(prev).add(postId));
     } catch (err) {
       console.error("แสดงความคิดเห็นไม่สำเร็จ:", err);
       Swal.fire("แสดงความคิดเห็นไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+    }
+  };
+
+  const editComment = async (postId, commentId, newText) => {
+    try {
+      await updateFeedPostComment(commentId, { user_id: viewerId, content: newText });
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.post_id === postId
+            ? { ...p, comments: p.comments.map((c) => (c.comment_id === commentId ? { ...c, text: newText, edited: true } : c)) }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error("แก้ไขความคิดเห็นไม่สำเร็จ:", err);
+      Swal.fire("แก้ไขความคิดเห็นไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+    }
+  };
+
+  const deleteCommentHandler = async (postId, commentId) => {
+    try {
+      await deleteFeedPostComment(commentId, viewerId);
+      setPosts((prev) =>
+        prev.map((p) => (p.post_id === postId ? { ...p, comments: p.comments.filter((c) => c.comment_id !== commentId) } : p))
+      );
+    } catch (err) {
+      console.error("ลบความคิดเห็นไม่สำเร็จ:", err);
+      Swal.fire("ลบความคิดเห็นไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
     }
   };
 
@@ -259,7 +374,7 @@ export default function NewsFeedPage() {
   };
 
   // สร้างโพสต์ + อัปโหลดไฟล์แนบในคำขอเดียว (feed-posts รองรับ multipart create+upload พร้อมกัน ต่างจาก news/announcement)
-  const createPost = async ({ title, content, category: chosenCategory, eventDate, eventEndDate, attachments }) => {
+  const createPost = async ({ title, content, category: chosenCategory, eventDate, eventEndDate, attachments, youtubeUrl }) => {
     try {
       const formData = new FormData();
       formData.append("author_id", CURRENT_USER_ID);
@@ -271,15 +386,16 @@ export default function NewsFeedPage() {
 
       const linkItem = attachments.find((a) => a.kind === "link");
       if (linkItem) formData.append("link_url", linkItem.url);
+      if (youtubeUrl) formData.append("youtube_url", youtubeUrl);
 
-      attachments.filter((a) => a.kind === "image" || a.kind === "file").forEach((a) => formData.append("files", a.file));
+      attachments.filter((a) => a.kind === "image" || a.kind === "video" || a.kind === "file").forEach((a) => formData.append("files", a.file));
 
       const res = await createFeedPost(formData);
 
       const newPost = {
         post_id: res.post_id,
         authorId: CURRENT_USER_ID,
-        author: CURRENT_TEACHER,
+        author: { name: myName, role: CURRENT_TEACHER.role, avatar_url: myAvatarUrl },
         createdAt: new Date().toISOString(),
         pinned: false,
         category: chosenCategory,
@@ -289,6 +405,7 @@ export default function NewsFeedPage() {
         content: res.content,
         files: res.files || [],
         link: res.link_url ? { title: res.link_url, url: res.link_url } : null,
+        youtubeUrl: res.youtube_url || youtubeUrl || null,
         comments: [],
       };
 
@@ -298,12 +415,12 @@ export default function NewsFeedPage() {
       Swal.fire({ icon: "success", title: "โพสต์แล้ว", timer: 1000, showConfirmButton: false });
     } catch (err) {
       console.error("โพสต์ไม่สำเร็จ:", err);
-      Swal.fire("โพสต์ไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+      Swal.fire("โพสต์ไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
     }
   };
 
   // แก้ไขโพสต์ตัวเอง — อัปเดตข้อความ + ลบไฟล์ที่เอาออก + อัปโหลดไฟล์ใหม่ที่เพิ่ม (เหมือน pattern ของ news.jsx)
-  const editPost = async (postId, { title, content, category: chosenCategory, eventDate, eventEndDate, attachments, removedFileIds }) => {
+  const editPost = async (postId, { title, content, category: chosenCategory, eventDate, eventEndDate, attachments, removedFileIds, youtubeUrl }) => {
     try {
       const linkItem = attachments.find((a) => a.kind === "link");
       await updateFeedPost(postId, {
@@ -313,6 +430,7 @@ export default function NewsFeedPage() {
         event_date: chosenCategory === "event" ? eventDate : null,
         event_end_date: chosenCategory === "event" ? eventEndDate || null : null,
         link_url: linkItem ? linkItem.url : null,
+        youtube_url: youtubeUrl || null,
       });
 
       for (const fileId of removedFileIds || []) {
@@ -323,7 +441,7 @@ export default function NewsFeedPage() {
         }
       }
 
-      const newFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "file") && a.file);
+      const newFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "video" || a.kind === "file") && a.file);
       if (newFileAttachments.length) {
         try {
           await uploadFeedPostFiles(postId, newFileAttachments.map((a) => a.file));
@@ -353,6 +471,9 @@ export default function NewsFeedPage() {
                 eventEndDate: chosenCategory === "event" ? eventEndDate || null : null,
                 files: freshFiles,
                 link: linkItem ? { title: linkItem.url, url: linkItem.url } : null,
+                youtubeUrl: youtubeUrl || null,
+                updatedAt: new Date().toISOString(),
+                edited: true,
               }
             : p
         )
@@ -363,51 +484,51 @@ export default function NewsFeedPage() {
       Swal.fire({ icon: "success", title: "บันทึกการแก้ไขแล้ว", timer: 1000, showConfirmButton: false });
     } catch (err) {
       console.error("แก้ไขโพสต์ไม่สำเร็จ:", err);
-      Swal.fire("แก้ไขไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+      Swal.fire("แก้ไขไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
     }
   };
 
   const handleModalConfirm = (payload) => (editingPost ? editPost(editingPost.post_id, payload) : createPost(payload));
 
   return (
-    <div className="min-h-screen w-full bg-white flex text-[14px] text-gray-800">
+    <div className="min-h-screen w-full bg-white flex text-[16px] text-gray-800">
       <Header />
-      <SidebarNav />
+      {studentMode ? <StudentSidebarNav /> : <TeacherSidebarNav />}
 
       <main className="flex-1 min-w-0 px-8 pt-24 pb-16">
         {/* ===== Header ===== */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-extrabold text-gray-900">กิจกรรม</h1>
+          <h1 className="page-title">กิจกรรม</h1>
 
           <div className="flex items-center gap-2">
             <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[15px]" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="ค้นหาข่าว..."
-                className="h-11 w-64 rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-[14px] outline-none focus:border-pink-400"
+                className="h-11 w-64 rounded-xl border border-gray-200 bg-white pl-9 pr-3 text-[16px] outline-none focus:border-pink-400"
               />
             </div>
           </div>
         </div>
 
         {loadError && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[13px]">
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[15px]">
             โหลดข่าวสารไม่สำเร็จ — ตรวจสอบว่า backend เปิด endpoint <code>/feed-posts</code> แล้วหรือยัง
           </div>
         )}
 
         {/* ===== Category chips ===== */}
         <div className="flex flex-wrap gap-2 mb-6">
-          {FEED_CATEGORIES.map((c) => (
+          {categoryOptions.map((c) => (
             <button
               key={c.key}
               type="button"
               onClick={() => setCategory(c.key)}
-              className={`h-9 px-4 rounded-full border text-[13px] font-medium transition-colors ${
+              className={`h-9 px-4 rounded-full border text-[15px] font-medium transition-colors ${
                 category === c.key
-                  ? "bg-pink-600 border-pink-600 text-white"
+                  ? "bg-pink-500 border-pink-500 text-white"
                   : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -420,38 +541,41 @@ export default function NewsFeedPage() {
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6 items-start">
           {/* ---- Center feed ---- */}
           <div className="flex flex-col gap-5 min-w-0">
-            {/* Composer — คลิกที่ช่องพิมพ์ปุ๊บ เด้ง modal ใหญ่ขึ้นมาให้กรอกทันที เหมือนกดโพสต์บน Facebook */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="flex items-center gap-3">
-                <img src={CURRENT_TEACHER.avatar} className="w-10 h-10 rounded-full shrink-0" />
-                <button
-                  type="button"
-                  onClick={() => setPostModalOpen(true)}
-                  className="flex-1 h-11 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 text-left text-[14px] text-gray-400"
-                >
-                  ต้องการประกาศอะไรให้นักเรียนทราบ?
-                </button>
-              </div>
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-center gap-1">
-                  <ComposerIconButton icon={<FaImage className="text-emerald-500" />} label="รูป" onClick={() => setPostModalOpen(true)} />
-                  <ComposerIconButton icon={<FaPaperclip className="text-blue-500" />} label="ไฟล์" onClick={() => setPostModalOpen(true)} />
-                  <ComposerIconButton icon={<FaVideo className="text-red-500" />} label="วิดีโอ" onClick={() => setPostModalOpen(true)} />
-                  <ComposerIconButton icon={<FaLink className="text-purple-500" />} label="ลิงก์" onClick={() => setPostModalOpen(true)} />
+            {/* Composer — ฝั่งนักเรียนดูได้อย่างเดียว ไม่มีสิทธิ์โพสต์ */}
+            {!studentMode && (
+              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3">
+                  <Avatar src={myAvatarUrl} name={myName} size={48} />
+                  <button
+                    type="button"
+                    onClick={() => setPostModalOpen(true)}
+                    className="flex-1 h-11 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 text-left text-[17px] text-gray-400"
+                  >
+                    ต้องการประกาศอะไรให้นักเรียนทราบ?
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPostModalOpen(true)}
-                  className="h-10 px-5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-[13px] font-semibold"
-                >
-                  โพสต์
-                </button>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-1">
+                    <ComposerIconButton icon={<FaImage className="text-emerald-500" />} label="รูป" onClick={() => setPostModalOpen(true)} />
+                    <ComposerIconButton icon={<FaPaperclip className="text-blue-500" />} label="ไฟล์" onClick={() => setPostModalOpen(true)} />
+                    <ComposerIconButton icon={<FaVideo className="text-red-500" />} label="วิดีโอ" onClick={() => setPostModalOpen(true)} />
+                    <ComposerIconButton icon={<FaLink className="text-purple-500" />} label="ลิงก์" onClick={() => setPostModalOpen(true)} />
+                    <ComposerIconButton icon={<FaYoutube className="text-red-500" />} label="YouTube" onClick={() => setPostModalOpen(true)} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPostModalOpen(true)}
+                    className="h-10 px-5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold"
+                  >
+                    โพสต์
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Feed */}
             {loading && (
-              <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-gray-400">กำลังโหลด...</div>
+              <FeedPostSkeleton />
             )}
 
             {!loading && filteredPosts.length === 0 && (
@@ -465,7 +589,8 @@ export default function NewsFeedPage() {
                 <FeedPostCard
                   key={post.post_id}
                   post={post}
-                  isOwner={String(post.authorId) === CURRENT_USER_ID}
+                  isOwner={!studentMode && String(post.authorId) === CURRENT_USER_ID}
+                  hideMenu={studentMode}
                   innerRef={(el) => { postRefs.current[post.post_id] = el; }}
                   expanded={expandedIds.has(post.post_id)}
                   onToggleExpand={() => toggleExpanded(post.post_id)}
@@ -483,6 +608,9 @@ export default function NewsFeedPage() {
                   onTogglePin={() => togglePin(post.post_id)}
                   onEdit={() => openEditModal(post)}
                   onDelete={() => deletePost(post.post_id)}
+                  currentUserId={viewerId}
+                  onEditComment={(commentId, text) => editComment(post.post_id, commentId, text)}
+                  onDeleteComment={(commentId) => deleteCommentHandler(post.post_id, commentId)}
                 />
               ))}
           </div>
@@ -490,12 +618,12 @@ export default function NewsFeedPage() {
           {/* ---- Right sidebar ---- */}
           <div className="hidden xl:flex flex-col gap-6">
             {/* ปักหมุด — ย้ายมาไว้บนสุด ให้เห็นก่อนอย่างอื่น */}
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-              <div className="text-[14px] font-semibold text-amber-800 mb-4 flex items-center gap-2">
-                <FaThumbtack className="text-amber-600" /> ปักหมุด
+            <div className="rounded-2xl border border-purple-200 bg-purple-50/60 p-5">
+              <div className="text-[16px] font-semibold text-purple-800 mb-4 flex items-center gap-2">
+                <FaThumbtack className="text-purple-600" /> ปักหมุด
               </div>
               {pinnedPosts.length === 0 ? (
-                <div className="text-[13px] text-amber-700/70">ยังไม่มีข่าวปักหมุด</div>
+                <div className="text-[15px] text-purple-700/70">ยังไม่มีข่าวปักหมุด</div>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {pinnedPosts.map((p) => (
@@ -503,7 +631,7 @@ export default function NewsFeedPage() {
                       key={p.post_id}
                       type="button"
                       onClick={() => scrollToPost(p.post_id)}
-                      className="text-[13px] text-amber-900 hover:underline cursor-pointer truncate text-left bg-transparent"
+                      className="text-[15px] text-purple-900 hover:underline cursor-pointer truncate text-left bg-transparent"
                     >
                       {p.title}
                     </button>
@@ -514,11 +642,11 @@ export default function NewsFeedPage() {
 
             {/* ประกาศด่วน — โพสต์หมวด "ด่วน" เอาไว้เหนือปฏิทินกิจกรรม เตือนให้เห็นก่อน */}
             <div className="rounded-2xl border border-red-200 bg-red-50/60 p-5">
-              <div className="text-[14px] font-semibold text-red-700 mb-4 flex items-center gap-2">
-                🚨 ประกาศด่วน
+              <div className="text-[16px] font-semibold text-red-700 mb-4 flex items-center gap-2">
+                <FaExclamationTriangle size={14} /> ประกาศด่วน
               </div>
               {urgentPosts.length === 0 ? (
-                <div className="text-[13px] text-red-700/70">ยังไม่มีประกาศด่วน</div>
+                <div className="text-[15px] text-red-700/70">ยังไม่มีประกาศด่วน</div>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {urgentPosts.map((p) => (
@@ -526,7 +654,7 @@ export default function NewsFeedPage() {
                       key={p.post_id}
                       type="button"
                       onClick={() => scrollToPost(p.post_id)}
-                      className="text-[13px] text-red-700 hover:underline cursor-pointer truncate text-left bg-transparent font-medium"
+                      className="text-[15px] text-red-700 hover:underline cursor-pointer truncate text-left bg-transparent font-medium"
                     >
                       {p.title}
                     </button>
@@ -536,12 +664,12 @@ export default function NewsFeedPage() {
             </div>
 
             {/* ปฏิทินกิจกรรม — ดึงจากโพสต์หมวดกิจกรรมจริงที่ยังไม่ผ่านวันจัดงาน */}
-            <div className="rounded-2xl border border-pink-200 bg-pink-50/60 p-5">
-              <div className="text-[14px] font-semibold text-pink-800 mb-4 flex items-center gap-2">
-                📅 ปฏิทินกิจกรรม
+            <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-5">
+              <div className="text-[16px] font-semibold text-sky-800 mb-4 flex items-center gap-2">
+                <FaRegCalendarAlt size={14} /> ปฏิทินกิจกรรม
               </div>
               {upcomingEvents.length === 0 ? (
-                <div className="text-[13px] text-pink-700/70">ยังไม่มีกิจกรรมที่จะถึง</div>
+                <div className="text-[15px] text-sky-700/70">ยังไม่มีกิจกรรมที่จะถึง</div>
               ) : (
                 <div className="flex flex-col gap-3">
                   {upcomingEvents.map((ev) => {
@@ -553,11 +681,11 @@ export default function NewsFeedPage() {
                         onClick={() => scrollToPost(ev.post_id)}
                         className="flex items-center gap-3 text-left bg-transparent"
                       >
-                        <div className="w-12 h-12 rounded-xl bg-white border border-pink-200 flex flex-col items-center justify-center shrink-0">
-                          <span className="text-[15px] font-bold text-pink-700 leading-none">{day}</span>
-                          <span className="text-[10px] text-pink-500 leading-none mt-1">{month}</span>
+                        <div className="w-13 h-13 rounded-xl bg-white border border-sky-200 flex flex-col items-center justify-center shrink-0">
+                          <span className="text-[17px] font-bold text-sky-700 leading-none">{day}</span>
+                          <span className="text-[12px] text-sky-500 leading-none mt-1">{month}</span>
                         </div>
-                        <div className="text-[13px] text-gray-700 leading-snug hover:underline truncate">{ev.label}</div>
+                        <div className="text-[15px] text-gray-700 leading-snug hover:underline truncate">{ev.label}</div>
                       </button>
                     );
                   })}
@@ -567,9 +695,9 @@ export default function NewsFeedPage() {
 
             {/* ประกาศล่าสุด */}
             <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="text-[14px] font-semibold text-gray-900 mb-4">ประกาศล่าสุด</div>
+              <div className="text-[16px] font-semibold text-gray-900 mb-4">ประกาศล่าสุด</div>
               {recentPosts.length === 0 ? (
-                <div className="text-[13px] text-gray-400">ยังไม่มีประกาศ</div>
+                <div className="text-[15px] text-gray-400">ยังไม่มีประกาศ</div>
               ) : (
                 <div className="flex flex-col gap-2.5">
                   {recentPosts.map((p) => (
@@ -577,7 +705,7 @@ export default function NewsFeedPage() {
                       key={p.post_id}
                       type="button"
                       onClick={() => scrollToPost(p.post_id)}
-                      className="flex items-start gap-2 text-[13px] text-gray-600 hover:text-gray-900 text-left bg-transparent"
+                      className="flex items-start gap-2 text-[15px] text-gray-600 hover:text-gray-900 text-left bg-transparent"
                     >
                       <span className="text-pink-400 mt-0.5 shrink-0">•</span>
                       <span className="truncate">{p.title}</span>

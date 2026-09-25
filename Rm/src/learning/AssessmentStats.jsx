@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Select from "react-select";
 import {
   FaUserFriends, FaClipboardCheck, FaBullseye, FaClipboardList, FaEdit, FaPen, FaRocket, FaCopy, FaTrash,
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
-import { getStudent, getEnrollments, getClasses, getTypeResults, getTypes, getGoals } from "../callapi/callapi_user.jsx";
+import { getStudent, getEnrollments, getClasses, getTypeResults, getTypes, getGoals, getFaculties, getAssessmentsList } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
-import { getAssessments, getActivityLog } from "../utils/assessmentStore.js";
+import { getActivityLog } from "../utils/assessmentStore.js";
+import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+import PageLoading from "../components/PageLoading.jsx";
 
-const DONUT_COLORS = ["#db2777", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
+const DONUT_COLORS = ["#ec4899", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
 
 const ACTIVITY_META = {
   create: { icon: FaEdit, cls: "bg-blue-50 text-blue-600", verb: "สร้างแบบประเมินใหม่" },
@@ -30,20 +33,24 @@ export default function AssessmentStatsPage() {
   const [allTypeResults, setAllTypeResults] = useState([]);
   const [types, setTypes] = useState([]);
   const [allGoals, setAllGoals] = useState([]);
+  const [faculties, setFaculties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roomFilter, setRoomFilter] = useState("");
+  const [customAssessments, setCustomAssessments] = useState([]);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [studentData, enrollData, gradeData, typeResultData, typeData, goalData] = await Promise.all([
+        const [studentData, enrollData, gradeData, typeResultData, typeData, goalData, facultyData, assessmentData] = await Promise.all([
           getStudent().catch(() => []),
           getEnrollments().catch(() => []),
           getClasses().catch(() => []),
           getTypeResults().catch(() => []),
           getTypes().catch(() => []),
           getGoals().catch(() => []),
+          getFaculties().catch(() => []),
+          getAssessmentsList().catch(() => []),
         ]);
         // กรองเฉพาะแถวของ "นักเรียน" จริง — ตาราง user_type_result/goal ผูกกับ user_user_id รวมทุก role
         // (พบว่ามีข้อมูลทดสอบของบัญชีครูปนอยู่) ไม่กรองแล้วตัวเลขจะไม่ตรงกับการ์ดสรุปด้านบนที่นับเฉพาะนักเรียน
@@ -54,6 +61,8 @@ export default function AssessmentStatsPage() {
         setAllTypeResults((typeResultData || []).filter((r) => studentIds.has(String(r.user_user_id))));
         setTypes(typeData || []);
         setAllGoals((goalData || []).filter((g) => studentIds.has(String(g.user_user_id))));
+        setFaculties(facultyData || []);
+        setCustomAssessments(assessmentData || []);
       } finally {
         setLoading(false);
       }
@@ -61,7 +70,6 @@ export default function AssessmentStatsPage() {
     load();
   }, []);
 
-  const customAssessments = getAssessments();
   const activityLog = getActivityLog();
 
   const gradeByUserId = useMemo(() => {
@@ -72,7 +80,12 @@ export default function AssessmentStatsPage() {
     return map;
   }, [enrollments]);
 
-  // กรองทุกอย่างในหน้านี้ตามห้องที่เลือก (ถ้าเลือก) — ใช้ enroll จริงเป็นตัวกรอง
+  // กรองทุกอย่างในหน้านี้ตามห้องที่เลือก (ถ้าเลือก) — ใช้ enroll จริงเป็นตัวกรอง — "ทั้งหมด" อยู่ตัวแรกเสมอ (value ว่าง = ภาพรวมทั้งโรงเรียน)
+  const roomSelectOptions = useMemo(
+    () => [{ value: "", label: "ทั้งหมด" }, ...classesList.map((c) => ({ value: String(c.id), label: gradeLabel(c) }))],
+    [classesList]
+  );
+
   const students = useMemo(
     () => (roomFilter ? allStudents.filter((s) => String(gradeByUserId.get(String(s.user_id))) === String(roomFilter)) : allStudents),
     [allStudents, gradeByUserId, roomFilter]
@@ -100,23 +113,6 @@ export default function AssessmentStatsPage() {
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "th"));
   }, [students, gradeByUserId, classesList]);
-
-  // อัตราทำแบบประเมินแยกตามระดับชั้น
-  const completionByLevel = useMemo(() => {
-    const map = new Map(); // level -> {total, completed}
-    students.forEach((s) => {
-      const gid = gradeByUserId.get(String(s.user_id));
-      const grade = classesList.find((c) => String(c.id) === String(gid));
-      const level = grade ? `ม.${grade.grade_name}` : "ไม่ระบุชั้น";
-      const entry = map.get(level) || { total: 0, completed: 0 };
-      entry.total += 1;
-      if (completedUserIds.has(String(s.user_id))) entry.completed += 1;
-      map.set(level, entry);
-    });
-    return Array.from(map.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], "th"))
-      .map(([level, v]) => ({ level, ...v, pct: v.total > 0 ? Math.round((v.completed / v.total) * 100) : 0 }));
-  }, [students, gradeByUserId, classesList, completedUserIds]);
 
   // สัดส่วนกลุ่มบุคลิกภาพ (dynamic ตาม type จริงที่มีอยู่ ไม่ใช่ RIASEC ตายตัว เพราะระบบยังมีแค่ type ไม่ครบ 6 มิติ)
   const typeBreakdown = useMemo(() => {
@@ -149,6 +145,32 @@ export default function AssessmentStatsPage() {
       .map(([name, count]) => ({ name, count, pct: Math.round((count / total) * 100) }));
   }, [goals]);
 
+  // ความสอดคล้องระหว่างผลประเมิน (RIASEC) กับเป้าหมายคณะที่ตั้งไว้ — เทียบ type_type_id ของนักเรียนกับ faculty.Type_type_id จริง
+  // goal.faculty_name เป็นข้อความที่นักเรียนพิมพ์เอง ไม่ตรงกับชื่อคณะในตาราง faculty เป๊ะเสมอไป จึงจับคู่แบบ "ชื่อคล้ายกัน" (substring)
+  // คนที่จับคู่ชื่อคณะไม่ได้เลยจะไม่นับในสถิตินี้ (ไม่ใช่ "ไม่สอดคล้อง" เพราะไม่รู้ข้อมูลจริง)
+  const alignment = useMemo(() => {
+    const findFacultyType = (goalFacultyName) => {
+      const needle = (goalFacultyName || "").trim();
+      if (!needle) return null;
+      const exact = faculties.find((f) => f.faculty_name === needle);
+      if (exact) return exact.Type_type_id;
+      const fuzzy = faculties.find((f) => f.faculty_name.includes(needle) || needle.includes(f.faculty_name));
+      return fuzzy ? fuzzy.Type_type_id : null;
+    };
+
+    let aligned = 0, notAligned = 0, unmatched = 0;
+    goals.forEach((g) => {
+      const typeRow = typeResults.find((r) => String(r.user_user_id) === String(g.user_user_id));
+      if (!typeRow || !typeRow.type_type_id) return; // ยังไม่ได้ทำแบบประเมิน ไม่นับ
+      const facultyType = findFacultyType(g.faculty_name);
+      if (facultyType == null) { unmatched += 1; return; }
+      if (String(facultyType) === String(typeRow.type_type_id)) aligned += 1;
+      else notAligned += 1;
+    });
+    const total = aligned + notAligned;
+    return { aligned, notAligned, unmatched, pct: total > 0 ? Math.round((aligned / total) * 100) : 0, total };
+  }, [goals, typeResults, faculties]);
+
   const notDoneList = useMemo(
     () => students.filter((s) => !completedUserIds.has(String(s.user_id))).slice(0, 5),
     [students, completedUserIds]
@@ -169,6 +191,10 @@ export default function AssessmentStatsPage() {
 
   const maxFacultyCount = Math.max(...facultyInterest.map((f) => f.count), 1);
 
+  const completedPct = totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0;
+  const latestActivity = activityLog[0];
+  const olderActivityCount = Math.max(0, activityLog.length - 1);
+
   return (
     <div className="min-h-screen bg-white flex text-gray-900">
       <Header />
@@ -177,66 +203,66 @@ export default function AssessmentStatsPage() {
       <main className="flex-1 min-w-0 w-full px-6 md:px-8 pt-24 pb-10 bg-white">
         <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
           <div>
-            <h1 className="text-[22px] font-bold text-gray-900">สถิติภาพรวม</h1>
-            <p className="text-[13px] text-gray-500 mt-1">ภาพรวมข้อมูลการทำแบบประเมินทั้งหมด</p>
+            <h1 className="page-title">สถิติการทำแบบประเมิน</h1>
+            <p className="page-subtitle mt-1">ภาพรวมข้อมูลการทำแบบประเมินทั้งหมด</p>
+            <span className="block w-10 h-1 rounded-full bg-pink-500 mt-2.5" />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[12.5px] text-gray-500">ห้องเรียน</span>
-            <select
-              value={roomFilter}
-              onChange={(e) => setRoomFilter(e.target.value)}
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-[13px] outline-none focus:border-pink-400"
-            >
-              <option value="">ทุกห้อง</option>
-              {classesList.map((c) => <option key={c.id} value={c.id}>{gradeLabel(c)}</option>)}
-            </select>
-          </div>
+          <Select
+            styles={bigFilterSelectStyles}
+            className="w-52"
+            value={roomSelectOptions.find((o) => o.value === String(roomFilter))}
+            onChange={(opt) => setRoomFilter(opt.value)}
+            options={roomSelectOptions}
+            isSearchable={false}
+          />
         </div>
 
         {loading ? (
-          <div className="text-center text-gray-400 py-16">กำลังโหลด...</div>
+          <PageLoading />
         ) : (
           <>
             {/* ===== Stat cards ===== */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <StatCard
-                icon={FaUserFriends} iconCls="bg-blue-50 text-blue-600" label="นักเรียนทั้งหมด" value={`${totalStudents} คน`}
+                icon={FaUserFriends} cardCls="bg-pink-50" iconCls="bg-pink-100 text-pink-600" label="นักเรียนทั้งหมด" value={`${totalStudents} คน`}
                 sub={levelBreakdown.map(([l, c]) => `${l} ${c}`).join(" · ")}
               />
               <StatCard
-                icon={FaClipboardCheck} iconCls="bg-emerald-50 text-emerald-600" label="ทำแบบประเมินแล้ว" value={`${completedCount} คน`}
-                sub={`${totalStudents > 0 ? Math.round((completedCount / totalStudents) * 100) : 0}% จากทั้งหมด`}
+                icon={FaClipboardCheck} cardCls="bg-emerald-50" iconCls="bg-emerald-100 text-emerald-600" label="ทำแบบประเมินแล้ว" value={`${completedCount} คน`}
+                sub={`${completedPct}% จากทั้งหมด`}
               />
               <StatCard
-                icon={FaBullseye} iconCls="bg-purple-50 text-purple-600" label="ตั้งเป้าหมายศึกษาต่อแล้ว" value={`${goalCount} คน`}
+                icon={FaBullseye} cardCls="bg-purple-50" iconCls="bg-purple-100 text-purple-600" label="ตั้งเป้าหมายศึกษาต่อแล้ว" value={`${goalCount} คน`}
                 sub={`${totalStudents > 0 ? Math.round((goalCount / totalStudents) * 100) : 0}% จากทั้งหมด`}
               />
               <StatCard
-                icon={FaClipboardList} iconCls="bg-pink-50 text-pink-600" label="แบบประเมินที่เปิดใช้งาน" value={`${activeAssessmentCount} แบบ`}
-                sub="รวมแบบประเมินประจำระบบ"
+                icon={FaClipboardList} cardCls="bg-amber-50" iconCls="bg-amber-100 text-amber-600" label="แบบประเมินที่เปิดใช้งาน" value={`${activeAssessmentCount} แบบ`}
+                sub="รวมแบบประเมินในระบบ"
               />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
               {/* โดนัท กลุ่มบุคลิกภาพ */}
               <div className="rounded-2xl border border-gray-200 p-5">
-                <div className="text-[14px] font-semibold text-gray-900 mb-1">สัดส่วนกลุ่มบุคลิกภาพของนักเรียนที่ทำแบบประเมินแล้ว</div>
-                <div className="text-[12px] text-gray-400 mb-5">จากผลแบบประเมิน Holland Code จริง {typeResults.length} คน</div>
+                <div className="text-[15.5px] font-semibold text-gray-900 mb-1">สัดส่วนกลุ่มบุคลิกภาพของนักเรียนที่ทำแบบประเมินแล้ว</div>
+                <div className="text-[13.5px] text-gray-400 mb-5">จากผลแบบประเมิน Holland Code จริง {typeResults.length} คน</div>
                 {typeBreakdown.length === 0 ? (
-                  <div className="text-center text-gray-400 py-10 text-[13px]">ยังไม่มีนักเรียนทำแบบประเมิน</div>
+                  <div className="text-center text-gray-400 py-10 text-[14.5px]">ยังไม่มีนักเรียนทำแบบประเมิน</div>
                 ) : (
                   <div className="flex items-center gap-8 flex-wrap">
                     <div className="w-40 h-40 rounded-full shrink-0 ring-4 ring-white shadow-sm relative flex items-center justify-center" style={{ background: `conic-gradient(${donutStops})` }}>
                       <div className="w-24 h-24 rounded-full bg-white flex flex-col items-center justify-center">
-                        <div className="text-[18px] font-bold text-gray-900">{typeResults.length}</div>
-                        <div className="text-[10.5px] text-gray-400">คน</div>
+                        <div className="text-[19.5px] font-bold text-gray-900">{typeResults.length}</div>
+                        <div className="text-[12px] text-gray-400">คน</div>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2.5">
                       {typeBreakdown.map((t) => (
-                        <div key={t.label} className="flex items-center gap-2 text-[12.5px] text-gray-700">
+                        <div key={t.label} className="flex items-center gap-2.5 text-[14px] text-gray-700">
                           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
-                          {t.label} · <span className="font-semibold">{t.count} คน</span> ({t.pct}%)
+                          <span className="min-w-0">{t.label}</span>
+                          <span className="font-semibold shrink-0">{t.count} คน</span>
+                          <span className="text-gray-400 shrink-0">({t.pct}%)</span>
                         </div>
                       ))}
                     </div>
@@ -246,19 +272,19 @@ export default function AssessmentStatsPage() {
 
               {/* บาร์ คณะที่สนใจ */}
               <div className="rounded-2xl border border-gray-200 p-5">
-                <div className="text-[14px] font-semibold text-gray-900 mb-1">คณะที่นักเรียนสนใจมากที่สุด (Top 10)</div>
-                <div className="text-[12px] text-gray-400 mb-5">จากเป้าหมายการศึกษาต่อที่นักเรียนตั้งไว้จริง</div>
+                <div className="text-[15.5px] font-semibold text-gray-900 mb-1">คณะที่นักเรียนสนใจมากที่สุด (Top 10)</div>
+                <div className="text-[13.5px] text-gray-400 mb-5">จากเป้าหมายการศึกษาต่อที่นักเรียนตั้งไว้จริง</div>
                 {facultyInterest.length === 0 ? (
-                  <div className="text-center text-gray-400 py-10 text-[13px]">ยังไม่มีนักเรียนตั้งเป้าหมาย</div>
+                  <div className="text-center text-gray-400 py-10 text-[14.5px]">ยังไม่มีนักเรียนตั้งเป้าหมาย</div>
                 ) : (
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-3">
                     {facultyInterest.map((f) => (
                       <div key={f.name} className="flex items-center gap-3">
-                        <div className="w-32 text-[12px] text-gray-600 truncate shrink-0" title={f.name}>{f.name}</div>
-                        <div className="flex-1 h-4 rounded-full bg-gray-100 overflow-hidden">
-                          <div className="h-full rounded-full bg-pink-400" style={{ width: `${(f.count / maxFacultyCount) * 100}%` }} />
+                        <div className="w-32 text-[13.5px] text-gray-600 truncate shrink-0" title={f.name}>{f.name}</div>
+                        <div className="flex-1 h-3.5 rounded-full bg-pink-50 overflow-hidden">
+                          <div className="h-full rounded-full bg-pink-500" style={{ width: `${Math.max(4, (f.count / maxFacultyCount) * 100)}%` }} />
                         </div>
-                        <div className="text-[11.5px] text-gray-500 w-20 shrink-0 text-right">{f.count} คน ({f.pct}%)</div>
+                        <div className="text-[13px] text-gray-500 w-24 shrink-0 text-right">{f.count} คน ({f.pct}%)</div>
                       </div>
                     ))}
                   </div>
@@ -266,86 +292,120 @@ export default function AssessmentStatsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_1.1fr] gap-5">
-              {/* บาร์ อัตราทำแบบประเมินแยกตามชั้น */}
+            <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_1fr_1.1fr] gap-5">
+              {/* ความสอดคล้องระหว่างผลประเมิน (RIASEC) กับเป้าหมายคณะ */}
               <div className="rounded-2xl border border-gray-200 p-5">
-                <div className="text-[13.5px] font-semibold text-gray-900 mb-4">อัตราการทำแบบประเมินแยกตามระดับชั้น</div>
-                {completionByLevel.length === 0 ? (
-                  <div className="text-center text-gray-400 py-6 text-[13px]">ไม่มีข้อมูล</div>
+                <div className="text-[15px] font-semibold text-gray-900 mb-1">ความสอดคล้องระหว่างผลประเมินกับเป้าหมาย</div>
+                <div className="text-[13.5px] text-gray-400 mb-4">เทียบกลุ่มบุคลิกภาพกับคณะที่ตั้งเป้าหมายไว้ (จับคู่จากชื่อคณะ)</div>
+
+                {alignment.total === 0 ? (
+                  <div className="text-center text-gray-400 py-6 text-[14.5px]">ยังไม่มีข้อมูลที่จับคู่ได้พอจะสรุป</div>
                 ) : (
-                  <div className="flex items-end gap-3" style={{ height: 150 }}>
-                    {completionByLevel.map((lv) => (
-                      <div key={lv.level} className="flex flex-col items-center gap-2 flex-1">
-                        <div className="text-[11px] text-gray-500 font-medium">{lv.pct}%</div>
-                        <div className="w-full rounded-t-lg bg-gray-100 flex flex-col-reverse overflow-hidden" style={{ height: 90 }}>
-                          <div className="bg-pink-400" style={{ height: `${lv.pct}%` }} />
-                        </div>
-                        <div className="text-[11px] text-gray-500">{lv.level}</div>
-                        <div className="text-[10px] text-gray-400">{lv.completed}/{lv.total}</div>
+                  <>
+                    <div className="text-[30px] font-bold text-gray-900">{alignment.pct}%</div>
+                    <div className="h-3 rounded-full bg-gray-100 overflow-hidden mt-2 mb-4">
+                      <div className="h-full rounded-full bg-pink-500" style={{ width: `${alignment.pct}%` }} />
+                    </div>
+                    <div className="flex flex-col gap-2 text-[14px]">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-pink-500 shrink-0" /> สอดคล้อง</span>
+                        <span className="font-semibold text-gray-800">{alignment.aligned} คน</span>
                       </div>
-                    ))}
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 shrink-0" /> ไม่สอดคล้อง</span>
+                        <span className="font-semibold text-gray-800">{alignment.notAligned} คน</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {alignment.unmatched > 0 && (
+                  <div className="text-[12.5px] text-gray-400 mt-3">
+                    ไม่รวมนักเรียน {alignment.unmatched} คนที่ตั้งเป้าหมายไว้ แต่จับคู่ชื่อคณะกับข้อมูลกลุ่มบุคลิกภาพไม่ได้
                   </div>
                 )}
               </div>
 
               {/* โดนัท สถานะการทำแบบประเมิน */}
               <div className="rounded-2xl border border-gray-200 p-5">
-                <div className="text-[13.5px] font-semibold text-gray-900 mb-4">สถานะการทำแบบประเมิน</div>
+                <div className="text-[15px] font-semibold text-gray-900 mb-4">สถานะการทำแบบประเมิน</div>
                 <div className="flex items-center gap-6 justify-center">
                   <div
                     className="w-28 h-28 rounded-full shrink-0 relative flex items-center justify-center"
-                    style={{ background: `conic-gradient(#10b981 0% ${totalStudents > 0 ? (completedCount / totalStudents) * 100 : 0}%, #fca5a5 ${totalStudents > 0 ? (completedCount / totalStudents) * 100 : 0}% 100%)` }}
+                    style={{ background: `conic-gradient(#ec4899 0% ${completedPct}%, #e5e7eb ${completedPct}% 100%)` }}
                   >
-                    <div className="w-16 h-16 rounded-full bg-white flex flex-col items-center justify-center">
-                      <div className="text-[14px] font-bold text-gray-900">{totalStudents}</div>
-                      <div className="text-[9.5px] text-gray-400">คน</div>
+                    <div className="rounded-full bg-white flex flex-col items-center justify-center" style={{ width: 84, height: 84 }}>
+                      <div className="text-[15.5px] font-bold text-gray-900">{totalStudents}</div>
+                      <div className="text-[10.5px] text-gray-400">คน</div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 text-[12px]">
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> ทำแล้ว {completedCount} คน</div>
-                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-300" /> ยังไม่ได้ทำ {totalStudents - completedCount} คน</div>
+                  <div className="flex flex-col gap-2.5 text-[13.5px]">
+                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-pink-500 shrink-0" /> ทำแล้ว {completedCount} คน <span className="text-gray-400">({completedPct}%)</span></div>
+                    <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 shrink-0" /> ยังไม่ได้ทำ {totalStudents - completedCount} คน <span className="text-gray-400">({100 - completedPct}%)</span></div>
                   </div>
                 </div>
               </div>
 
-              {/* รายชื่อยังไม่ได้ทำ + กิจกรรมล่าสุด */}
-              <div className="flex flex-col gap-5">
-                <div className="rounded-2xl border border-gray-200 p-5">
-                  <div className="text-[13.5px] font-semibold text-gray-900 mb-3">นักเรียนที่ยังไม่ได้ทำแบบประเมิน</div>
-                  {notDoneList.length === 0 ? (
-                    <div className="text-[12.5px] text-gray-400">ทำครบทุกคนแล้ว</div>
-                  ) : (
-                    <div className="flex flex-col gap-2 mb-3">
-                      {notDoneList.map((s) => (
-                        <div key={s.user_id} className="text-[12.5px] text-gray-700 truncate">{s.fullname}</div>
-                      ))}
+              {/* รายชื่อยังไม่ได้ทำ */}
+              <div className="rounded-2xl border border-gray-200 p-5">
+                <div className="text-[15px] font-semibold text-gray-900 mb-3">นักเรียนที่ยังไม่ได้ทำแบบประเมิน</div>
+                {notDoneList.length === 0 ? (
+                  <div className="text-[14px] text-gray-400">ทำครบทุกคนแล้ว</div>
+                ) : (
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="w-10 h-10 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center shrink-0">
+                      <FaUserFriends size={16} />
+                    </span>
+                    <div className="flex flex-col gap-2.5 flex-1 min-w-0">
+                      {notDoneList.map((s) => {
+                        const gid = gradeByUserId.get(String(s.user_id));
+                        const grade = classesList.find((c) => String(c.id) === String(gid));
+                        return (
+                          <div key={s.user_id} className="flex items-center justify-between gap-2 text-[14px]">
+                            <span className="text-gray-700 truncate">{s.fullname}</span>
+                            <span className="text-gray-400 shrink-0">{grade ? `ม.${gradeLabel(grade)}` : ""}</span>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                  <button type="button" onClick={() => navigate("/assessments/results")} className="text-[12px] text-pink-600 hover:underline bg-transparent">ดูรายชื่อทั้งหมด →</button>
-                </div>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate("/assessments/results")}
+                  className="h-9 px-4 rounded-xl bg-pink-50 text-pink-600 text-[14px] font-semibold hover:bg-pink-100"
+                >
+                  ดูรายชื่อทั้งหมด →
+                </button>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-gray-200 p-5 mt-5">
-              <div className="text-[13.5px] font-semibold text-gray-900 mb-3">กิจกรรมล่าสุดในระบบแบบประเมิน</div>
-              {activityLog.length === 0 ? (
-                <div className="text-[12.5px] text-gray-400">ยังไม่มีการใช้งาน</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2.5">
-                  {activityLog.slice(0, 6).map((entry) => {
-                    const meta = ACTIVITY_META[entry.action] || ACTIVITY_META.edit;
-                    return (
-                      <div key={entry.id} className="flex items-center gap-2.5">
-                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${meta.cls}`}><meta.icon size={11} /></span>
-                        <div className="min-w-0 text-[12.5px]">
-                          <span className="text-gray-700">{meta.verb}</span> <span className="text-gray-500">{entry.title}</span>
-                          <span className="text-gray-300"> · {formatDateTime(entry.at)}</span>
+            <div className="rounded-2xl border border-pink-100 bg-pink-50/40 p-5 mt-5 flex items-center justify-between gap-4 flex-wrap">
+              {latestActivity ? (
+                (() => {
+                  const meta = ACTIVITY_META[latestActivity.action] || ACTIVITY_META.edit;
+                  return (
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${meta.cls}`}><meta.icon size={17} /></span>
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-semibold text-gray-900">กิจกรรมล่าสุดในระบบแบบประเมิน</div>
+                        <div className="text-[14px] text-gray-600 truncate">
+                          {meta.verb} <span className="text-gray-500">{latestActivity.title}</span>
+                          <span className="text-gray-400"> · {formatDateTime(latestActivity.at)}</span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="text-[14.5px] text-gray-400">ยังไม่มีการใช้งาน</div>
               )}
+              <button
+                type="button"
+                onClick={() => navigate("/assessments")}
+                className="h-9 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[14px] font-semibold shrink-0"
+              >
+                ดูประวัติกิจกรรมทั้งหมด{olderActivityCount > 0 ? ` (${olderActivityCount})` : ""} →
+              </button>
             </div>
           </>
         )}
@@ -354,17 +414,17 @@ export default function AssessmentStatsPage() {
   );
 }
 
-function StatCard({ icon, iconCls, label, value, sub }) {
+function StatCard({ icon, cardCls, iconCls, label, value, sub }) {
   const Comp = icon;
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 flex items-start gap-3">
-      <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconCls}`}>
-        <Comp size={16} />
+    <div className={`relative overflow-hidden rounded-2xl p-4 flex items-start gap-3 ${cardCls}`}>
+      <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${iconCls}`}>
+        <Comp size={17} />
       </span>
       <div className="min-w-0">
-        <div className="text-[12px] text-gray-500 truncate">{label}</div>
-        <div className="text-[19px] font-bold text-gray-900">{value}</div>
-        <div className="text-[11px] text-gray-400 truncate">{sub}</div>
+        <div className="text-[13.5px] text-gray-600 truncate">{label}</div>
+        <div className="text-[21.5px] font-bold text-gray-900">{value}</div>
+        <div className="text-[12.5px] text-gray-500 truncate">{sub}</div>
       </div>
     </div>
   );

@@ -1,11 +1,11 @@
-import { API_URL } from "./config.js";
 import { useState } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { FcGoogle } from "react-icons/fc";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
-import Cookies from "js-cookie";
+import { saveSession } from "./utils/auth.js";
+import { API_BASE_URL } from "./config/api.js";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -14,18 +14,31 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    // ฟังก์ชันสำหรับส่ง User ไปยังหน้าที่ถูกต้องตามสิทธิ์ (Role)
+    // ฟังก์ชันสำหรับส่ง User ไปยังหน้าที่ถูกต้องตามสิทธิ์ (Role) — ครูไปหน้าหลักครู นักเรียนไปหน้าหลักนักเรียน
+    // (หน้านักเรียนจะเช็คต่อเองว่ากรอกข้อมูลทั่วไป /studentinfo ครบหรือยัง ถ้ายังจะเด้งไปกรอกให้อัตโนมัติ)
     const redirectByRole = (role) => {
-    if (role === "teacher") navigate("/post");
-    else if (role === "student") navigate("/StudentNews");
-};
+        if (role === "teacher") navigate("/TeacherDashboard");
+        else navigate("/");
+    };
+
+    // เก็บ session ไว้ให้หน้าอื่นๆ ทั่วแอปอ่าน user จริงได้ (แทนค่า user ปลอมแบบตายตัวที่เคยใช้)
+    // backend ส่ง id/user_id/fullname/email มาแล้ว (ยืนยันแล้วว่า /auth/login คืน user_id ถูกต้อง)
+    const storeSession = (data, email) => {
+        saveSession({
+            token: data.token,
+            role: data.role,
+            user_id: data.user_id ?? data.id ?? null,
+            name: data.fullname ?? data.name ?? null,
+            email: data.email ?? email ?? null,
+        });
+    };
 
     // ── 1. Email/Password Login ─────────────────────────────
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch(`${API_URL}/auth/login`, {
+            const res = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
@@ -33,13 +46,12 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (res.ok) {
-                // เก็บ Token ใน Cookie (หมดอายุใน 1 วัน)
-                Cookies.set("token", data.token, { expires: 1 });
+                storeSession(data, email);
                 redirectByRole(data.role);
             } else {
                 alert(data.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
             }
-        } catch (error) {
+        } catch {
             alert("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
         } finally {
             setLoading(false);
@@ -59,7 +71,7 @@ export default function LoginPage() {
                 const googleUser = await googleRes.json();
 
                 // ส่งข้อมูลไปให้ Backend (อ้างอิงจากไฟล์ auth.routes.js ของคุณ)
-                const res = await fetch(`${API_URL}/auth/google`, {
+                const res = await fetch(`${API_BASE_URL}/auth/google`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -71,12 +83,12 @@ export default function LoginPage() {
                 const data = await res.json();
 
                 if (res.ok) {
-                    Cookies.set("token", data.token, { expires: 1 });
+                    storeSession(data, googleUser.email);
                     redirectByRole(data.role);
                 } else {
                     alert(data.message || "Google Login failed");
                 }
-            } catch (error) {
+            } catch {
                 alert("เกิดข้อผิดพลาดในการเชื่อมต่อ Google");
             } finally {
                 setLoading(false);
@@ -89,7 +101,7 @@ export default function LoginPage() {
         <div
             className="min-h-screen w-full relative px-6 flex items-center justify-center font-sans"
             style={{
-                backgroundImage: "url('/image/head.png')",
+                backgroundImage: "url('/image/school.png')",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
             }}
@@ -97,8 +109,8 @@ export default function LoginPage() {
             <div className="absolute inset-0 bg-black/50" />
 
             {/* Logo */}
-            <div className="absolute top-6 left-6 z-20">
-                <img src="/image/logo2.png" alt="School Logo" className="h-14 w-auto object-contain drop-shadow-md" />
+            <div className="absolute top-2 left-6 z-20">
+                <img src="/image/logo3.png" alt="School Logo" className="h-35 w-auto object-contain drop-shadow-md" />
             </div>
 
             {/* Login Card */}
@@ -164,7 +176,7 @@ export default function LoginPage() {
         w-full h-11
         !rounded-xl
         !bg-pink-500
-        hover:!bg-pink-600
+        hover:!bg-pink-500
         !text-white
         shadow-[0_8px_20px_-10px_rgba(236,72,153,0.8)]
         transition-all duration-300

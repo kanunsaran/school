@@ -13,10 +13,13 @@ import {
   FaVideo,
   FaPaperclip,
   FaLink,
+  FaYoutube,
 } from "react-icons/fa";
 import FeedPostCard from "../components/FeedPostCard.jsx";
+import PageLoading from "../components/PageLoading.jsx";
 import FeedPostComposerModal from "../components/FeedPostComposerModal.jsx";
 import ComposerIconButton from "../components/ComposerIconButton.jsx";
+import Avatar from "../components/Avatar.jsx";
 import {
   createNews,
   getNews,
@@ -24,6 +27,8 @@ import {
   deleteNews,
   getNewsComments,
   createNewComment,
+  updateComment,
+  deleteComment,
   getNewsLikes,
   toggleNewsLike,
   uploadNewsFiles,
@@ -31,17 +36,13 @@ import {
   deleteNewsFile,
   getAssAll,
 } from "../callapi/callapi_user.jsx";
-import { CURRENT_USER_ID, CURRENT_TEACHER } from "../utils/feedShared.js";
+import { CURRENT_USER_ID } from "../utils/feedShared.js";
+import useCurrentUserProfile from "../hooks/useCurrentUserProfile.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
 
-const AVATAR_COLORS = ["bg-pink-400", "bg-blue-400", "bg-emerald-400", "bg-amber-400", "bg-purple-400", "bg-cyan-400"];
-const avatarColorFor = (seed) => AVATAR_COLORS[seed % AVATAR_COLORS.length];
-
-// ตัดคำนำหน้าชื่อไทย (นาย/นางสาว/เด็กชาย/เด็กหญิง) ออกก่อน เอาตัวอักษรแรกของ "ชื่อจริง" มาทำ avatar ไม่งั้นจะได้ "น" ซ้ำกันหมด
-const initialOf = (fullname = "") => {
-  const stripped = fullname.replace(/^(นางสาว|เด็กหญิง|เด็กชาย|นาย|นาง)\s*/u, "");
-  return (stripped || fullname || "?").trim().charAt(0);
-};
+// เดาว่าเนื้อหาเป็น HTML จาก rich text editor เดิมหรือ plain text จาก composer ใหม่ (แยกไม่ได้จาก field เดียว
+// แต่ CKEditor ห่อด้วย <p>/<div> เสมอ ส่วน textarea ธรรมดาแทบไม่มีทางขึ้นต้นด้วย tag แบบนั้น)
+const looksLikeHtml = (content = "") => /^\s*<[a-z]/i.test(content);
 
 // เหลืออีกกี่วันถึงกำหนดส่ง เอาไว้ทำ badge "เหลืออีก X วัน" สีแดง
 const daysUntil = (dateStr) => {
@@ -50,16 +51,12 @@ const daysUntil = (dateStr) => {
   return Math.ceil((target.setHours(23, 59, 59, 999) - now.getTime()) / 86400000);
 };
 
-// เดาว่าเนื้อหาเป็น HTML จาก rich text editor เดิมหรือ plain text จาก composer ใหม่ (แยกไม่ได้จาก field เดียว
-// แต่ CKEditor ห่อด้วย <p>/<div> เสมอ ส่วน textarea ธรรมดาแทบไม่มีทางขึ้นต้นด้วย tag แบบนั้น)
-const looksLikeHtml = (content = "") => /^\s*<[a-z]/i.test(content);
-
 // แปลงแถว news จาก backend ให้เป็น shape เดียวกับที่ FeedPostCard (ใช้ร่วมกับ /newsfeed) ต้องการ
 // ไม่มี category/pinned/eventDate เพราะตาราง news ไม่มีแนวคิดนี้ — ส่ง showCategory/showPin={false} ให้การ์ดซ่อนส่วนนั้นไปเลย
-const normalizePost = (n, comments, files) => ({
+const normalizePost = (n, comments, files, authorProfile) => ({
   post_id: n.news_id,
   authorId: n.user_id,
-  author: { name: CURRENT_TEACHER.name, role: "ครูแนะแนว", avatar: `https://i.pravatar.cc/80?u=teacher-${n.user_id}` },
+  author: { name: authorProfile.name, role: "ครูแนะแนว", avatar_url: authorProfile.avatarUrl },
   createdAt: n.created_at,
   pinned: false,
   category: null,
@@ -77,17 +74,20 @@ const normalizePost = (n, comments, files) => ({
 const normalizeComments = (raw = []) =>
   raw.map((c) => ({
     comment_id: c.comment_id,
-    user: { name: c.author_name || "ผู้ใช้", avatar: `https://i.pravatar.cc/80?u=user-${c.user_id}` },
+    userId: c.user_id,
+    user: { name: c.author_name || "ผู้ใช้", avatar_url: null },
     text: c.content,
     time: c.created_at,
     parent_comment_id: c.parent_comment_id || null,
+    edited: false,
   }));
 
 // แท็บ "ข่าวสาร" — ดึงจากตาราง news เดียวกับหน้า /news แต่กรองเฉพาะ class_id ของห้องนี้เท่านั้น
 // (คนละตารางกับ /newsfeed ที่ใช้ feed_posts สำหรับข่าว/กิจกรรมทั้งโรงเรียน — ใช้แจ้งเรื่องเฉพาะห้อง เช่น "วันนี้งดเรียน" "ย้ายห้องเรียน")
 export default function ClassroomNewsTab() {
-  const { classInfo, gradeId, members } = useOutletContext();
   const navigate = useNavigate();
+  const { classInfo, gradeId, members } = useOutletContext();
+  const { name: myName, avatarUrl: myAvatarUrl } = useCurrentUserProfile();
 
   const [postModalOpen, setPostModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
@@ -134,7 +134,7 @@ export default function ClassroomNewsTab() {
               console.error("โหลดไฟล์แนบไม่สำเร็จ:", err);
             }
 
-            return normalizePost(n, comments, files);
+            return normalizePost(n, comments, files, { name: myName, avatarUrl: myAvatarUrl });
           })
         );
 
@@ -202,7 +202,7 @@ export default function ClassroomNewsTab() {
                 ...p,
                 comments: [
                   ...p.comments,
-                  { comment_id: result.comment_id, user: CURRENT_TEACHER, text: trimmed, time: new Date().toISOString(), parent_comment_id: parentCommentId },
+                  { comment_id: result.comment_id, userId: CURRENT_USER_ID, user: { name: myName, avatar_url: myAvatarUrl }, text: trimmed, time: new Date().toISOString(), parent_comment_id: parentCommentId, edited: false },
                 ],
               }
             : p
@@ -212,6 +212,34 @@ export default function ClassroomNewsTab() {
     } catch (err) {
       console.error("แสดงความคิดเห็นไม่สำเร็จ:", err);
       Swal.fire("แสดงความคิดเห็นไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+    }
+  };
+
+  const editComment = async (postId, commentId, newText) => {
+    try {
+      await updateComment(commentId, { user_id: CURRENT_USER_ID, content: newText });
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.post_id === postId
+            ? { ...p, comments: p.comments.map((c) => (c.comment_id === commentId ? { ...c, text: newText, edited: true } : c)) }
+            : p
+        )
+      );
+    } catch (err) {
+      console.error("แก้ไขความคิดเห็นไม่สำเร็จ:", err);
+      Swal.fire("แก้ไขความคิดเห็นไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+    }
+  };
+
+  const deleteCommentHandler = async (postId, commentId) => {
+    try {
+      await deleteComment(commentId, CURRENT_USER_ID);
+      setPosts((prev) =>
+        prev.map((p) => (p.post_id === postId ? { ...p, comments: p.comments.filter((c) => c.comment_id !== commentId) } : p))
+      );
+    } catch (err) {
+      console.error("ลบความคิดเห็นไม่สำเร็จ:", err);
+      Swal.fire("ลบความคิดเห็นไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
     }
   };
 
@@ -249,16 +277,16 @@ export default function ClassroomNewsTab() {
   };
 
   // สร้างประกาศ — บังคับ class_id เป็นห้องนี้เสมอ (popup เดียวกับ /newsfeed แค่ปิดหมวดหมู่)
-  const createPost = async ({ title, content, attachments }) => {
+  const createPost = async ({ title, content, attachments, youtubeUrl }) => {
     try {
       const linkItem = attachments.find((a) => a.kind === "link");
-      const newFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "file") && a.file);
+      const newFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "video" || a.kind === "file") && a.file);
 
       const data = {
         class_id: gradeId,
         title,
         content,
-        youtube_url: null,
+        youtube_url: youtubeUrl || null,
         link_url: linkItem?.url || null,
       };
 
@@ -276,9 +304,10 @@ export default function ClassroomNewsTab() {
       }
 
       const newPost = normalizePost(
-        { news_id: res.news_id, user_id: CURRENT_USER_ID, created_at: new Date().toISOString(), title: res.title, content: res.content, youtube_url: null, link_url: data.link_url },
+        { news_id: res.news_id, user_id: CURRENT_USER_ID, created_at: new Date().toISOString(), title: res.title, content: res.content, youtube_url: res.youtube_url || data.youtube_url, link_url: data.link_url },
         [],
-        files
+        files,
+        { name: myName, avatarUrl: myAvatarUrl }
       );
 
       setPosts((prev) => [newPost, ...prev]);
@@ -291,13 +320,13 @@ export default function ClassroomNewsTab() {
     }
   };
 
-  const editPost = async (postId, { title, content, attachments, removedFileIds }) => {
+  const editPost = async (postId, { title, content, attachments, removedFileIds, youtubeUrl }) => {
     try {
       const linkItem = attachments.find((a) => a.kind === "link");
-      const keptFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "file") && a.existing);
-      const newFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "file") && a.file);
+      const keptFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "video" || a.kind === "file") && a.existing);
+      const newFileAttachments = attachments.filter((a) => (a.kind === "image" || a.kind === "video" || a.kind === "file") && a.file);
 
-      const data = { title, content, youtube_url: null, link_url: linkItem?.url || null };
+      const data = { title, content, youtube_url: youtubeUrl || null, link_url: linkItem?.url || null };
       await updateNews(postId, data);
 
       for (const fileId of removedFileIds || []) {
@@ -325,7 +354,7 @@ export default function ClassroomNewsTab() {
       setPosts((prev) =>
         prev.map((p) =>
           p.post_id === postId
-            ? { ...p, title, content, isHtml: looksLikeHtml(content), link: linkItem ? { title: linkItem.url, url: linkItem.url } : null, files }
+            ? { ...p, title, content, isHtml: looksLikeHtml(content), link: linkItem ? { title: linkItem.url, url: linkItem.url } : null, youtubeUrl: youtubeUrl || null, files }
             : p
         )
       );
@@ -343,7 +372,7 @@ export default function ClassroomNewsTab() {
   return (
     <>
       {loadError && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[13px]">
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[15px]">
           โหลดประกาศไม่สำเร็จ — ตรวจสอบว่า backend เปิด endpoint <code>/news</code> แล้วหรือยัง
         </div>
       )}
@@ -354,11 +383,11 @@ export default function ClassroomNewsTab() {
           {/* Composer */}
           <div className="rounded-2xl border border-gray-200 bg-white p-5">
             <div className="flex items-center gap-3">
-              <img src={CURRENT_TEACHER.avatar} className="w-10 h-10 rounded-full shrink-0" />
+              <Avatar src={myAvatarUrl} name={myName} size={48} />
               <button
                 type="button"
                 onClick={() => setPostModalOpen(true)}
-                className="flex-1 h-11 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 text-left text-[14px] text-gray-400"
+                className="flex-1 h-11 rounded-full border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 text-left text-[17px] text-gray-400"
               >
                 ประกาศบางสิ่งให้ห้อง {classInfo ? gradeLabel(classInfo) : "นี้"}...
               </button>
@@ -369,11 +398,12 @@ export default function ClassroomNewsTab() {
                 <ComposerIconButton icon={<FaVideo className="text-red-500" />} label="วิดีโอ" onClick={() => setPostModalOpen(true)} />
                 <ComposerIconButton icon={<FaPaperclip className="text-blue-500" />} label="ไฟล์" onClick={() => setPostModalOpen(true)} />
                 <ComposerIconButton icon={<FaLink className="text-purple-500" />} label="ลิงก์" onClick={() => setPostModalOpen(true)} />
+                <ComposerIconButton icon={<FaYoutube className="text-red-500" />} label="YouTube" onClick={() => setPostModalOpen(true)} />
               </div>
               <button
                 type="button"
                 onClick={() => setPostModalOpen(true)}
-                className="h-10 px-5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-[13px] font-semibold"
+                className="h-10 px-5 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold"
               >
                 โพสต์
               </button>
@@ -381,7 +411,7 @@ export default function ClassroomNewsTab() {
           </div>
 
           {loading && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-gray-400">กำลังโหลด...</div>
+            <PageLoading />
           )}
 
           {!loading && posts.length === 0 && (
@@ -414,6 +444,9 @@ export default function ClassroomNewsTab() {
                 onToggleMenu={() => setOpenMenuId((prev) => (prev === post.post_id ? null : post.post_id))}
                 onEdit={() => openEditModal(post)}
                 onDelete={() => deletePost(post.post_id)}
+                currentUserId={CURRENT_USER_ID}
+                onEditComment={(commentId, text) => editComment(post.post_id, commentId, text)}
+                onDeleteComment={(commentId) => deleteCommentHandler(post.post_id, commentId)}
               />
             ))}
         </div>
@@ -422,25 +455,25 @@ export default function ClassroomNewsTab() {
         <div className="hidden xl:flex flex-col gap-6">
           {/* 📌 ทางลัดห้องเรียน — ตาราง news ไม่มีระบบปักหมุดจริง เลยทำเป็นทางลัดแทน */}
           <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-            <div className="text-[14px] font-semibold text-amber-800 mb-4 flex items-center gap-2">
+            <div className="text-[16px] font-semibold text-amber-800 mb-4 flex items-center gap-2">
               <FaThumbtack className="text-amber-600" /> ทางลัดห้องเรียน
             </div>
             <div className="flex flex-col gap-2.5">
               <button
                 type="button"
                 onClick={() => navigate(`/classroom/${gradeId}/attendance`)}
-                className="flex items-center gap-2.5 text-[13px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
+                className="flex items-center gap-2.5 text-[15px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
               >
                 <FaQrcode className="text-pink-500 shrink-0" /> QR เช็คชื่อ
               </button>
               <button
                 type="button"
                 onClick={() => Swal.fire({ icon: "info", title: "ตารางเรียน", text: "ฟีเจอร์นี้ยังไม่เปิดใช้งาน", confirmButtonText: "รับทราบ" })}
-                className="flex items-center gap-2.5 text-[13px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
+                className="flex items-center gap-2.5 text-[15px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
               >
                 <FaCalendarAlt className="text-pink-500 shrink-0" /> ตารางเรียน
               </button>
-              <button
+              {/* <button
                 type="button"
                 onClick={() =>
                   Swal.fire({
@@ -450,14 +483,14 @@ export default function ClassroomNewsTab() {
                     confirmButtonText: "รับทราบ",
                   })
                 }
-                className="flex items-center gap-2.5 text-[13px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
+                className="flex items-center gap-2.5 text-[15px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
               >
                 <FaPhoneAlt className="text-pink-500 shrink-0" /> ครูที่ปรึกษา {classInfo?.teacher_name || "ยังไม่ระบุ"}
-              </button>
+              </button> */}
               <button
                 type="button"
                 onClick={() => Swal.fire({ icon: "info", title: "กติกาห้องเรียน", text: "ฟีเจอร์นี้ยังไม่เปิดใช้งาน", confirmButtonText: "รับทราบ" })}
-                className="flex items-center gap-2.5 text-[13px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
+                className="flex items-center gap-2.5 text-[15px] text-gray-700 hover:text-pink-700 bg-transparent text-left"
               >
                 <FaClipboardList className="text-pink-500 shrink-0" /> กติกาห้องเรียน
               </button>
@@ -465,20 +498,20 @@ export default function ClassroomNewsTab() {
           </div>
 
           {/* ⏰ ใกล้ครบกำหนด */}
-          <div className="rounded-2xl border border-pink-200 bg-pink-50/60 p-5">
-            <div className="text-[14px] font-semibold text-pink-800 mb-4 flex items-center gap-2">
+          {/* <div className="rounded-2xl border border-pink-200 bg-pink-50/60 p-5">
+            <div className="text-[16px] font-semibold text-pink-800 mb-4 flex items-center gap-2">
               <FaClock className="text-pink-600" /> ใกล้ครบกำหนด
             </div>
             {upcomingWork.length === 0 ? (
-              <div className="text-[13px] text-pink-700/70">ไม่มีงานที่ใกล้ครบกำหนด</div>
+              <div className="text-[15px] text-pink-700/70">ไม่มีงานที่ใกล้ครบกำหนด</div>
             ) : (
               <div className="flex flex-col gap-3">
                 {upcomingWork.map((a) => {
                   const remain = daysUntil(a.deadline);
                   return (
                     <button key={a.ass_id} type="button" onClick={() => navigate(`/work/${a.ass_id}`)} className="text-left bg-transparent">
-                      <div className="text-[13px] font-medium text-gray-800 truncate hover:underline">{a.title}</div>
-                      <div className="text-[11.5px] text-gray-400 mt-0.5">
+                      <div className="text-[15px] font-medium text-gray-800 truncate hover:underline">{a.title}</div>
+                      <div className="text-[13.5px] text-gray-400 mt-0.5">
                         ครบกำหนด {new Date(a.deadline).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
                         {" · "}
                         <span className="text-red-600 font-medium">{remain <= 0 ? "วันนี้" : `เหลืออีก ${remain} วัน`}</span>
@@ -488,7 +521,7 @@ export default function ClassroomNewsTab() {
                 })}
               </div>
             )}
-          </div>
+          </div> */}
 
           {/* 👥 สมาชิกในห้อง — กดแล้วไปแท็บนักเรียนของห้องนี้ */}
           <button
@@ -496,33 +529,18 @@ export default function ClassroomNewsTab() {
             onClick={() => navigate(`/classroom/${gradeId}/students`)}
             className="rounded-2xl border border-gray-200 bg-white p-5 text-left hover:shadow-md transition-shadow"
           >
-            <div className="text-[14px] font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="text-[16px] font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <FaUsers className="text-gray-500" /> สมาชิกในห้อง
             </div>
             {members.length === 0 ? (
-              <div className="text-[13px] text-gray-400">ยังไม่มีนักเรียนในห้องนี้</div>
+              <div className="text-[15px] text-gray-400">ยังไม่มีนักเรียนในห้องนี้</div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                {members.slice(0, 9).map((m, i) =>
-                  m.avatar_url || m.photo_url || m.profile_image ? (
-                    <img
-                      key={m.user_id}
-                      src={m.avatar_url || m.photo_url || m.profile_image}
-                      title={m.fullname}
-                      className="w-9 h-9 rounded-full object-cover shrink-0"
-                    />
-                  ) : (
-                    <div
-                      key={m.user_id}
-                      title={m.fullname}
-                      className={`w-9 h-9 rounded-full ${avatarColorFor(i)} text-white text-[13px] font-semibold flex items-center justify-center shrink-0`}
-                    >
-                      {initialOf(m.fullname)}
-                    </div>
-                  )
-                )}
+                {members.slice(0, 9).map((m) => (
+                  <Avatar key={m.user_id} src={m.avatar_url} name={m.fullname} size={36} />
+                ))}
                 {members.length > 9 && (
-                  <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 text-[12px] font-semibold flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 text-[14px] font-semibold flex items-center justify-center shrink-0">
                     +{members.length - 9}
                   </div>
                 )}

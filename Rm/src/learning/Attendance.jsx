@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
+import Select from "react-select";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
 import {
@@ -17,6 +18,10 @@ import {
   FaMapMarkerAlt,
   FaChalkboardTeacher,
   FaCheckCircle,
+  FaUserFriends,
+  FaRegClock,
+  FaSignOutAlt,
+  FaTimesCircle,
 } from "react-icons/fa";
 import {
   getClasses,
@@ -32,12 +37,45 @@ import {
   createAttendanceSession,
   closeAttendanceSession,
 } from "../callapi/callapi_user.jsx";
-import {
-  mockStatusOptions,
-  mockSortOptions,
-  ATTENDANCE_STATUS,
-  CHECKIN_METHOD,
-} from "./attendanceMockData.js";
+import PromptModal from "../components/PromptModal.jsx";
+import ThaiCalendarField from "../components/ThaiCalendarField.jsx";
+import ThaiTimeField from "../components/ThaiTimeField.jsx";
+import PageLoading from "../components/PageLoading.jsx";
+import Avatar from "../components/Avatar.jsx";
+import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+import { formatThaiTimeLabel } from "../utils/feedShared.js";
+
+// ค่าคงที่ + ตัวเลือกตัวกรองของหน้านี้ทั้งหมด — เก็บรวมไว้ในไฟล์นี้ไฟล์เดียว (ไม่แยกไปไฟล์ข้อมูลต่างหาก) หาง่ายกว่า
+const ATTENDANCE_STATUS = {
+  PRESENT: "present",
+  LATE: "late",
+  LEAVE: "leave",
+  ABSENT: "absent",
+  NOT_CHECKED: "not_checked",
+};
+
+const CHECKIN_METHOD = {
+  QR: "qr",
+  GPS: "gps",
+  TEACHER: "teacher",
+  MANUAL: "manual",
+};
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: ATTENDANCE_STATUS.PRESENT, label: "มาเรียน" },
+  { value: ATTENDANCE_STATUS.LATE, label: "สาย" },
+  { value: ATTENDANCE_STATUS.LEAVE, label: "ลา" },
+  { value: ATTENDANCE_STATUS.ABSENT, label: "ขาด" },
+  { value: ATTENDANCE_STATUS.NOT_CHECKED, label: "ยังไม่เช็กชื่อ" },
+];
+
+const SORT_OPTIONS = [
+  { value: "number", label: "เลขที่" },
+  { value: "name", label: "ชื่อ" },
+  { value: "checkinTime", label: "เวลาเช็กชื่อ" },
+  { value: "status", label: "สถานะ" },
+];
 
 // พาสเทลสดใส โทนเดียวกับสีชมพูของเว็บ (bg อ่อน + ตัวอักษรเข้มพออ่านง่าย) ไม่หม่น ไม่มืด
 const STATUS_META = {
@@ -79,6 +117,13 @@ const getNowTimeStr = () => {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+// backend ส่ง attendance_date (คอลัมน์ DATE) กลับมาเป็น ISO string แบบเลื่อนเขตเวลา (UTC) —
+// ตัด .slice(0,10) ตรงๆ จะได้วันที่ผิดเพี้ยนไป 1 วัน ต้องอ่านผ่าน local date component แทน (เหมือน getTodayStr ด้านบน)
+const toLocalDateStr = (iso) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const getInMinutesTimeStr = (minutes) => {
   const d = new Date(Date.now() + minutes * 60000);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -100,7 +145,7 @@ const normalizeRow = (r) => ({
   seatNo: r.seat_no ?? null,
   fullname: r.fullname,
   email: r.email || "-",
-  avatar: `https://i.pravatar.cc/80?u=${r.user_user_id}`,
+  avatar: null,
   checkinTime: r.checkin_time ? String(r.checkin_time).slice(0, 5) : "-",
   method: r.method,
   status: r.status,
@@ -137,6 +182,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
   // เซสชันเช็กชื่อ (QR/รหัส) — session = null คือยังไม่เปิดอยู่ตอนนี้ (⚪)
   const [session, setSession] = useState(null);
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
 
   const tableTopRef = useRef(null);
@@ -183,19 +229,20 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         setAuditLog([]);
       });
 
-    getActiveAttendanceSession(roomFilter)
+      getActiveAttendanceSession(roomFilter)
       .then((data) => {
         if (!data) {
           setSession(null);
           return;
         }
+        const sessionDateStr = toLocalDateStr(data.session_date); // ✅ กันวันเพี้ยนแบบเดียวกับ attendance_date
         setSession({
           session_id: data.session_id,
-          date: data.session_date,
+          date: sessionDateStr,
           period: data.period,
           startTime: String(data.start_time).slice(0, 5),
           endTime: String(data.end_time).slice(0, 5),
-          endAt: new Date(`${String(data.session_date).slice(0, 10)}T${String(data.end_time).slice(0, 5)}`),
+          endAt: new Date(`${sessionDateStr}T${String(data.end_time).slice(0, 5)}`),
           code: data.code,
           status: data.status,
         });
@@ -305,18 +352,10 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
     }
   };
 
-  const bulkAddNote = async () => {
-    const result = await Swal.fire({
-      title: "เพิ่มหมายเหตุให้ทุกคนที่เลือก",
-      input: "text",
-      inputPlaceholder: "เช่น กิจกรรมโรงเรียน",
-      showCancelButton: true,
-      confirmButtonText: "บันทึก",
-      cancelButtonText: "ยกเลิก",
-    });
-    if (!result.isConfirmed || !result.value) return;
+  const confirmBulkAddNote = async (note) => {
+    setNoteDialogOpen(false);
     try {
-      await bulkNoteAttendance(selectedIds, result.value);
+      await bulkNoteAttendance(selectedIds, note);
       setSelectedIds([]);
       fetchAttendance();
     } catch (err) {
@@ -475,7 +514,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
   const barData = useMemo(
     () =>
       (historyData.byDate || []).map((d) => ({
-        date: String(d.attendance_date).slice(0, 10),
+        date: toLocalDateStr(d.attendance_date),
         present: Number(d.present) || 0,
         late: Number(d.late) || 0,
         leave: Number(d.leave_count) || 0,
@@ -492,8 +531,8 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
           {!embedded && (
             <div>
-              <h1 className="text-3xl font-extrabold text-gray-900">การเข้าเรียน</h1>
-              <p className="text-gray-500 mt-1">{selectedRoomLabel || "เลือกห้องเรียน"}</p>
+              <h1 className="page-title">การเข้าเรียน</h1>
+              <p className="page-subtitle mt-1">{selectedRoomLabel || "เลือกห้องเรียน"}</p>
             </div>
           )}
 
@@ -502,31 +541,32 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             <div className="flex items-center gap-2">
               {!embedded && (
                 <>
-                  <span className="text-[13px] text-gray-500">ห้อง</span>
-                  <select
-                    value={roomFilter}
-                    onChange={(e) => {
-                      setRoomFilter(e.target.value);
+                  <span className="text-[15px] text-gray-500">ห้อง</span>
+                  <Select
+                    className="w-48"
+                    styles={bigFilterSelectStyles}
+                    value={
+                      classesList.length === 0
+                        ? { value: "", label: "ไม่พบห้องเรียน" }
+                        : { value: roomFilter, label: gradeLabel(classesList.find((c) => String(c.id) === String(roomFilter)) || classesList[0]) }
+                    }
+                    onChange={(opt) => {
+                      setRoomFilter(opt.value);
                       setPage(1);
                     }}
-                    className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-[14px] outline-none focus:border-pink-400"
-                  >
-                    {classesList.length === 0 && <option value="">ไม่พบห้องเรียน</option>}
-                    {classesList.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {gradeLabel(c)}
-                      </option>
-                    ))}
-                  </select>
+                    options={classesList.map((c) => ({ value: c.id, label: gradeLabel(c) }))}
+                    isSearchable={false}
+                  />
                 </>
               )}
 
-              <span className="text-[13px] text-gray-500 ml-2">วันที่</span>
-              <input
-                type="date"
+              <span className="text-[15px] text-gray-500 ml-2">วันที่</span>
+              <ThaiCalendarField
                 value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="h-11 rounded-xl border border-gray-200 bg-white px-3 outline-none focus:border-pink-400"
+                onChange={setSelectedDate}
+                heightClass="h-11"
+                bgClass="bg-white"
+                className="w-60"
               />
             </div>
 
@@ -536,7 +576,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                 type="button"
                 onClick={() => setSessionModalOpen(true)}
                 disabled={!roomFilter}
-                className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 disabled:opacity-40 text-white text-[13px] font-semibold flex items-center gap-2"
+                className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 disabled:opacity-40 text-white text-[15px] font-semibold flex items-center gap-2"
               >
                 <FaQrcode /> {session?.status === "open" ? "ดูรหัสเช็กชื่อ" : "เปิดการเช็กชื่อ"}
               </button>
@@ -545,20 +585,22 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         </div>
 
         {rowsError && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[13px]">
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[15px]">
             โหลดข้อมูลการเข้าเรียนไม่สำเร็จ — ตรวจสอบว่า backend เปิด endpoint <code>/attendance</code> แล้วหรือยัง
           </div>
         )}
 
         {/* ===== Dashboard cards ===== */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
           <StatCard
+            icon={FaUserFriends} cardCls="bg-blue-50" iconCls="bg-blue-100 text-blue-600"
             label="นักเรียนทั้งหมด"
             value={summary.total}
             sub={`ห้อง ${selectedRoomLabel}`}
             onClick={() => applyFilterFromCard("all")}
           />
           <StatCard
+            icon={FaCheckCircle} cardCls="bg-emerald-50" iconCls="bg-emerald-100 text-emerald-600"
             label="มาเรียน"
             value={summary.present}
             sub={`${summary.presentPercent}%`}
@@ -566,6 +608,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             onClick={() => applyFilterFromCard(ATTENDANCE_STATUS.PRESENT)}
           />
           <StatCard
+            icon={FaRegClock} cardCls="bg-amber-50" iconCls="bg-amber-100 text-amber-600"
             label="สาย"
             value={summary.late}
             sub="คน"
@@ -573,6 +616,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             onClick={() => applyFilterFromCard(ATTENDANCE_STATUS.LATE)}
           />
           <StatCard
+            icon={FaSignOutAlt} cardCls="bg-pink-50" iconCls="bg-pink-100 text-pink-600"
             label="ลา"
             value={summary.leave}
             sub="คน"
@@ -580,27 +624,13 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             onClick={() => applyFilterFromCard(ATTENDANCE_STATUS.LEAVE)}
           />
           <StatCard
+            icon={FaTimesCircle} cardCls="bg-red-50" iconCls="bg-red-100 text-red-600"
             label="ขาด"
             value={summary.absent}
             sub="คน"
             valueClassName="text-red-600"
             onClick={() => applyFilterFromCard(ATTENDANCE_STATUS.ABSENT)}
           />
-          <div
-            onClick={() => applyFilterFromCard(ATTENDANCE_STATUS.NOT_CHECKED)}
-            className="rounded-2xl border border-gray-200 bg-white p-5 cursor-pointer hover:shadow-md transition-shadow flex flex-col justify-between"
-          >
-            <div className="text-[13px] text-gray-500">สถานะการเช็กชื่อ</div>
-            {summary.isCheckInComplete ? (
-              <div className="mt-2 flex items-center gap-2 text-emerald-600 font-semibold">
-                <FaCheckCircle /> เช็กชื่อเสร็จแล้ว
-              </div>
-            ) : (
-              <div className="mt-2 flex items-center gap-2 text-yellow-600 font-semibold">
-                ⏳ ยังไม่ครบ ({summary.notCheckedIn} คน)
-              </div>
-            )}
-          </div>
         </div>
 
         {/* ===== นักเรียนที่ยังไม่เช็กชื่อ ===== */}
@@ -610,7 +640,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             className="mb-6 rounded-2xl border border-dashed border-yellow-300 bg-yellow-50 px-5 py-3 flex items-center justify-between cursor-pointer hover:bg-yellow-100 transition-colors"
           >
             <div className="text-yellow-800 font-medium">ยังไม่เช็กชื่อ {notCheckedInRows.length} คน</div>
-            <div className="text-[13px] text-yellow-700 underline">ดูรายชื่อ →</div>
+            <div className="text-[15px] text-yellow-700 underline">ดูรายชื่อ →</div>
           </div>
         )}
 
@@ -618,7 +648,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         <div ref={tableTopRef} className="rounded-2xl border border-gray-200 bg-white p-4 mb-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[220px]">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px]" />
               <input
                 value={search}
                 onChange={(e) => {
@@ -626,43 +656,37 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                   setPage(1);
                 }}
                 placeholder="ค้นหารหัสนักเรียน หรือชื่อ-นามสกุล"
-                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-[14px] outline-none focus:border-pink-400"
+                className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3 text-[16px] outline-none focus:border-pink-400"
               />
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
+            <Select
+              className="w-44"
+              styles={bigFilterSelectStyles}
+              value={STATUS_FILTER_OPTIONS.find((s) => s.value === statusFilter)}
+              onChange={(opt) => {
+                setStatusFilter(opt.value);
                 setPage(1);
               }}
-              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-[14px] outline-none focus:border-pink-400"
-            >
-              {mockStatusOptions.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              options={STATUS_FILTER_OPTIONS}
+              isSearchable={false}
+            />
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-11 rounded-xl border border-gray-200 bg-white px-3 text-[14px] outline-none focus:border-pink-400"
-            >
-              {mockSortOptions.map((s) => (
-                <option key={s.value} value={s.value}>
-                  เรียงตาม{s.label}
-                </option>
-              ))}
-            </select>
+            <Select
+              className="w-48"
+              styles={bigFilterSelectStyles}
+              value={SORT_OPTIONS.find((s) => s.value === sortBy)}
+              onChange={(opt) => setSortBy(opt.value)}
+              options={SORT_OPTIONS.map((s) => ({ value: s.value, label: `เรียงตาม${s.label}` }))}
+              isSearchable={false}
+            />
 
             <button
               type="button"
               onClick={resetFilters}
               className="h-11 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center gap-2"
             >
-              <FaFilter className="text-[12px]" /> รีเซ็ตตัวกรอง
+              <FaFilter className="text-[14px]" /> รีเซ็ตตัวกรอง
             </button>
           </div>
         </div>
@@ -673,10 +697,10 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             <button
               type="button"
               onClick={checkInAllNotChecked}
-              className={`h-10 px-4 rounded-xl border text-[13px] font-medium flex items-center gap-2 ${
+              className={`h-10 px-4 rounded-xl border text-[15px] font-medium flex items-center gap-2 transition-colors ${
                 checkedInAllRoom
-                  ? "bg-pink-600 border-pink-600 text-white hover:bg-pink-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  ? "bg-pink-500 border-pink-500 text-white hover:bg-pink-600"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-pink-50 hover:text-pink-600 hover:border-pink-200"
               }`}
             >
               <FaCheckCircle /> เช็กชื่อทั้งห้อง
@@ -689,17 +713,17 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
 
           {selectedIds.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-pink-200 bg-pink-50 px-3 py-2">
-              <span className="text-[13px] text-pink-700 font-medium">เลือกแล้ว {selectedIds.length} คน</span>
-              <button type="button" onClick={() => bulkSetStatus(ATTENDANCE_STATUS.PRESENT)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[12px] text-emerald-700 hover:bg-emerald-50">
+              <span className="text-[15px] text-pink-700 font-medium">เลือกแล้ว {selectedIds.length} คน</span>
+              <button type="button" onClick={() => bulkSetStatus(ATTENDANCE_STATUS.PRESENT)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[14px] text-emerald-700 hover:bg-emerald-50">
                 เปลี่ยนเป็นมาเรียน
               </button>
-              <button type="button" onClick={() => bulkSetStatus(ATTENDANCE_STATUS.LEAVE)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[12px] text-pink-700 hover:bg-pink-50">
+              <button type="button" onClick={() => bulkSetStatus(ATTENDANCE_STATUS.LEAVE)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[14px] text-pink-700 hover:bg-pink-50">
                 เปลี่ยนเป็นลา
               </button>
-              <button type="button" onClick={() => bulkSetStatus(ATTENDANCE_STATUS.ABSENT)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[12px] text-red-700 hover:bg-red-50">
+              <button type="button" onClick={() => bulkSetStatus(ATTENDANCE_STATUS.ABSENT)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[14px] text-red-700 hover:bg-red-50">
                 เปลี่ยนเป็นขาด
               </button>
-              <button type="button" onClick={bulkAddNote} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[12px] text-gray-700 hover:bg-gray-50">
+              <button type="button" onClick={() => setNoteDialogOpen(true)} className="h-8 px-3 rounded-full bg-white border border-gray-200 text-[14px] text-gray-700 hover:bg-gray-50">
                 เพิ่มหมายเหตุ
               </button>
             </div>
@@ -711,7 +735,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-gray-100 text-[12px] text-gray-500">
+                <tr className="border-b border-gray-100 text-[14px] text-gray-500">
                   <th className="py-3 pl-4 pr-2 w-10">
                     <input
                       type="checkbox"
@@ -735,7 +759,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
               <tbody>
                 {rowsLoading && (
                   <tr>
-                    <td colSpan={11} className="py-10 text-center text-gray-400">กำลังโหลด...</td>
+                    <td colSpan={11} className="py-4"><PageLoading /></td>
                   </tr>
                 )}
 
@@ -752,7 +776,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                     const meta = STATUS_META[r.status];
                     const method = METHOD_META[r.method];
                     return (
-                      <tr key={r.attendance_id} className="border-b border-gray-50 hover:bg-gray-50/60 text-[13.5px]">
+                      <tr key={r.attendance_id} className="border-b border-gray-50 hover:bg-gray-50/60 text-[15.5px]">
                         <td className="py-3 pl-4 pr-2">
                           <input
                             type="checkbox"
@@ -770,12 +794,12 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                             onClick={() => openStudentDrawer(r)}
                             className="flex items-center gap-2 text-gray-900 hover:text-pink-600 bg-transparent"
                           >
-                            <img src={r.avatar} className="w-7 h-7 rounded-full" />
+                            <Avatar src={r.avatar} name={r.fullname} size={28} />
                             {r.fullname}
                           </button>
                         </td>
                         <td className="py-3 px-2 text-gray-500">{r.email}</td>
-                        <td className="py-3 px-2 text-gray-600">{r.checkinTime}</td>
+                        <td className="py-3 px-2 text-gray-600">{r.checkinTime === "-" ? "-" : formatThaiTimeLabel(r.checkinTime)}</td>
                         <td className="py-3 px-2 text-gray-500">
                           {method ? (
                             <span className="inline-flex items-center gap-1.5">
@@ -786,7 +810,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                           )}
                         </td>
                         <td className="py-3 px-2">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[12px] font-medium ${meta.badge}`}>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[14px] font-medium ${meta.badge}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
                             {meta.label}
                           </span>
@@ -800,7 +824,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                               <button
                                 type="button"
                                 onClick={() => checkInOne(r)}
-                                className="h-8 px-3 rounded-full bg-pink-50 text-pink-700 text-[12px] font-medium hover:bg-pink-100"
+                                className="h-8 px-3 rounded-full bg-pink-50 text-pink-700 text-[14px] font-medium hover:bg-pink-100"
                                 title="เช็กชื่อให้"
                               >
                                 เช็กให้
@@ -836,7 +860,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <div className="text-[13px] text-gray-400">
+            <div className="text-[15px] text-gray-400">
               แสดง {filteredRows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}-
               {Math.min(page * PAGE_SIZE, filteredRows.length)} จาก {filteredRows.length} คน
             </div>
@@ -849,7 +873,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
               >
                 <FaChevronLeft size={11} />
               </button>
-              <span className="text-[13px] text-gray-600">{page} / {totalPages}</span>
+              <span className="text-[15px] text-gray-600">{page} / {totalPages}</span>
               <button
                 type="button"
                 disabled={page >= totalPages}
@@ -866,27 +890,29 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         <div className="mt-8 rounded-2xl border border-pink-100 bg-white p-8">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
             <div>
-              <div className="text-[19px] font-bold text-gray-900">สถิติย้อนหลัง</div>
-              <div className="text-[13px] text-pink-600 font-medium mt-0.5">ห้อง {selectedRoomLabel}</div>
+              <div className="text-[21px] font-bold text-gray-900">สถิติย้อนหลัง</div>
+              <div className="text-[15px] text-pink-600 font-medium mt-0.5">ห้อง {selectedRoomLabel}</div>
             </div>
-            <div className="flex items-center gap-2 text-[13px] text-gray-500">
-              <input
-                type="date"
+            <div className="flex items-center gap-2 text-[15px] text-gray-500">
+              <ThaiCalendarField
                 value={historyFrom}
-                onChange={(e) => setHistoryFrom(e.target.value)}
-                className="h-10 rounded-lg border border-gray-200 px-2 outline-none focus:border-pink-400"
+                onChange={setHistoryFrom}
+                heightClass="h-10"
+                radiusClass="rounded-lg"
+                className="w-56"
               />
               <span>ถึง</span>
-              <input
-                type="date"
+              <ThaiCalendarField
                 value={historyTo}
-                onChange={(e) => setHistoryTo(e.target.value)}
-                className="h-10 rounded-lg border border-gray-200 px-2 outline-none focus:border-pink-400"
+                onChange={setHistoryTo}
+                heightClass="h-10"
+                radiusClass="rounded-lg"
+                className="w-56"
               />
               <button
                 type="button"
                 onClick={fetchHistory}
-                className="h-10 px-4 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 text-[13px] font-semibold"
+                className="h-10 px-4 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 text-[15px] font-semibold"
               >
                 อัปเดตสถิติ
               </button>
@@ -898,13 +924,13 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="rounded-2xl bg-pink-50/60 border border-pink-100 p-7">
-                <div className="text-[16px] font-semibold text-gray-800">สัดส่วนการมาเรียน</div>
-                <div className="text-[13px] text-gray-400 mb-6">มาเรียน / ลา / สาย / ขาด</div>
+                <div className="text-[18px] font-semibold text-gray-800">สัดส่วนการมาเรียน</div>
+                <div className="text-[15px] text-gray-400 mb-6">มาเรียน / ลา / สาย / ขาด</div>
                 <AttendancePieChart data={pieData} />
               </div>
               <div className="rounded-2xl bg-pink-50/60 border border-pink-100 p-7">
-                <div className="text-[16px] font-semibold text-gray-800">สรุปรายวัน</div>
-                <div className="text-[13px] text-gray-400 mb-6">ดูแนวโน้มการเข้าเรียนย้อนหลัง</div>
+                <div className="text-[18px] font-semibold text-gray-800">สรุปรายวัน</div>
+                <div className="text-[15px] text-gray-400 mb-6">ดูแนวโน้มการเข้าเรียนย้อนหลัง</div>
                 <AttendanceBarChart data={barData} />
               </div>
             </div>
@@ -913,13 +939,13 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
 
         {/* ===== Audit log ===== */}
         <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-6">
-          <div className="text-[16px] font-semibold text-gray-900 mb-4">ประวัติการแก้ไข</div>
+          <div className="text-[18px] font-semibold text-gray-900 mb-4">ประวัติการแก้ไข</div>
           {auditLog.length === 0 ? (
-            <div className="text-gray-400 text-sm">ยังไม่มีการแก้ไข</div>
+            <div className="text-gray-400 text-[16px]">ยังไม่มีการแก้ไข</div>
           ) : (
             <div className="flex flex-col divide-y divide-gray-100">
               {auditLog.map((log) => (
-                <div key={log.log_id} className="py-3 text-[13px] text-gray-600">
+                <div key={log.log_id} className="py-3 text-[15px] text-gray-600">
                   <span className="font-medium text-gray-800">{log.teacher_name || "ระบบ"}</span> แก้ไข{" "}
                   <span className="font-medium text-gray-800">{log.fullname}</span> จาก{" "}
                   <span className="font-medium">{STATUS_META[log.from_status]?.label || "-"}</span>{" "}
@@ -953,13 +979,24 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
           onCloseSession={() => closeSession(false)}
         />
       )}
+
+      {noteDialogOpen && (
+        <PromptModal
+          title="เพิ่มหมายเหตุให้ทุกคนที่เลือก"
+          label="หมายเหตุ"
+          placeholder="เช่น กิจกรรมโรงเรียน"
+          confirmLabel="บันทึก"
+          onConfirm={confirmBulkAddNote}
+          onClose={() => setNoteDialogOpen(false)}
+        />
+      )}
     </>
   );
 
   if (embedded) return content;
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 flex text-[14px] text-gray-800">
+    <div className="min-h-screen w-full bg-gray-50 flex text-[16px] text-gray-800">
       <Header />
       <SidebarNav />
       <main className="flex-1 min-w-0 px-8 pt-24 pb-16">
@@ -988,20 +1025,20 @@ const formatRemaining = (endAt, now) => {
 function SessionStatusBadge({ session, now }) {
   if (!session) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 h-10 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-[13px]">
+      <span className="inline-flex items-center gap-1.5 px-3 h-10 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-[15px]">
         ⚪ ยังไม่ได้เปิดการเช็กชื่อ
       </span>
     );
   }
   if (session.status === "open") {
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[13px] font-medium">
+      <span className="inline-flex items-center gap-1.5 px-3 h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 text-[15px] font-medium">
         🟢 กำลังเปิดรับการเช็กชื่อ (เหลือเวลา {formatRemaining(session.endAt, now)} นาที)
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 h-10 rounded-xl border border-red-200 bg-red-50 text-red-600 text-[13px] font-medium">
+    <span className="inline-flex items-center gap-1.5 px-3 h-10 rounded-xl border border-red-200 bg-red-50 text-red-600 text-[15px] font-medium">
       🔴 ปิดการเช็กชื่อแล้ว
     </span>
   );
@@ -1036,7 +1073,7 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
 
       <div className="relative bg-white rounded-2xl shadow-xl w-[380px] p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-semibold text-gray-900">
+          <h2 className="text-[18px] font-semibold text-gray-900">
             {isOpen ? "รหัสเช็กชื่อ" : "เปิดการเช็กชื่อ"}
           </h2>
           <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 bg-transparent">
@@ -1046,8 +1083,8 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
 
         {isOpen ? (
           <>
-            <div className="text-[13px] text-gray-500 mb-1">{session.period} · {formatDateThai(session.date)}</div>
-            <div className="text-[12px] text-emerald-600 font-medium mb-4">
+            <div className="text-[15px] text-gray-500 mb-1">{session.period} · {formatDateThai(session.date)}</div>
+            <div className="text-[14px] text-emerald-600 font-medium mb-4">
               🟢 เหลือเวลา {formatRemaining(session.endAt, now)} นาที
             </div>
 
@@ -1055,10 +1092,10 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
               <div className="w-40 h-40 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-300">
                 <FaQrcode size={72} />
               </div>
-              <div className="mt-2 text-[11px] text-gray-400">
+              <div className="mt-2 text-[13px] text-gray-400">
                 (ตัวอย่าง — QR สแกนได้จริงต้องต่อ library เพิ่ม)
               </div>
-              <div className="mt-4 text-[12px] text-gray-500">รหัสเช็กชื่อ</div>
+              <div className="mt-4 text-[14px] text-gray-500">รหัสเช็กชื่อ</div>
               <div className="text-3xl font-bold tracking-[0.3em] text-pink-700">{session.code}</div>
             </div>
 
@@ -1072,15 +1109,15 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
           </>
         ) : (
           <>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1">วันที่</label>
-            <input
-              type="date"
+            <label className="block text-[15px] font-medium text-gray-700 mb-1">วันที่</label>
+            <ThaiCalendarField
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 mb-4 outline-none focus:border-pink-400"
+              onChange={setDate}
+              heightClass="h-11"
+              className="mb-4"
             />
 
-            <label className="block text-[13px] font-medium text-gray-700 mb-1">คาบเรียน</label>
+            <label className="block text-[15px] font-medium text-gray-700 mb-1">คาบเรียน</label>
             <input
               type="text"
               value={period}
@@ -1090,23 +1127,13 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
             />
 
             <div className="flex gap-3 mb-5">
-              <div className="flex-1">
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">เวลาเริ่ม</label>
-                <input
-                  type="time"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 outline-none focus:border-pink-400"
-                />
+              <div className="flex-1 min-w-0">
+                <label className="block text-[15px] font-medium text-gray-700 mb-1">เวลาเริ่ม</label>
+                <ThaiTimeField value={startTime} onChange={setStartTime} heightClass="h-11" />
               </div>
-              <div className="flex-1">
-                <label className="block text-[13px] font-medium text-gray-700 mb-1">เวลาสิ้นสุด</label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 outline-none focus:border-pink-400"
-                />
+              <div className="flex-1 min-w-0">
+                <label className="block text-[15px] font-medium text-gray-700 mb-1">เวลาสิ้นสุด</label>
+                <ThaiTimeField value={endTime} onChange={setEndTime} min={startTime} heightClass="h-11" />
               </div>
             </div>
 
@@ -1114,7 +1141,7 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
               <button type="button" onClick={onClose} className="h-10 px-4 rounded-xl hover:bg-gray-100 text-gray-700 font-medium bg-white">
                 ยกเลิก
               </button>
-              <button type="button" onClick={handleStart} className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-semibold">
+              <button type="button" onClick={handleStart} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold">
                 เปิดการเช็กชื่อ
               </button>
             </div>
@@ -1126,15 +1153,23 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
 }
 
 /* ===== Stat card (dashboard) ===== */
-function StatCard({ label, value, sub, valueClassName = "text-gray-900", onClick }) {
+function StatCard({ icon, cardCls, iconCls, label, value, sub, valueClassName = "text-gray-900", onClick }) {
+  const Icon = icon;
   return (
     <div
       onClick={onClick}
-      className="rounded-2xl border border-gray-200 bg-white p-5 cursor-pointer hover:shadow-md transition-shadow flex flex-col justify-between"
+      className={`rounded-2xl p-5 cursor-pointer hover:shadow-md transition-shadow flex flex-col justify-between ${cardCls}`}
     >
-      <div className="text-[13px] text-gray-500">{label}</div>
+      <div className="flex items-center gap-2.5">
+        {Icon && (
+          <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconCls}`}>
+            <Icon size={15} />
+          </span>
+        )}
+        <div className="text-[15px] text-gray-600">{label}</div>
+      </div>
       <div className={`text-3xl font-bold mt-2 ${valueClassName}`}>{value}</div>
-      <div className="text-[12px] text-gray-400 mt-1">{sub}</div>
+      <div className="text-[14px] text-gray-500 mt-1">{sub}</div>
     </div>
   );
 }
@@ -1143,7 +1178,7 @@ function MiniStat({ label, value, className }) {
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-center">
       <div className={`text-2xl font-bold ${className}`}>{value ?? "-"}</div>
-      <div className="text-[12px] text-gray-500 mt-1">{label}</div>
+      <div className="text-[14px] text-gray-500 mt-1">{label}</div>
     </div>
   );
 }
@@ -1154,7 +1189,7 @@ function ActionButton({ icon, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 flex items-center gap-2 text-[13px]"
+      className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-pink-50 hover:text-pink-600 hover:border-pink-200 transition-colors flex items-center gap-2 text-[15px]"
     >
       {icon} {label}
     </button>
@@ -1179,7 +1214,7 @@ function AttendancePieChart({ data }) {
       <div className="w-40 h-40 rounded-full shrink-0 ring-8 ring-white shadow-sm" style={{ background: `conic-gradient(${stops})` }} />
       <div className="flex flex-col gap-3">
         {data.map((d) => (
-          <div key={d.status} className="flex items-center gap-2.5 text-[14px] text-gray-700">
+          <div key={d.status} className="flex items-center gap-2.5 text-[16px] text-gray-700">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
             {d.status} · <span className="font-semibold">{d.value}</span> ({Math.round((d.value / total) * 100)}%)
           </div>
@@ -1208,7 +1243,7 @@ function AttendanceBarChart({ data }) {
               <div style={{ height: seg(d.leave), backgroundColor: "#ec4899" }} />
               <div style={{ height: seg(d.absent), backgroundColor: "#ef4444" }} />
             </div>
-            <div className="text-[11px] text-gray-500 font-medium">{d.date.slice(5)}</div>
+            <div className="text-[13px] text-gray-500 font-medium">{d.date.slice(5)}</div>
           </div>
         );
       })}
@@ -1232,15 +1267,15 @@ function EditAttendanceModal({ row, onClose, onSave }) {
 
       <div className="relative bg-white rounded-2xl shadow-xl w-[360px] p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[16px] font-semibold text-gray-900">แก้ไขการเข้าเรียน</h2>
+          <h2 className="text-[18px] font-semibold text-gray-900">แก้ไขการเข้าเรียน</h2>
           <button type="button" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 bg-transparent">
             <FaTimes size={13} />
           </button>
         </div>
 
-        <div className="text-[13px] text-gray-500 mb-4">{row.fullname}</div>
+        <div className="text-[15px] text-gray-500 mb-4">{row.fullname}</div>
 
-        <label className="block text-[13px] font-medium text-gray-700 mb-1">สถานะ</label>
+        <label className="block text-[15px] font-medium text-gray-700 mb-1">สถานะ</label>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
@@ -1251,15 +1286,10 @@ function EditAttendanceModal({ row, onClose, onSave }) {
           ))}
         </select>
 
-        <label className="block text-[13px] font-medium text-gray-700 mb-1">เวลาเช็กชื่อ</label>
-        <input
-          type="time"
-          value={checkinTime}
-          onChange={(e) => setCheckinTime(e.target.value)}
-          className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 mb-4 outline-none focus:border-pink-400"
-        />
+        <label className="block text-[15px] font-medium text-gray-700 mb-1">เวลาเช็กชื่อ</label>
+        <ThaiTimeField value={checkinTime} onChange={setCheckinTime} heightClass="h-11" className="mb-4" />
 
-        <label className="block text-[13px] font-medium text-gray-700 mb-1">หมายเหตุ</label>
+        <label className="block text-[15px] font-medium text-gray-700 mb-1">หมายเหตุ</label>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -1272,7 +1302,7 @@ function EditAttendanceModal({ row, onClose, onSave }) {
           <button type="button" onClick={onClose} className="h-10 px-4 rounded-xl hover:bg-gray-100 text-gray-700 font-medium bg-white">
             ยกเลิก
           </button>
-          <button type="button" onClick={handleSave} className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-semibold">
+          <button type="button" onClick={handleSave} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white font-semibold">
             บันทึก
           </button>
         </div>
@@ -1293,10 +1323,10 @@ function StudentDrawer({ student, onClose }) {
         </button>
 
         <div className="flex flex-col items-center text-center mt-4">
-          <img src={student.avatar} className="w-20 h-20 rounded-full" />
-          <div className="mt-3 text-[17px] font-semibold text-gray-900">{student.fullname}</div>
-          <div className="text-[13px] text-gray-500">รหัส {student.code} · {student.className}</div>
-          <div className="text-[13px] text-gray-400">{student.email}</div>
+          <Avatar src={student.avatar} name={student.fullname} size={80} />
+          <div className="mt-3 text-[19px] font-semibold text-gray-900">{student.fullname}</div>
+          <div className="text-[15px] text-gray-500">รหัส {student.code} · {student.className}</div>
+          <div className="text-[15px] text-gray-400">{student.email}</div>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
@@ -1307,7 +1337,7 @@ function StudentDrawer({ student, onClose }) {
         </div>
 
         <div className="mt-4 rounded-xl border border-gray-100 p-4 text-center">
-          <div className="text-[12px] text-gray-500">เปอร์เซ็นต์การเข้าเรียน</div>
+          <div className="text-[14px] text-gray-500">เปอร์เซ็นต์การเข้าเรียน</div>
           <div className="text-2xl font-bold text-pink-600 mt-1">
             {student.attendancePercent === null ? "..." : `${student.attendancePercent}%`}
           </div>
@@ -1315,10 +1345,10 @@ function StudentDrawer({ student, onClose }) {
 
         {student.editLogs?.length > 0 && (
           <div className="mt-6">
-            <div className="text-[13px] font-semibold text-gray-700 mb-2">ประวัติการแก้ไขสถานะ (วันนี้)</div>
+            <div className="text-[15px] font-semibold text-gray-700 mb-2">ประวัติการแก้ไขสถานะ (วันนี้)</div>
             <div className="flex flex-col gap-2">
               {student.editLogs.map((log) => (
-                <div key={log.log_id} className="text-[12.5px] text-gray-500">
+                <div key={log.log_id} className="text-[14.5px] text-gray-500">
                   {log.teacher_name || "ระบบ"} แก้จาก <span className="font-medium text-gray-700">{STATUS_META[log.from_status]?.label || "-"}</span> เป็น{" "}
                   <span className="font-medium text-gray-700">{STATUS_META[log.to_status]?.label || "-"}</span> · {formatLogTime(log.changed_at)}
                 </div>

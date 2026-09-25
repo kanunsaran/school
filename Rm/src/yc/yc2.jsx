@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useEffect } from "react";
+import Swal from "sweetalert2";
 import { getdatayc } from "../callapi/callapi_user";
 import { getComments } from "../callapi/callapi_user";
 import { addComment } from "../callapi/callapi_user";
 import { getPostitLikeStatus, togglePostitLike } from "../callapi/callapi_user";
+import { getStudent, getTeacher } from "../callapi/callapi_user";
+import { deletePostit, deleteYcComment } from "../callapi/callapi_user";
 import { getPostitColor, getPostitTape, getPostitColorStyle, getPostitTapeStyle, POSTIT_COLOR_MAP, POSTIT_TAPE_MAP } from "../utils/postit";
-import SidebarNav from "../nav.jsx";
+import TeacherSidebarNav from "../nav.jsx";
+import StudentSidebarNav from "../navstudent.jsx";
 import Header from "../Header";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import PageLoading from "../components/PageLoading.jsx";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FaHome,
   FaRegCalendarAlt,
@@ -27,22 +32,15 @@ import {
   FaRegCommentDots,
   FaRegPaperPlane,
   FaArrowLeft,
+  FaTrash,
+  FaTimes,
 } from "react-icons/fa";
 
 // ⚠️ TODO: ทดไว้ก่อน รอทำหน้า login ค่อยเอา user_id จริงมาแทน
 const CURRENT_USER_ID = "1";
 
-export default function YCPostDetailPage() {
-  const location = useLocation();
+export default function YCPostDetailPage({ studentMode = false }) {
   const navigate = useNavigate();
-
-  const teacher = {
-    name: "คุณครู สุพรรณี",
-    role: "ครูประจำชั้น ม.6/5",
-    avatar: "https://i.pravatar.cc/120?img=47",
-  };
-
-  const [q, setQ] = useState("");
 
   const { id } = useParams();
 
@@ -51,6 +49,8 @@ export default function YCPostDetailPage() {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [liked, setLiked] = useState(false);
+  const [authorName, setAuthorName] = useState("");
+  const [expandedComment, setExpandedComment] = useState(null);
 
   useEffect(() => {
 
@@ -67,6 +67,7 @@ export default function YCPostDetailPage() {
             id: found.post_id,
             text: found.content,
             category: found.category,
+            userId: found.user_user_id,
             // ใช้สีที่บันทึกไว้จริงก่อน ถ้าโพสต์เก่าไม่มี (สร้างก่อนมีฟีเจอร์นี้) ค่อย fallback เป็นสีคำนวณจาก id
             tape: found.tape || getPostitTape(found.post_id),
             color: found.color || getPostitColor(found.post_id),
@@ -74,6 +75,14 @@ export default function YCPostDetailPage() {
             comments: found.comments ?? 0,
             shares: found.shares ?? 0,
           });
+
+          try {
+            const [students, teachers] = await Promise.all([getStudent(), getTeacher()]);
+            const author = [...students, ...teachers].find((u) => String(u.user_id) === String(found.user_user_id));
+            setAuthorName(author?.fullname || "");
+          } catch (err) {
+            console.error("โหลดชื่อผู้โพสต์ไม่สำเร็จ:", err);
+          }
         }
 
       } catch (err) {
@@ -167,76 +176,106 @@ export default function YCPostDetailPage() {
     }
   }
 
+  // ครูลบโพสต์นี้ทิ้งได้ เผื่อเนื้อหาไม่เหมาะสม
+  async function handleDeletePost() {
+    const result = await Swal.fire({
+      title: "ลบโพสต์นี้?",
+      text: "ลบแล้วกู้คืนไม่ได้ คอมเมนต์ทั้งหมดจะหายไปด้วย",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "ลบ",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deletePostit(post.id, CURRENT_USER_ID);
+      navigate(studentMode ? "/studentyc" : "/yc");
+    } catch (err) {
+      console.error(err);
+      Swal.fire({ icon: "error", title: "ลบโพสต์ไม่สำเร็จ" });
+    }
+  }
 
-
-  const isActive = (path) => location.pathname === path;
+  // ครูลบคอมเมนต์ของนักเรียนได้ เผื่อไม่เหมาะสม
+  async function handleDeleteComment(commentId) {
+    const result = await Swal.fire({
+      title: "ลบคอมเมนต์นี้?",
+      text: "ลบแล้วกู้คืนไม่ได้",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "ลบ",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await deleteYcComment(commentId);
+      setComments((prev) => prev.filter((c) => c.comment_id !== commentId));
+      setExpandedComment((prev) => (prev?.id === commentId ? null : prev));
+    } catch (err) {
+      console.error(err);
+      Swal.fire({ icon: "error", title: "ลบคอมเมนต์ไม่สำเร็จ" });
+    }
+  }
 
   return (
-    <div className="min-h-screen w-full bg-white flex text-[14px] text-gray-800">
+    <div className="min-h-screen w-full bg-white flex text-[15.5px] text-gray-800">
       <Header />
-      <SidebarNav />
+      {studentMode ? <StudentSidebarNav /> : <TeacherSidebarNav />}
 
       <main className="flex-1 min-w-0 w-full pt-15 bg-white">
-        <div className="w-full border-b border-gray-100 bg-gradient-to-b from-[#FFF1F7] to-white">
+        <div className="w-full border-b border-gray-100 bg-gradient-to-b from-[#FFF1F7] to-white py-8">
           <div className="flex justify-center">
-            <div className="text-center">
-              <div className="text-[44px] font-semibold tracking-tight">
-                <span className="text-pink-400">Y</span>
-                <span className="text-gray-700">outh </span>
-                <span className="text-yellow-300">C</span>
-                <span className="text-gray-700">ounselor</span>
-                <span className="inline-block ml-3 text-blue-300">✦✦</span>
-              </div>
-            </div>
+            <img src="/image/youth-counselor-logo.png" alt="Youth Counselor" className="h-20 w-auto object-contain" />
           </div>
-
         </div>
 
 
         {/* Content */}
         <div className="px-8 py-8">
-          {/* Back + Search + chips */}
-          <div className="flex items-center gap-4">
+          {/* Back + ชื่อผู้โพสต์ + หมวด */}
+          <div className="flex items-center justify-between gap-4 flex-wrap">
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="h-11 w-11 rounded-full border border-gray-200 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.08)] hover:bg-gray-50 active:scale-[0.98] transition"
-              title="ย้อนกลับ"
-              style={{ backgroundColor: "white" }}
+              className="flex items-center gap-2 text-[14.5px] text-gray-600 hover:text-gray-900 bg-transparent"
             >
-              <span className="w-full h-full flex items-center justify-center text-gray-700" >
-                <FaArrowLeft />
-              </span>
+              <FaArrowLeft size={12} /> ย้อนกลับ
             </button>
 
-            <div className="flex-1 relative">
-              <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="ค้นหาหัวข้อ หรือ คำถาม"
-                className="w-full h-11 rounded-full border border-gray-200 bg-white pl-11 pr-4 outline-none
-                           shadow-[0_10px_24px_rgba(0,0,0,0.08)]
-                           focus:shadow-[0_14px_30px_rgba(0,0,0,0.12)]
-                           focus:border-pink-200 transition"
-              />
+            <div className="flex items-center gap-2.5">
+              {/* นักเรียนไม่ควรเห็นชื่อผู้โพสต์ (โพสต์แบบไม่ระบุตัวตน) — ครูเห็นได้เพื่อดูแลเนื้อหา */}
+              {!studentMode && authorName && (
+                <div className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-700 text-[14px] font-medium flex items-center gap-2">
+                  <FaUserFriends className="text-gray-400" size={13} /> {authorName}
+                </div>
+              )}
+              {/* หมวดของโพสต์นี้ — แค่แสดงผล กดไม่ได้ (ไม่ใช่ตัวกรองเหมือนหน้ารายการ) */}
+              {post?.category && (
+                <div className="h-10 px-4 rounded-xl border border-pink-200 bg-pink-50 text-pink-700 font-semibold text-[14px] flex items-center">
+                  หมวด: {post.category}
+                </div>
+              )}
+              {/* ครูลบโพสต์นี้ได้เผื่อไม่เหมาะสม — นักเรียนไม่เห็นปุ่มนี้ */}
+              {!studentMode && post && (
+                <button
+                  type="button"
+                  onClick={handleDeletePost}
+                  title="ลบโพสต์นี้"
+                  className="h-10 w-10 rounded-xl border border-gray-200 bg-white text-red-500 hover:bg-red-50 flex items-center justify-center"
+                >
+                  <FaTrash size={14} />
+                </button>
+              )}
             </div>
-
-            {/* หมวดของโพสต์นี้ — แค่แสดงผล กดไม่ได้ (ไม่ใช่ตัวกรองเหมือนหน้ารายการ) */}
-            {post?.category && (
-              <div
-                className="h-11 px-5 rounded-2xl border border-pink-200 bg-pink-50 text-pink-700 font-semibold flex items-center shadow-[0_10px_24px_rgba(0,0,0,0.08)]"
-              >
-                หมวด: {post.category}
-              </div>
-            )}
           </div>
 
           {/* Main post (✅ smaller + minimal) */}
           <div className="mt-8 flex justify-center">
             <div className="w-full max-w-[420px]">
               {loading ? (
-                <div className="text-center text-gray-500">กำลังโหลด...</div>
+                <PageLoading />
               ) : post ? (
                 <BigPostIt post={post} />
               ) : (
@@ -277,15 +316,16 @@ export default function YCPostDetailPage() {
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="เขียนความคิดเห็น..."
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2"
+                  className="flex-1 h-12 border border-gray-200 bg-gray-50 rounded-xl px-4 text-[15px] outline-none focus:border-pink-400"
                 />
 
-                <button style={{ backgroundColor: "rgba(252, 231, 243, 0.8)" }}
+                <button
+                  type="button"
                   onClick={handleAddComment}
-                  className="px-4 py-2 bg-pink-500 text-black rounded-xl "
-
+                  disabled={!newComment.trim()}
+                  className="h-12 w-12 shrink-0 rounded-xl bg-pink-500 hover:bg-pink-600 text-white flex items-center justify-center disabled:opacity-40 transition"
                 >
-                  ส่ง
+                  <FaRegPaperPlane size={16} />
                 </button>
               </div>
 
@@ -295,24 +335,58 @@ export default function YCPostDetailPage() {
           {/* Related mini posts */}
           <div className="mt-8 flex justify-center">
             <div className="w-full max-w-[980px]">
-              <div className="flex flex-wrap items-end justify-between gap-10">
-                {comments.map((c, index) => (
-                  <MiniPostIt
-                    key={c.comment_id}
-                    post={{
-                      id: c.comment_id,
-                      text: c.comment_text,
-                      tape: ["pink", "blue", "yellow"][index % 3],
-                      color: ["pink", "blue", "yellow"][index % 3],
-                      size: "sm"
-                    }}
-                  />
-                ))}
+              <div className="flex flex-wrap items-end justify-start gap-6">
+                {comments.map((c, index) => {
+                  const miniPost = {
+                    id: c.comment_id,
+                    text: c.comment_text,
+                    tape: ["pink", "blue", "yellow"][index % 3],
+                    color: ["pink", "blue", "yellow"][index % 3],
+                    size: "sm",
+                  };
+                  return (
+                    <MiniPostIt
+                      key={c.comment_id}
+                      post={miniPost}
+                      onClick={() => setExpandedComment(miniPost)}
+                      onDelete={!studentMode ? () => handleDeleteComment(c.comment_id) : null}
+                    />
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* คลิกโพสอิทคอมเมนต์แล้วขึ้นมาเป็นอันใหญ่ให้อ่านง่าย */}
+      {expandedComment && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-6"
+          onClick={() => setExpandedComment(null)}
+        >
+          <div className="w-full max-w-[420px] relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setExpandedComment(null)}
+              className="absolute -top-3 -right-3 z-10 w-9 h-9 rounded-full bg-white shadow-md text-gray-600 hover:text-gray-900 flex items-center justify-center"
+              title="ปิด"
+            >
+              <FaTimes size={14} />
+            </button>
+            {!studentMode && (
+              <button
+                type="button"
+                onClick={() => handleDeleteComment(expandedComment.id)}
+                className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 h-9 px-3.5 rounded-full bg-white shadow-md text-red-500 hover:bg-red-50 flex items-center gap-1.5 text-[12.5px] font-medium"
+              >
+                <FaTrash size={11} /> ลบคอมเมนต์นี้
+              </button>
+            )}
+            <BigPostIt post={expandedComment} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -380,7 +454,7 @@ function BigPostIt({ post }) {
         <div className="absolute inset-0 opacity-60 pointer-events-none bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
 
         <div className="px-8 py-9 min-h-[180px] flex items-center justify-center text-center relative">
-          <div className="whitespace-pre-line text-[18px] font-semibold text-gray-900 leading-snug">
+          <div className="whitespace-pre-line text-[19.5px] font-semibold text-gray-900 leading-snug">
             {post.text}
           </div>
         </div>
@@ -392,45 +466,59 @@ function BigPostIt({ post }) {
   );
 }
 
-function MiniPostIt({ post }) {
+function MiniPostIt({ post, onClick, onDelete }) {
   const palette = POSTIT_COLOR_MAP;
   const tape = POSTIT_TAPE_MAP;
 
   const size =
     post.size === "sm"
-      ? "w-[170px] min-h-[110px] text-[12px]"
-      : "w-[220px] min-h-[140px] text-[13px]";
+      ? "w-[210px] min-h-[140px] text-[15px]"
+      : "w-[240px] min-h-[160px] text-[15.5px]";
 
   const rotations = ["rotate(-6deg)", "rotate(3deg)", "rotate(-2deg)", "rotate(6deg)"];
   const r = rotations[post.id % rotations.length];
 
   return (
-    <button
-      type="button"
-      className="text-left group active:scale-[0.99] transition"
-      style={{ backgroundColor: "#ffffff" }}
-      title="ดูโพสต์"
-    >
-      <div className="relative">
-        <div className="flex justify-center">
-          <div className={`h-3.5 w-14 rounded-md ${tape[post.tape]} opacity-75`} />
-        </div>
-
-        <div
-          className={`mt-2 rounded-2xl ${palette[post.color]} ${size}
-                      border border-black/5
-                      shadow-[0_10px_24px_rgba(0,0,0,0.08)]
-                      group-hover:shadow-[0_14px_30px_rgba(0,0,0,0.12)]
-                      transition relative overflow-hidden`}
-          style={{ transform: r }}
-        >
-          <div className="absolute inset-0 opacity-50 pointer-events-none bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
-          <div className="p-4 whitespace-pre-line text-gray-900 leading-relaxed relative">
-            {post.text}
+    <div className="relative group">
+      <button
+        type="button"
+        onClick={onClick}
+        className="text-left w-full active:scale-[0.99] transition"
+        style={{ backgroundColor: "#ffffff" }}
+        title="ดูคอมเมนต์นี้"
+      >
+        <div className="relative">
+          <div className="flex justify-center">
+            <div className={`h-3.5 w-14 rounded-md ${tape[post.tape]} opacity-75`} />
           </div>
-          <div className="absolute right-0 bottom-0 w-9 h-9 bg-white/22 rounded-tl-2xl" />
+
+          <div
+            className={`mt-2 rounded-2xl ${palette[post.color]} ${size}
+                        border border-black/5
+                        shadow-[0_10px_24px_rgba(0,0,0,0.08)]
+                        group-hover:shadow-[0_14px_30px_rgba(0,0,0,0.12)]
+                        transition relative overflow-hidden`}
+            style={{ transform: r }}
+          >
+            <div className="absolute inset-0 opacity-50 pointer-events-none bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55),rgba(255,255,255,0))]" />
+            <div className="p-4 whitespace-pre-line text-gray-900 leading-relaxed relative">
+              {post.text}
+            </div>
+            <div className="absolute right-0 bottom-0 w-9 h-9 bg-white/22 rounded-tl-2xl" />
+          </div>
         </div>
-      </div>
-    </button>
+      </button>
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          title="ลบคอมเมนต์นี้"
+          className="absolute top-1 right-1 w-7 h-7 rounded-full bg-white/90 shadow text-red-500 hover:bg-red-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+        >
+          <FaTrash size={11} />
+        </button>
+      )}
+    </div>
   );
 }

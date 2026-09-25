@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
-import SidebarNav from "../nav.jsx";
+import TeacherSidebarNav from "../nav.jsx";
+import StudentSidebarNav from "../navstudent.jsx";
 import Header from "../Header";
 import AttachmentGallery from "../components/AttachmentGallery.jsx";
 import { getFeedPosts, getFeedPostFiles } from "../callapi/callapi_user.jsx";
-import { CATEGORY_META } from "../learning/newsFeedMockData.js";
+import { getCategoryMetaMap } from "../utils/feedCategories.js";
 import { isImageFile } from "../utils/media.js";
 import { API_BASE, CURRENT_TEACHER, formatThaiDateTime } from "../utils/feedShared.js";
+import PageLoading from "../components/PageLoading.jsx";
 
-export default function ImagePostDetailPage() {
+export default function ImagePostDetailPage({ studentMode = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const SidebarNav = studentMode ? StudentSidebarNav : TeacherSidebarNav;
 
   const [post, setPost] = useState(location.state?.post || null);
   const [loading, setLoading] = useState(!location.state?.post);
@@ -54,7 +57,7 @@ export default function ImagePostDetailPage() {
       <div className="min-h-screen w-full bg-white flex">
         <Header />
         <SidebarNav />
-        <main className="flex-1 pt-24 p-10 text-center text-gray-500">กำลังโหลด…</main>
+        <main className="flex-1 pt-24 p-10"><PageLoading /></main>
       </div>
     );
   }
@@ -78,14 +81,17 @@ export default function ImagePostDetailPage() {
     );
   }
 
-  const catMeta = CATEGORY_META[post.category];
+  const catMeta = getCategoryMetaMap()[post.category];
+
+  // กดชื่อโพสต์แล้วไปที่โพสต์จริงในฟีด (เลื่อนไปหาโพสต์นั้นให้อัตโนมัติผ่าน hash เดียวกับที่ใช้แชร์)
+  const goToPost = () => navigate(`${studentMode ? "/post" : "/newsfeed"}#post-${post.post_id}`);
 
   return (
     <div className="min-h-screen w-full bg-white flex text-[14px] text-gray-800">
       <Header />
       <SidebarNav />
 
-      <main className="flex-1 min-w-0 w-full px-8 pt-24 pb-16 max-w-[900px]">
+      <main className="flex-1 min-w-0 w-full px-8 pt-24 pb-16">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -94,30 +100,38 @@ export default function ImagePostDetailPage() {
           <FaArrowLeft size={12} /> กลับไปหน้ารูปภาพกิจกรรม
         </button>
 
-        <div className="mt-4 flex items-center gap-2">
+        {/* รายละเอียดโพสต์แบบไม่มีกรอบ อยู่ด้านบน ปล่อยพื้นที่ด้านล่างให้รูปภาพเต็มหน้า — เต็มความกว้างเท่ารูปด้านล่าง ระยะขอบซ้ายขวาเท่ากันทั้งหน้า */}
+        <div className="mt-4">
           {catMeta && (
-            <span className={`h-6 px-2.5 rounded-full text-[11.5px] font-semibold border ${catMeta.badge}`}>
+            <span className={`inline-flex items-center justify-center h-6 px-2.5 rounded-full text-[13.5px] font-semibold border ${catMeta.badge}`}>
               {catMeta.label}
             </span>
           )}
-        </div>
 
-        <div className="mt-2 text-[24px] leading-snug font-bold text-gray-900">{post.title}</div>
+          <button
+            type="button"
+            onClick={goToPost}
+            title="ไปที่โพสต์นี้"
+            className="block mt-3 text-[22px] leading-snug font-bold text-gray-900 hover:text-pink-600 bg-transparent text-left p-0"
+          >
+            {post.title}
+          </button>
 
-        <div className="mt-2 flex items-center gap-2 text-[13px] text-gray-500">
-          <span>{post.authorName}</span>
-          <span className="w-1 h-1 rounded-full bg-gray-300" />
-          <span>{formatThaiDateTime(post.createdAt)}</span>
-        </div>
-
-        {post.content && (
-          <div className="mt-5 rounded-2xl bg-white border border-gray-200 p-5 text-[14px] leading-relaxed text-gray-700 whitespace-pre-wrap">
-            {post.content}
+          <div className="mt-2 flex items-center gap-2 text-[15px] text-gray-500 flex-wrap">
+            <span>{post.authorName}</span>
+            <span className="w-1 h-1 rounded-full bg-gray-300" />
+            <span>{formatThaiDateTime(post.createdAt)}</span>
           </div>
-        )}
 
+          {post.content && (
+            <div className="mt-3 text-[17px] leading-relaxed text-gray-700 whitespace-pre-wrap">
+              {post.content}
+            </div>
+          )}
+        </div>
+
+        {/* รูปภาพเต็มความกว้างหน้า — กดดูแบบเต็มจอได้เลย ไม่มีคอมเมนต์/แชร์ปนมาด้วย (ดูที่โพสต์จริงแทน) */}
         <div className="mt-6">
-          <div className="text-[15px] font-semibold text-gray-900 mb-3">รูปทั้งหมด ({post.images.length})</div>
           <AttachmentGallery files={post.images} apiBase={API_BASE} />
         </div>
       </main>

@@ -16,6 +16,8 @@ import {
   FaChartBar,
   FaListUl,
   FaCommentDots,
+  FaFileImport,
+  FaClipboardList,
 } from "react-icons/fa";
 import { getClasses, getAssignmentClasses } from "./callapi/callapi_user.jsx";
 
@@ -65,13 +67,15 @@ export default function SidebarNav() {
   const isInGroup = (key) => {
     if (key === "classrooms") return location.pathname.startsWith("/classroom") || !!workDetailAssId;
     if (key === "assessment") return location.pathname.startsWith("/assessments");
-    return groups[key]?.includes(location.pathname);
+    if (key === "students") return location.pathname.startsWith("/student") || location.pathname === "/ImportStudents";
+    return groups[key]?.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`));
   };
 
   const [openMenu, setOpenMenu] = useState({
     activity: false,
     classrooms: false,
     assessment: false,
+    students: false,
   });
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -86,6 +90,7 @@ export default function SidebarNav() {
       activity: prev.activity || isInGroup("activity"),
       classrooms: prev.classrooms || isInGroup("classrooms"),
       assessment: prev.assessment || isInGroup("assessment"),
+      students: prev.students || isInGroup("students"),
     }));
   }, [location.pathname]);
 
@@ -97,27 +102,27 @@ export default function SidebarNav() {
     "flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors duration-200";
 
   const mainInactive =
-    "text-gray-400 hover:text-pink-600 hover:bg-pink-50";
+    "text-gray-900 hover:text-pink-600 hover:bg-pink-50";
 
   const mainActive =
     "bg-pink-50 text-pink-700 font-semibold";
 
   const subBase =
-    "flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-colors duration-200";
+    "flex items-center gap-3 px-3 py-2 rounded-xl text-[15px] transition-colors duration-200";
 
   const subInactive =
-    "text-gray-400 hover:text-pink-600 hover:bg-pink-50";
+    "text-gray-900 hover:text-pink-600 hover:bg-pink-50";
 
   const subActive =
     "bg-pink-50 text-pink-700 font-semibold";
 
-  const iconInactive = "text-gray-400";
+  const iconInactive = "text-gray-500";
   const iconActive = "text-pink-500";
 
   return (
     <>
-      <aside className="w-[270px] bg-white border-r border-gray-200 min-h-screen pt-23">
-        <nav className="px-3 pb-6 text-[14px] space-y-2">
+      <aside className="w-[270px] shrink-0 bg-white border-r border-gray-200 h-screen sticky top-0 overflow-y-auto pt-23">
+        <nav className="px-3 pb-6 text-[17px] space-y-2">
 
 <NavLink
   to="/TeacherDashboard"
@@ -162,6 +167,43 @@ export default function SidebarNav() {
             <span className="ml-3">ห้องเรียน</span>
           </NavLink> */}
 
+          {/* ===== จัดการนักเรียน ===== */}
+          <div>
+            <div
+              onClick={() => toggleMenu("students")}
+              className={`${menuWithArrow} ${
+                isInGroup("students") ? mainActive : mainInactive
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FaUserFriends className={isInGroup("students") ? iconActive : iconInactive} />
+                <span className="font-medium">จัดการนักเรียน</span>
+              </div>
+
+              <FaChevronDown
+                className={`text-[13px] transition-transform duration-200 ${
+                  openMenu.students ? "rotate-180" : ""
+                } ${isInGroup("students") ? "text-pink-500" : "text-gray-400"}`}
+              />
+            </div>
+
+            {openMenu.students && (
+              <div className="ml-4 pl-4 border-l border-gray-100 mt-1 space-y-1">
+                <NavLink to="/student" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaListUl className={location.pathname === "/student" ? iconActive : iconInactive} />
+                  รายชื่อนักเรียน
+                </NavLink>
+
+                <NavLink to="/ImportStudents" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaFileImport className={location.pathname === "/ImportStudents" ? iconActive : iconInactive} />
+                  นำเข้ารายชื่อนักเรียน
+                </NavLink>
+              </div>
+            )}
+          </div>
+
           {/* ===== กิจกรรม ===== */}
           <div>
             <div
@@ -176,7 +218,7 @@ export default function SidebarNav() {
               </div>
 
               <FaChevronDown
-                className={`text-[11px] transition-transform duration-200 ${
+                className={`text-[13px] transition-transform duration-200 ${
                   openMenu.activity ? "rotate-180" : ""
                 } ${isInGroup("activity") ? "text-pink-500" : "text-gray-400"}`}
               />
@@ -192,7 +234,7 @@ export default function SidebarNav() {
 
                 <NavLink to="/image" className={({ isActive }) =>
                   `${subBase} ${isActive ? subActive : subInactive}`}>
-                  <FaTasks className={location.pathname === "/image" ? iconActive : iconInactive} />
+                  <FaTasks className={location.pathname.startsWith("/image") ? iconActive : iconInactive} />
                   รูปภาพ
                 </NavLink>
 
@@ -215,11 +257,11 @@ export default function SidebarNav() {
             >
               <div className="flex items-center gap-3">
                 <FaChalkboardTeacher className={isInGroup("classrooms") ? iconActive : iconInactive} />
-                <span className="font-medium">ห้องเรียนของฉัน</span>
+                <span className="font-medium">ห้องเรียนที่ดูแล</span>
               </div>
 
               <FaChevronDown
-                className={`text-[11px] transition-transform duration-200 ${
+                className={`text-[13px] transition-transform duration-200 ${
                   openMenu.classrooms ? "rotate-180" : ""
                 } ${isInGroup("classrooms") ? "text-pink-500" : "text-gray-400"}`}
               />
@@ -228,7 +270,7 @@ export default function SidebarNav() {
             {openMenu.classrooms && (
               <div className="ml-4 pl-4 border-l border-gray-100 mt-1 space-y-1">
                 {classrooms.length === 0 && (
-                  <div className="px-3 py-2 text-[12.5px] text-gray-400">ไม่พบห้องเรียน</div>
+                  <div className="px-3 py-2 text-[14px] text-gray-400">ไม่พบห้องเรียน</div>
                 )}
                 {classrooms.map((c) => {
                   const roomIsActive =
@@ -249,6 +291,17 @@ export default function SidebarNav() {
             )}
           </div>
 
+          {/* ภาพรวมการมอบหมายงาน */}
+          <NavLink
+            to="/AssignmentOverview"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive ? mainActive : mainInactive}`
+            }
+          >
+            <FaClipboardList className={location.pathname === "/AssignmentOverview" ? iconActive : iconInactive} />
+            <span className="ml-3">ภาพรวมการมอบหมายงาน</span>
+          </NavLink>
+
           {/* ===== แบบประเมิน ===== */}
           <div>
             <div
@@ -263,7 +316,7 @@ export default function SidebarNav() {
               </div>
 
               <FaChevronDown
-                className={`text-[11px] transition-transform duration-200 ${
+                className={`text-[13px] transition-transform duration-200 ${
                   openMenu.assessment ? "rotate-180" : ""
                 } ${isInGroup("assessment") ? "text-pink-500" : "text-gray-400"}`}
               />
@@ -328,7 +381,7 @@ export default function SidebarNav() {
           {/* Logout */}
           <button style={{backgroundColor: "white"}}
             onClick={() => setShowLogoutModal(true)}
-            className="w-full text-left flex items-center px-4 py-2.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors duration-200 "
+            className="w-full text-left flex items-center px-4 py-2.5 rounded-xl text-gray-900 hover:text-red-500 hover:bg-red-50 transition-colors duration-200 "
           >
             <FaSignOutAlt />
             <span className="ml-3">ออกจากระบบ</span>

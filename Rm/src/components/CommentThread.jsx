@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import Avatar from "./Avatar.jsx";
 
 function MoreIcon() {
   return (
@@ -91,6 +92,7 @@ export default function CommentThread({
   comments,
   currentUserId,
   currentUserAvatar,
+  currentUserName,
   onAddComment,    // (postId, text, parentId) => Promise
   onEditComment,   // (postId, commentId, text) => Promise
   onDeleteComment, // (postId, commentId) => Promise
@@ -141,9 +143,10 @@ export default function CommentThread({
 
     return (
       <div key={c.id} className={isReply ? "flex gap-3 ml-11 mt-3" : "flex gap-3"}>
-        <img
-          src={isOwner ? currentUserAvatar : `https://i.pravatar.cc/120?u=${c.user_id}`}
-          className="w-8 h-8 rounded-full shrink-0"
+        <Avatar
+          src={isOwner ? currentUserAvatar : c.avatar_url}
+          name={isOwner ? currentUserName : c.author}
+          size={32}
         />
 
         <div className="flex-1 min-w-0">
@@ -233,7 +236,7 @@ export default function CommentThread({
       </div>
 
       <div className="flex gap-3 mt-4 items-center">
-        <img src={currentUserAvatar} className="w-8 h-8 rounded-full" />
+        <Avatar src={currentUserAvatar} name={currentUserName} size={32} />
 
         <input
           value={commentText}

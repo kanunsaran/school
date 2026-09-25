@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import SidebarNav from "../../nav.jsx";
+import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header.jsx";
 import CommentThread from "../../components/CommentThread.jsx";
+import Avatar from "../../components/Avatar.jsx";
 import {
   getNews,
   getNewsComments,
@@ -53,7 +54,7 @@ export default function StudentNewsPage() {
 
   const student = {
     name: "นักเรียน",
-    avatar: "https://i.pravatar.cc/120?img=12",
+    avatar: null,
   };
 
   const [bannerImage] = useState(
@@ -62,7 +63,7 @@ export default function StudentNewsPage() {
 
   const teacher = {
     name: "คุณครู สุพรรณี",
-    avatar: "https://i.pravatar.cc/120?img=47",
+    avatar: null,
   };
 
   const [posts, setPosts] = useState([]);
@@ -279,7 +280,7 @@ export default function StudentNewsPage() {
                   className="bg-white rounded-2xl shadow-sm hover:shadow-md transition"
                 >
                   <div className="px-6 pt-6 pb-4 flex gap-4">
-                    <img src={post.avatar} className="w-10 h-10 rounded-full" />
+                    <Avatar src={post.avatar} name={post.author} size={40} />
 
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
@@ -358,6 +359,7 @@ export default function StudentNewsPage() {
                       comments={post.comments}
                       currentUserId={CURRENT_USER_ID}
                       currentUserAvatar={student.avatar}
+                      currentUserName={student.name}
                       onAddComment={handleAddNewComment}
                       onEditComment={saveEditComment}
                       onDeleteComment={handleDeleteComment}

@@ -1,5 +1,15 @@
 node_modules
 dist
+dist-ssr
 .git
+.gitignore
+.flowbite-react
+.env
+.env.local
+.env.*.local
+npm-debug.log*
+*.log
 .DS_Store
+.vscode
+.idea
 README.md

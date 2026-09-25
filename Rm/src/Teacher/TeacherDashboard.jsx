@@ -1,20 +1,43 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
 import SidebarNav from "../nav.jsx";
-import Header from "../Header";
+import Header from "../Header.jsx";
 import {
   FaChevronLeft,
   FaChevronRight,
   FaUsers,
+  FaUserFriends,
   FaRegClipboard,
-  FaBook,
   FaBullhorn,
   FaPlus,
   FaCheckCircle,
-  FaTimesCircle,
-  FaQuestionCircle,
+  FaCalendarCheck,
   FaCommentDots,
+  FaChalkboardTeacher,
+  FaTimes,
 } from "react-icons/fa";
+import Select from "react-select";
+import {
+  getStudent, getEnrollments, getClasses, getTeacher, getFeedPosts, getTypeResults, getAppointments, createClass, getAcademicYears, createAcademicYear, getConsultationRequests,
+  getAssessmentsList, getTeachingSchedule, addTeachingPeriod, removeTeachingPeriod,
+} from "../callapi/callapi_user.jsx";
+import { getCurrentUser } from "../utils/auth.js";
+import { WEEKDAY_OPTIONS, PERIOD_OPTIONS } from "../utils/teachingScheduleStore.js";
+
+// แปลงแถวดิบจาก GET /teaching-schedule (schedule_id, teacher_user_id, weekday, ...) ให้เป็น shape เดิม {id, day, ...} ที่หน้านี้ใช้อยู่แล้ว
+const normalizeSchedule = (raw) => ({
+  id: raw.schedule_id,
+  teacherId: raw.teacher_user_id,
+  day: raw.weekday,
+  period: raw.period,
+  classroom: raw.classroom,
+  subject: raw.subject,
+});
+import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+import { gradeLabel } from "../utils/gradeLabel.js";
+
+const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
 const WEEKDAYS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const THAI_MONTHS = [
@@ -22,41 +45,7 @@ const THAI_MONTHS = [
   "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
 ];
 
-const students = [
-  { id: 1, name: "กนกพัฒน์ ธรรมรักษ์", classroom: "ม.6/1", email: "kanokpat.t@kkwit.ac.th" },
-  { id: 2, name: "มณีนุช อัคคหาด", classroom: "ม.6/2", email: "maneenuch.a@kkwit.ac.th" },
-  { id: 3, name: "ภคณ อนันตคามนึง", classroom: "ม.5/3", email: "pakkon.a@kkwit.ac.th" },
-  { id: 4, name: "บุรศกร อนันตกุล", classroom: "ม.5/1", email: "buraskorn.a@kkwit.ac.th" },
-  { id: 5, name: "รินทร์ลดา พรหมศรี", classroom: "ม.4/2", email: "rinlada.p@kkwit.ac.th" },
-];
-
-const classroomBreakdown = [
-  { label: "ม.6", value: 2 },
-  { label: "ม.5", value: 2 },
-  { label: "ม.4", value: 1 },
-];
-
-const DAY_SHORT = ["จ", "อ", "พ", "พฤ", "ศ"];
-const PERIODS = [
-  { period: 1, time: "08:30-09:20" },
-  { period: 2, time: "09:20-10:10" },
-  { period: 3, time: "10:10-11:00" },
-  { period: 4, time: "11:00-11:50" },
-  { period: 5, time: "12:40-13:30" },
-  { period: 6, time: "13:30-14:20" },
-  { period: 7, time: "14:20-15:10" },
-  { period: 8, time: "15:10-16:00" },
-];
-
-const schedule = [
-  { day: 0, period: 1, subject: "แนะแนว", classroom: "ม.6/1" },
-  { day: 0, period: 5, subject: "แนะแนว", classroom: "ม.5/1" },
-  { day: 1, period: 2, subject: "แนะแนว", classroom: "ม.6/2" },
-  { day: 2, period: 4, subject: "แนะแนว", classroom: "ม.4/2" },
-  { day: 3, period: 1, subject: "แนะแนว", classroom: "ม.5/3" },
-  { day: 3, period: 6, subject: "ประชุมกลุ่มสาระ", classroom: "" },
-  { day: 4, period: 3, subject: "แนะแนว", classroom: "ม.6/1" },
-];
+const PERIODS = PERIOD_OPTIONS;
 
 const toDateKey = (date) => {
   const y = date.getFullYear();
@@ -65,52 +54,14 @@ const toDateKey = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-const aptitudeResults = [
-  { studentId: 1, completed: true, riasec: "Social", faculty: "คณะครุศาสตร์" },
-  { studentId: 2, completed: true, riasec: "Investigative", faculty: "คณะวิศวกรรมศาสตร์" },
-  { studentId: 3, completed: false },
-  { studentId: 4, completed: true, riasec: "Enterprising", faculty: "คณะนิเทศศาสตร์" },
-  { studentId: 5, completed: true, riasec: "Investigative", faculty: "คณะวิทยาศาสตร์" },
-];
-
-const weeklyActivity = [
-  { label: "จ", value: 18 },
-  { label: "อ", value: 22 },
-  { label: "พ", value: 15 },
-  { label: "พฤ", value: 25 },
-  { label: "ศ", value: 20 },
-  { label: "ส", value: 8 },
-  { label: "อา", value: 5 },
-];
-
-const RIASEC_CODES = ["R", "I", "A", "S", "E", "C"];
-const RIASEC_LABEL = {
-  R: "Realistic", I: "Investigative", A: "Artistic",
-  S: "Social", E: "Enterprising", C: "Conventional",
+const formatNotifTime = (d) => {
+  if (!d) return "-";
+  return new Date(d).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 
-const lessons = [
-  { title: "แนะแนวคณะวิศวกรรมศาสตร์", date: "10 กรกฎาคม 2569" },
-  { title: "การเตรียมตัวสอบ TGAT", date: "5 กรกฎาคม 2569" },
-  { title: "การเลือกสายอาชีพ", date: "28 มิถุนายน 2569" },
-];
-const totalLessonsPublished = 12;
-
-const quizzes = [
-  { name: "แบบทดสอบความถนัดเบื้องต้น", participants: 42, avgScore: 78 },
-  { name: "แบบทดสอบบุคลิกภาพ RIASEC", participants: 35, avgScore: 82 },
-];
-const totalQuizzesCreated = 6;
-
-const totalAnnouncementsPublished = 8;
-
-const notifications = [
-  { icon: "question", text: "กนกพัฒน์ ธรรมรักษ์ ส่งคำถามในบทเรียน การเลือกสายอาชีพ", time: "10 นาทีที่แล้ว" },
-  { icon: "quiz", text: "มณีนุช อัคคหาด ทำแบบทดสอบ RIASEC เสร็จแล้ว", time: "1 ชั่วโมงที่แล้ว" },
-  { icon: "comment", text: "มีความคิดเห็นใหม่ในบทเรียน การเตรียมตัวสอบ TGAT", time: "เมื่อวาน" },
-];
-
-const NOTIF_ICON = { question: FaQuestionCircle, quiz: FaCheckCircle, comment: FaCommentDots };
+// ยังไม่มี backend endpoint แจ้งเตือนรวมศูนย์ (ไม่มีตาราง/route ชื่อ notification เลย) — ประกอบขึ้นเองจากข้อมูลจริงที่มีอยู่แล้ว 2 แหล่ง:
+// ผลทำ RIASEC ล่าสุด (user_type_result) + นัดหมายที่สร้างล่าสุด (appointment) เรียงตามเวลาจริงแล้วเอา 3 อันดับแรก
+const NOTIF_ICON = { quiz: FaCheckCircle, appointment: FaCalendarCheck };
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
@@ -119,16 +70,33 @@ export default function TeacherDashboard() {
   const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDate, setSelectedDate] = useState(today);
 
-  const [appointments] = useState(() => {
-    const t = toDateKey(today);
-    const in3days = new Date(today);
-    in3days.setDate(in3days.getDate() + 3);
-    return [
-      { id: 1, date: t, time: "10:00", studentId: 1, note: "พูดคุยเรื่องแผนการเรียนต่อ" },
-      { id: 2, date: t, time: "13:30", studentId: 3, note: "ติดตามผลการเรียน" },
-      { id: 3, date: toDateKey(in3days), time: "09:00", studentId: 5, note: "แนะแนวสมัครมหาวิทยาลัย" },
-    ];
-  });
+  const [appointments, setAppointments] = useState([]);
+  const [appointmentNotifications, setAppointmentNotifications] = useState([]);
+
+  // ดึงนัดหมายจริงของครูคนนี้ (ยกเลิกแล้วไม่แสดง) — student_name join มาให้จาก backend แล้ว
+  useEffect(() => {
+    getAppointments({ teacher_user_id: CURRENT_TEACHER_ID })
+      .then((list) => {
+        const active = (list || []).filter((a) => a.status !== "cancelled");
+        setAppointments(
+          active.map((a) => ({
+            id: a.appointment_id,
+            date: toDateKey(new Date(a.appointment_date)),
+            time: a.appointment_time,
+            studentName: a.student_name || "-",
+            note: a.note,
+          }))
+        );
+        setAppointmentNotifications(
+          active.map((a) => ({
+            type: "appointment",
+            text: `นัดหมายใหม่กับ ${a.student_name || "-"}${a.note ? `: ${a.note}` : ""}`,
+            time: a.created_at,
+          }))
+        );
+      })
+      .catch((err) => console.error("โหลดนัดหมายไม่สำเร็จ:", err));
+  }, []);
 
   const appointmentCountByDate = useMemo(() => {
     const map = {};
@@ -144,31 +112,270 @@ export default function TeacherDashboard() {
     .filter((a) => a.date === selectedKey)
     .sort((a, b) => a.time.localeCompare(b.time));
 
-  const studentById = (id) => students.find((s) => s.id === Number(id));
-  const aptitudeById = (id) => aptitudeResults.find((r) => r.studentId === Number(id));
+  const [students, setStudents] = useState([]);
+  const [classroomBreakdown, setClassroomBreakdown] = useState([]);
+  const [teacherName, setTeacherName] = useState("");
+  const [announcementCount, setAnnouncementCount] = useState(0);
+  const [consultationCount, setConsultationCount] = useState(0);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [assessmentCount, setAssessmentCount] = useState(0);
+  const [quizNotifications, setQuizNotifications] = useState([]);
+  const [myClasses, setMyClasses] = useState([]);
+  const [teachingSchedule, setTeachingSchedule] = useState([]);
 
-  const riasecCounts = useMemo(() => {
-    return RIASEC_CODES.map((code) => ({
-      label: code,
-      value: aptitudeResults.filter((r) => r.completed && r.riasec === RIASEC_LABEL[code]).length,
-    }));
+  const loadTeachingSchedule = () =>
+    getTeachingSchedule({ teacher_user_id: CURRENT_TEACHER_ID })
+      .then((data) => setTeachingSchedule((data || []).map(normalizeSchedule)))
+      .catch(() => setTeachingSchedule([]));
+
+  useEffect(() => {
+    getConsultationRequests({ teacher_user_id: CURRENT_TEACHER_ID })
+      .then((data) => setConsultationCount((data || []).length))
+      .catch(() => setConsultationCount(0));
+    // "แบบทดสอบที่สร้าง" — เฉพาะที่ครูคนนี้สร้างเอง (ไม่นับ Holland/RIASEC เพราะเป็นแบบทดสอบของระบบ ไม่ใช่ที่ครูคนนี้สร้างเอง ดู AssessmentList.jsx)
+    getAssessmentsList({ created_by_user_id: CURRENT_TEACHER_ID })
+      .then((data) => setAssessmentCount((data || []).length))
+      .catch(() => setAssessmentCount(0));
+    loadTeachingSchedule();
   }, []);
 
-  const facultyCounts = useMemo(() => {
-    const map = {};
-    for (const r of aptitudeResults) {
-      if (r.completed && r.faculty) map[r.faculty] = (map[r.faculty] || 0) + 1;
+  // ดึงจำนวนนักเรียนจริง + สัดส่วนต่อระดับชั้นจริง + ชื่อครูที่ login อยู่ + รายชื่อปีการศึกษาจริง (ใช้ทำ dropdown ตอนสร้างห้องเรียน)
+  // + ประกาศจริงที่ครูคนนี้โพสต์ (จาก /feed-posts กรอง author_id) + ผลทำ RIASEC ล่าสุด (ใช้ประกอบ "แจ้งเตือนล่าสุด")
+  // (ตอนนี้ backend ยังไม่มีการผูกนักเรียน "ที่ดูแล" เป็นรายครู จึงนับนักเรียน/ผล RIASEC ทั้งหมดในระบบไปก่อน)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [studentData, enrollData, gradeData, teacherData, feedPostData, yearData, typeResultData] = await Promise.all([
+          getStudent().catch(() => []),
+          getEnrollments().catch(() => []),
+          getClasses().catch(() => []),
+          getTeacher().catch(() => []),
+          getFeedPosts().catch(() => []),
+          getAcademicYears().catch(() => []),
+          getTypeResults().catch(() => []),
+        ]);
+
+        setAcademicYears(yearData || []);
+        if ((yearData || []).length > 0) {
+          setClassForm((prev) => (prev.yearId ? prev : { ...prev, yearId: String(yearData[0].year_id) }));
+        }
+
+        const gradeByUserId = new Map();
+        enrollData.forEach((e) => {
+          if (!gradeByUserId.has(String(e.user_user_id))) gradeByUserId.set(String(e.user_user_id), e.grade_idgrade);
+        });
+        const gradesById = new Map(gradeData.map((g) => [String(g.idgrade), g]));
+        const studentNameById = new Map(studentData.map((s) => [String(s.user_id), s.fullname]));
+
+        setStudents(
+          studentData.map((s) => {
+            const grade = gradesById.get(String(gradeByUserId.get(String(s.user_id))));
+            return { id: s.user_id, name: s.fullname, classroom: grade ? `ม.${gradeLabel(grade)}` : "-", email: s.email };
+          })
+        );
+
+        const breakdownMap = new Map();
+        gradeByUserId.forEach((gradeId) => {
+          const grade = gradesById.get(String(gradeId));
+          const label = grade ? `ม.${grade.grade_name}` : "ไม่ทราบชั้น";
+          breakdownMap.set(label, (breakdownMap.get(label) || 0) + 1);
+        });
+        setClassroomBreakdown(Array.from(breakdownMap, ([label, value]) => ({ label, value })));
+
+        const me = teacherData.find((t) => String(t.user_id) === String(CURRENT_TEACHER_ID));
+        setTeacherName(me?.fullname || "");
+
+        // ห้องที่ครูคนนี้สอนจริง (grades.teacher_user_id) — ใช้กรอง dropdown "ห้องเรียน" ตอนเพิ่มคาบสอน กันเห็นห้องของครูคนอื่น
+        setMyClasses((gradeData || []).filter((g) => String(g.teacher_user_id) === String(CURRENT_TEACHER_ID)));
+
+        setAnnouncementCount((feedPostData || []).filter((p) => String(p.author_id) === String(CURRENT_TEACHER_ID)).length);
+
+        setQuizNotifications(
+          (typeResultData || []).map((r) => ({
+            type: "quiz",
+            text: `${studentNameById.get(String(r.user_user_id)) || "นักเรียน"} ทำแบบทดสอบ RIASEC เสร็จแล้ว`,
+            time: r.test_date,
+          }))
+        );
+      } catch (err) {
+        console.error("โหลดข้อมูลหน้าหลักครูไม่สำเร็จ:", err);
+      }
+    };
+    load();
+  }, []);
+
+  const notifications = useMemo(() => {
+    return [...quizNotifications, ...appointmentNotifications]
+      .filter((n) => n.time)
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 3);
+  }, [quizNotifications, appointmentNotifications]);
+
+  const todaysClasses = useMemo(() => {
+    const todayIndex = (today.getDay() + 6) % 7; // 0=จันทร์...6=อาทิตย์
+    return teachingSchedule
+      .filter((s) => s.day === todayIndex)
+      .sort((a, b) => a.period - b.period)
+      .map((s) => ({ ...s, time: PERIODS.find((p) => p.period === s.period)?.time }));
+  }, [today, teachingSchedule]);
+
+  const [showAddPeriodModal, setShowAddPeriodModal] = useState(false);
+  const [showAllPeriodsModal, setShowAllPeriodsModal] = useState(false);
+  const [periodForm, setPeriodForm] = useState({ day: null, period: null, classroom: "" });
+  const [savingPeriod, setSavingPeriod] = useState(false);
+
+  const openAddPeriodModal = () => {
+    const todayIndex = (today.getDay() + 6) % 7;
+    setPeriodForm({ day: todayIndex <= 4 ? todayIndex : 0, period: 1, classroom: myClasses[0] ? gradeLabel(myClasses[0]) : "" });
+    setShowAddPeriodModal(true);
+  };
+
+  const findScheduleConflict = (day, period) =>
+    teachingSchedule.find((s) => s.day === day && s.period === period) || null;
+
+  const handleAddPeriod = async () => {
+    if (periodForm.day == null || !periodForm.period || !periodForm.classroom) return;
+
+    const dayLabel = WEEKDAY_OPTIONS.find((w) => w.value === periodForm.day)?.label || "";
+    const periodInfo = PERIODS.find((p) => p.period === periodForm.period);
+    const periodLabel = `คาบ ${periodForm.period}${periodInfo ? ` (${periodInfo.time})` : ""}`;
+
+    const conflict = findScheduleConflict(periodForm.day, periodForm.period);
+    if (conflict) {
+      Swal.fire({
+        icon: "warning",
+        title: "คาบนี้มีอยู่แล้ว",
+        html: `${dayLabel} ${periodLabel} มีคาบสอนของห้อง <b>${conflict.classroom}</b> อยู่แล้ว<br/>ไม่สามารถเพิ่มคาบสอนซ้ำในวันและคาบเดียวกันได้`,
+        confirmButtonText: "รับทราบ",
+      });
+      return;
     }
-    return Object.entries(map).map(([label, value]) => ({ label, value }));
-  }, []);
+
+    const confirmResult = await Swal.fire({
+      icon: "question",
+      title: "ยืนยันเพิ่มคาบสอนนี้?",
+      html: `${dayLabel} ${periodLabel}<br/>ห้อง <b>${periodForm.classroom}</b>`,
+      showCancelButton: true,
+      confirmButtonText: "เพิ่มคาบสอน",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#ec4899",
+    });
+    if (!confirmResult.isConfirmed) return;
+
+    setSavingPeriod(true);
+    try {
+      await addTeachingPeriod({
+        teacher_user_id: CURRENT_TEACHER_ID,
+        weekday: periodForm.day,
+        period: periodForm.period,
+        classroom: periodForm.classroom,
+      });
+      await loadTeachingSchedule();
+      setShowAddPeriodModal(false);
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "เพิ่มคาบสอนไม่สำเร็จ", text: err.response?.data?.message || err.message || "ลองใหม่อีกครั้ง" });
+    } finally {
+      setSavingPeriod(false);
+    }
+  };
+
+  const handleRemovePeriod = async (id) => {
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "ลบคาบสอนนี้?",
+      showCancelButton: true,
+      confirmButtonText: "ลบ",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await removeTeachingPeriod(id);
+      await loadTeachingSchedule();
+    } catch (err) {
+      Swal.fire({ icon: "error", title: "ลบคาบสอนไม่สำเร็จ", text: err.response?.data?.message || "ลองใหม่อีกครั้ง" });
+    }
+  };
 
   const goPrevMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const goNextMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   const isSelectedToday = selectedKey === toDateKey(today);
 
+  const [showCreateClassroomModal, setShowCreateClassroomModal] = useState(false);
+  const [creatingClassroom, setCreatingClassroom] = useState(false);
+  const [classForm, setClassForm] = useState({
+    gradeLevel: "ม.1",
+    section: "",
+    track: "",
+    yearText: "",
+    semester: "1",
+  });
+
+  const openCreateClassroomModal = () => {
+    setClassForm((prev) => ({ ...prev, section: "", track: "" }));
+    setShowCreateClassroomModal(true);
+  };
+
+  // หาปี พ.ศ. ที่พิมพ์มาว่ามีอยู่แล้วในระบบไหม (เทียบ year_name) ถ้าไม่มีค่อยสร้างแถวใหม่จริงใน DB ตอนกดยืนยันสร้างห้อง
+  const resolveYearId = async (yearText) => {
+    const existing = academicYears.find((y) => String(y.year_name).trim() === yearText);
+    if (existing) return existing.year_id;
+
+    const created = await createAcademicYear(yearText);
+    setAcademicYears((prev) => [created, ...prev]);
+    return created.year_id;
+  };
+
+  const handleSubmitCreateClassroom = async () => {
+    const yearText = classForm.yearText.trim();
+    if (!/^\d{1,4}$/.test(yearText)) {
+      Swal.fire({ icon: "warning", title: "กรอกปีการศึกษาเป็นตัวเลข", text: "เช่น 2569" });
+      return;
+    }
+
+    const confirmResult = await Swal.fire({
+      icon: "question",
+      title: "ยืนยันสร้างห้องเรียนนี้?",
+      html: `${classForm.gradeLevel}/${classForm.section || "-"}${classForm.track ? ` (${classForm.track})` : ""}<br/>ปีการศึกษา ${yearText} • ภาคเรียนที่ ${classForm.semester}`,
+      showCancelButton: true,
+      confirmButtonText: "สร้างห้องเรียน",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#ec4899",
+    });
+    if (!confirmResult.isConfirmed) return;
+
+    setCreatingClassroom(true);
+    try {
+      const yearId = await resolveYearId(yearText);
+      const created = await createClass({
+        grade_name: classForm.gradeLevel.replace("ม.", ""),
+        section: classForm.section.trim(),
+        track: classForm.track.trim() || null,
+        year_year_id: yearId,
+        semester: classForm.semester,
+        teacher_user_id: CURRENT_TEACHER_ID,
+      });
+      setShowCreateClassroomModal(false);
+      await Swal.fire({
+        icon: "success",
+        title: "สร้างห้องเรียนสำเร็จ",
+        html: created?.class_code
+          ? `รหัสเข้าชั้นเรียน: <b style="letter-spacing:2px">${created.class_code}</b><br/><span style="font-size:13px;color:#6b7280">ให้นักเรียนกรอกรหัสนี้ที่หน้าแรกเพื่อเข้าร่วมห้องเรียนนี้</span>`
+          : undefined,
+        confirmButtonText: "ตกลง",
+      });
+      navigate(created?.idgrade ? `/classroom/${created.idgrade}` : "/classroom");
+    } catch (err) {
+      console.error("สร้างห้องเรียนไม่สำเร็จ:", err);
+      Swal.fire({ icon: "error", title: "สร้างห้องเรียนไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
+    } finally {
+      setCreatingClassroom(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen w-full bg-white flex text-[14px] text-gray-800">
+    <div className="min-h-screen w-full bg-white flex text-[16px] text-gray-800">
       <SidebarNav />
 
       <div className="flex-1 min-w-0">
@@ -178,19 +385,29 @@ export default function TeacherDashboard() {
           <div className="flex flex-col lg:flex-row gap-8">
             {/* ===== Main content ===== */}
             <div className="flex-1 min-w-0">
-              <h1 className="text-[20px] font-medium text-gray-900">สวัสดีคุณครู</h1>
-              <p className="text-[13px] text-gray-400 mt-1">ภาพรวมงานแนะแนวและเนื้อหาที่คุณดูแล</p>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <h1 className="page-title">สวัสดีคุณครู{teacherName ? ` ${teacherName}` : ""}</h1>
+                  <p className="page-subtitle mt-0.5">ภาพรวมงานแนะแนวและเนื้อหาที่คุณดูแล</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={openCreateClassroomModal}
+                  className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[13px] font-semibold flex items-center gap-2 shrink-0"
+                >
+                  <FaChalkboardTeacher size={14} /> สร้างห้องเรียน
+                </button>
+              </div>
 
               {/* การ์ดสรุป */}
-              <div className="mt-6 grid grid-cols-2 gap-4">
+              <div className="mt-5 grid grid-cols-2 gap-4">
                 <ColorStat
                   tone="slate"
                   icon={FaUsers}
                   value={`${students.length} คน`}
                   label="นักเรียนที่ดูแล"
-                  onClick={() => navigate("/student")}
                 >
-                  <div className="text-[11px] text-gray-500 mt-3">
+                  <div className="text-[13px] text-gray-500 mt-2 truncate">
                     {classroomBreakdown.map((c) => `${c.label} ${c.value} คน`).join(" • ")}
                   </div>
                 </ColorStat>
@@ -198,244 +415,141 @@ export default function TeacherDashboard() {
                 <ColorStat
                   tone="amber"
                   icon={FaRegClipboard}
-                  value={`${totalQuizzesCreated} ชุด`}
+                  value={`${assessmentCount} ชุด`}
                   label="แบบทดสอบที่สร้าง"
-                  onClick={() => navigate("/QuestionCreate")}
+                  onClick={() => navigate("/assessments")}
                 />
 
                 <ColorStat
                   tone="pink"
-                  icon={FaBook}
-                  value={`${totalLessonsPublished} บทเรียน`}
-                  label="บทเรียนที่เผยแพร่"
-                  onClick={() => navigate("/WorkCreate")}
+                  icon={FaCommentDots}
+                  value={`${consultationCount} รายการ`}
+                  label="คำขอปรึกษา"
+                  onClick={() => navigate("/consultations")}
                 />
 
                 <ColorStat
                   tone="rose"
                   icon={FaBullhorn}
-                  value={`${totalAnnouncementsPublished} ประกาศ`}
+                  value={`${announcementCount} ประกาศ`}
                   label="ประกาศที่เผยแพร่"
-                  onClick={() => navigate("/news")}
+                  onClick={() => navigate("/newsfeed")}
                 />
               </div>
 
-              {/* Weekly schedule */}
-              <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
-                <h2 className="text-[13px] font-medium text-gray-400 mb-3">ตารางสอนประจำสัปดาห์</h2>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-[640px] w-full text-[11px] border-collapse">
-                    <thead>
-                      <tr>
-                        <th rowSpan={2} className="border border-gray-200 bg-gray-50 text-gray-500 font-medium px-2 py-1 w-12">
-                          วัน
-                        </th>
-                        {PERIODS.map((p) => (
-                          <th key={p.period} className="border border-gray-200 bg-gray-50 text-gray-500 font-medium px-2 py-1">
-                            {p.period}
-                          </th>
-                        ))}
-                      </tr>
-                      <tr>
-                        {PERIODS.map((p) => (
-                          <th key={p.period} className="border border-gray-200 bg-gray-50 text-gray-400 font-normal px-2 py-1">
-                            {p.time}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {DAY_SHORT.map((day, dayIndex) => (
-                        <tr key={day}>
-                          <td className="border border-gray-200 text-center text-gray-500">{day}</td>
-                          {PERIODS.map((p) => {
-                            const entry = schedule.find((s) => s.day === dayIndex && s.period === p.period);
-                            return (
-                              <td key={p.period} className="border border-gray-200 text-center px-1 py-1 align-middle">
-                                {entry && (
-                                  <div className="leading-tight">
-                                    <div className="text-pink-600 font-medium">{entry.subject}</div>
-                                    {entry.classroom && <div className="text-gray-400">{entry.classroom}</div>}
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* กราฟ */}
-              <div className="mt-8 grid md:grid-cols-2 gap-6">
-                <div className="rounded-2xl border border-gray-200 p-5">
-                  <h2 className="text-[13px] font-medium text-gray-400 mb-4">
-                    นักเรียนเข้าใช้งานรายสัปดาห์
-                  </h2>
-                  <BarChart data={weeklyActivity} />
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 p-5">
-                  <h2 className="text-[13px] font-medium text-gray-400 mb-4">ผล RIASEC ของนักเรียน</h2>
-                  <BarChart data={riasecCounts} />
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 p-5 md:col-span-2">
-                  <h2 className="text-[13px] font-medium text-gray-400 mb-4">
-                    คณะที่นักเรียนสนใจมากที่สุด
-                  </h2>
-                  {facultyCounts.length > 0 ? (
-                    <HorizontalBarChart data={facultyCounts} />
-                  ) : (
-                    <div className="text-[13px] text-gray-400">ยังไม่มีข้อมูล</div>
-                  )}
-                </div>
-              </div>
-
-              {/* นักเรียนล่าสุด */}
-              <div className="mt-8">
-                <SectionHeader title="นักเรียนล่าสุด" actionLabel="ดูรายละเอียด" onAction={() => navigate("/student")} />
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full text-[13px] border-collapse">
-                    <thead>
-                      <tr className="text-left text-gray-400 text-[12px]">
-                        <th className="font-normal pb-2 pr-3">ชื่อ</th>
-                        <th className="font-normal pb-2 pr-3">ห้อง</th>
-                        <th className="font-normal pb-2 pr-3">ผล RIASEC</th>
-                        <th className="font-normal pb-2">ทำแบบทดสอบ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((s) => {
-                        const r = aptitudeById(s.id);
-                        return (
-                          <tr key={s.id} className="border-t border-gray-100">
-                            <td className="py-2.5 pr-3 text-gray-900">{s.name}</td>
-                            <td className="py-2.5 pr-3 text-gray-500">{s.classroom}</td>
-                            <td className="py-2.5 pr-3 text-gray-500">{r?.completed ? r.riasec : "-"}</td>
-                            <td className="py-2.5">
-                              {r?.completed ? (
-                                <FaCheckCircle className="text-emerald-500 text-[14px]" />
-                              ) : (
-                                <FaTimesCircle className="text-gray-300 text-[14px]" />
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* บทเรียนล่าสุด + แบบทดสอบล่าสุด */}
-              <div className="mt-8 grid md:grid-cols-2 gap-6">
-                <div>
-                  <SectionHeader title="บทเรียนล่าสุด" />
-                  <div className="mt-3 border-t border-gray-200">
-                    {lessons.map((l, i) => (
-                      <div key={i} className="flex items-center gap-3 px-1 py-3 border-b last:border-b-0 border-gray-100">
-                        <FaBook className="text-gray-400 text-[13px] shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-gray-900 truncate">{l.title}</div>
-                          <div className="text-[12px] text-gray-400">{l.date}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/WorkCreate")}
-                    className="mt-4 w-full h-9 rounded-lg border border-dashed border-gray-300 text-gray-500 text-[13px] hover:bg-gray-50 hover:text-gray-700 transition flex items-center justify-center gap-1.5"
-                  >
-                    <FaPlus className="text-[10px]" />
-                    เพิ่มบทเรียน
-                  </button>
-                </div>
-
-                <div>
-                  <SectionHeader title="แบบทดสอบล่าสุด" />
-                  <div className="mt-3 border-t border-gray-200">
-                    {quizzes.map((q, i) => (
-                      <div key={i} className="px-1 py-3 border-b last:border-b-0 border-gray-100">
-                        <div className="text-gray-900">{q.name}</div>
-                        <div className="text-[12px] text-gray-400 mt-0.5">
-                          ผู้ทำ {q.participants} คน • คะแนนเฉลี่ย {q.avgScore}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/QuestionCreate")}
-                    className="mt-4 w-full h-9 rounded-lg border border-dashed border-gray-300 text-gray-500 text-[13px] hover:bg-gray-50 hover:text-gray-700 transition flex items-center justify-center gap-1.5"
-                  >
-                    <FaPlus className="text-[10px]" />
-                    สร้างแบบทดสอบ
-                  </button>
-                </div>
-              </div>
-
-              {/* แจ้งเตือน */}
-              <div className="mt-8">
-                <SectionHeader title="แจ้งเตือน" />
-                <div className="mt-3 border-t border-gray-200">
-                  {notifications.map((n, i) => {
-                    const Icon = NOTIF_ICON[n.icon];
-                    return (
-                      <div key={i} className="flex items-center gap-3 px-1 py-3 border-b last:border-b-0 border-gray-100">
-                        <div className="h-8 w-8 shrink-0 rounded-full bg-gray-100 flex items-center justify-center">
-                          <Icon className="text-gray-500 text-[13px]" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-gray-800 truncate">{n.text}</div>
-                        </div>
-                        <div className="text-[11px] text-gray-400 shrink-0">{n.time}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* ปุ่มลัด */}
-              <div className="mt-8">
-                <h2 className="text-[13px] font-medium text-gray-400 mb-3">ปุ่มลัด</h2>
+              <div className="mt-6">
+                <h2 className="text-[15px] font-semibold text-black mb-2">ปุ่มลัด</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <QuickAction icon={FaBook} label="เพิ่มบทเรียน" onClick={() => navigate("/WorkCreate")} />
-                  <QuickAction icon={FaRegClipboard} label="สร้างแบบทดสอบ" onClick={() => navigate("/QuestionCreate")} />
-                  <QuickAction icon={FaBullhorn} label="เพิ่มประกาศ" onClick={() => navigate("/news")} />
-                  <QuickAction icon={FaUsers} label="ดูรายชื่อนักเรียน" onClick={() => navigate("/student")} />
+                  <QuickAction icon={FaBullhorn} label="สร้างประกาศ" onClick={() => navigate("/newsfeed")} />
+                  <QuickAction icon={FaRegClipboard} label="สร้างแบบประเมิน" onClick={() => navigate("/assessments/create")} />
+                  <QuickAction icon={FaCommentDots} label="คำขอปรึกษา" onClick={() => navigate("/consultations")} />
+                  <QuickAction icon={FaUserFriends} label="ดูชุมนุม YC" onClick={() => navigate("/yc")} />
+                </div>
+              </div>
+
+              {/* วันนี้: คาบสอน + แจ้งเตือน */}
+              <div className="mt-6 grid md:grid-cols-2 gap-6">
+                <div>
+                  <SectionHeader title="คาบสอนวันนี้" />
+                  <div className="mt-2 border-t border-gray-200">
+                    {todaysClasses.length === 0 && (
+                      <div className="py-3">
+                        <div className="text-[15px] text-gray-400 mb-2">ไม่มีคาบสอนวันนี้</div>
+                        <button
+                          type="button"
+                          onClick={openAddPeriodModal}
+                          className="h-9 px-3.5 rounded-full border border-pink-200 bg-pink-50 text-pink-700 text-[14px] font-medium hover:bg-pink-100 flex items-center gap-1.5"
+                        >
+                          <FaPlus size={11} /> เพิ่มคาบสอน
+                        </button>
+                      </div>
+                    )}
+                    {todaysClasses.map((c) => (
+                      <div key={c.id} className="group flex items-center justify-between gap-3 px-1 py-2.5 border-b last:border-b-0 border-gray-100">
+                        <div className="min-w-0">
+                          <div className="text-gray-900 truncate">
+                            {c.subject}
+                            {c.classroom && ` • ${c.classroom}`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="text-[14px] text-gray-400">{c.time}</div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePeriod(c.id)}
+                            className="w-6 h-6 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 items-center justify-center hidden group-hover:flex bg-transparent"
+                            title="ลบคาบสอนนี้"
+                          >
+                            <FaTimes size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {todaysClasses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={openAddPeriodModal}
+                        className="mt-2 text-[14px] text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1.5"
+                      >
+                        <FaPlus size={10} /> เพิ่มคาบสอน
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowAllPeriodsModal(true)}
+                      className="mt-3 w-full text-center text-[14px] text-pink-600 hover:text-pink-700 font-medium transition"
+                    >
+                      ดูคาบสอนทั้งหมด
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <SectionHeader title="แจ้งเตือนล่าสุด" />
+                  <div className="mt-2 border-t border-gray-200">
+                    {notifications.length === 0 && (
+                      <div className="text-[15px] text-gray-400 py-3">ยังไม่มีความเคลื่อนไหวล่าสุด</div>
+                    )}
+                    {notifications.map((n, i) => {
+                      const Icon = NOTIF_ICON[n.type];
+                      return (
+                        <div key={i} className="flex items-center gap-2.5 px-1 py-2.5 border-b last:border-b-0 border-gray-100">
+                          <Icon className="text-gray-400 text-[14px] shrink-0" />
+                          <div className="min-w-0 flex-1 text-gray-700 truncate">{n.text}</div>
+                          <div className="text-[13px] text-gray-400 shrink-0">{formatNotifTime(n.time)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* ===== Right sidebar: calendar + agenda ===== */}
-            <div className="w-full lg:w-[280px] shrink-0 space-y-5">
-              <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                <div className="flex items-center justify-between mb-3">
+            <div className="w-full lg:w-[340px] shrink-0 space-y-5">
+              <div className="rounded-2xl border border-gray-200 bg-white p-5">
+                <div className="flex items-center justify-between mb-4">
                   <button
                     type="button"
                     onClick={goPrevMonth}
-                    className="h-6 w-6 rounded-full text-gray-400 hover:bg-gray-100 flex items-center justify-center transition"
+                    className="h-8 w-8 rounded-full text-gray-400 hover:bg-gray-100 flex items-center justify-center transition"
                   >
-                    <FaChevronLeft className="text-[10px]" />
+                    <FaChevronLeft className="text-[16px]" />
                   </button>
-                  <div className="text-[12px] font-medium bg-pink-50 text-pink-600 px-3 py-1 rounded-full">
+                  <div className="text-[15px] font-medium bg-pink-50 text-pink-600 px-3.5 py-1.5 rounded-full">
                     {THAI_MONTHS[viewDate.getMonth()]} {viewDate.getFullYear() + 543}
                   </div>
                   <button
                     type="button"
                     onClick={goNextMonth}
-                    className="h-6 w-6 rounded-full text-gray-400 hover:bg-gray-100 flex items-center justify-center transition"
+                    className="h-8 w-8 rounded-full text-gray-400 hover:bg-gray-100 flex items-center justify-center transition"
                   >
-                    <FaChevronRight className="text-[10px]" />
+                    <FaChevronRight className="text-[16px]" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-7 text-center text-[10px] text-gray-400 mb-1">
+                <div className="grid grid-cols-7 text-center text-[13px] text-gray-400 mb-1.5">
                   {WEEKDAYS.map((w) => (
                     <div key={w}>{w}</div>
                   ))}
@@ -453,19 +567,19 @@ export default function TeacherDashboard() {
               <button
                 type="button"
                 onClick={() => navigate("/TeacherCalendar")}
-                className="w-full h-10 rounded-full bg-pink-500 text-white text-[13px] font-medium hover:bg-pink-600 transition flex items-center justify-center gap-1.5"
+                className="w-full h-10 rounded-full bg-pink-500 text-white text-[15px] font-medium hover:bg-pink-600 transition flex items-center justify-center gap-1.5"
               >
-                <FaPlus className="text-[10px]" />
+                <FaPlus className="text-[14px]" />
                 เพิ่มนัดหมาย
               </button>
 
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-[13px] font-medium text-gray-900">
+                    <div className="text-[15px] font-medium text-gray-900">
                       {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]}
                     </div>
-                    <div className="text-[11px] text-gray-400">
+                    <div className="text-[13px] text-gray-400">
                       {isSelectedToday ? "วันนี้" : `${selectedDate.getFullYear() + 543}`}
                     </div>
                   </div>
@@ -473,23 +587,16 @@ export default function TeacherDashboard() {
 
                 <div className="space-y-3">
                   {appointmentsForSelectedDate.length === 0 && (
-                    <div className="text-[12px] text-gray-400">ไม่มีนัดหมายในวันนี้</div>
+                    <div className="text-[14px] text-gray-400">ไม่มีนัดหมายในวันนี้</div>
                   )}
 
                   {appointmentsForSelectedDate.map((a) => {
-                    const student = studentById(a.studentId);
-                    const aptitude = aptitudeById(a.studentId);
                     return (
                       <div key={a.id} className="flex gap-3">
-                        <div className="text-[11px] text-gray-400 w-10 shrink-0 pt-2">{a.time}</div>
+                        <div className="text-[13px] text-gray-400 w-10 shrink-0 pt-2">{a.time}</div>
                         <div className="flex-1 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 min-w-0">
-                          <div className="text-[12px] font-medium text-gray-900 truncate">{student?.name}</div>
-                          <div className="text-[11px] text-gray-500 truncate">{a.note}</div>
-                          {aptitude?.completed && (
-                            <div className="text-[10px] text-pink-600 truncate mt-1">
-                              ถนัด: {aptitude.riasec}
-                            </div>
-                          )}
+                          <div className="text-[14px] font-medium text-gray-900 truncate">{a.studentName}</div>
+                          <div className="text-[13px] text-gray-500 truncate">{a.note}</div>
                         </div>
                       </div>
                     );
@@ -499,7 +606,7 @@ export default function TeacherDashboard() {
                 <button
                   type="button"
                   onClick={() => navigate("/TeacherCalendar")}
-                  className="mt-3 w-full text-center text-[12px] text-gray-400 hover:text-pink-600 transition"
+                  className="mt-3 w-full text-center text-[14px] text-pink-600 hover:text-pink-700 font-medium transition"
                 >
                   ดูปฏิทินทั้งหมด
                 </button>
@@ -507,6 +614,270 @@ export default function TeacherDashboard() {
             </div>
           </div>
         </main>
+      </div>
+
+      {showCreateClassroomModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowCreateClassroomModal(false)} />
+
+          <div className="relative bg-white rounded-2xl shadow-2xl w-110 max-w-full overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
+                <FaChalkboardTeacher className="text-gray-500" size={15} /> สร้างห้องเรียน
+              </h3>
+              <button type="button" onClick={() => setShowCreateClassroomModal(false)} className="text-gray-400 hover:text-gray-700 bg-transparent">
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 py-5 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">ระดับชั้น</label>
+                  <Select
+                    value={{ value: classForm.gradeLevel, label: classForm.gradeLevel }}
+                    onChange={(opt) => setClassForm((prev) => ({ ...prev, gradeLevel: opt.value }))}
+                    options={["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"].map((g) => ({ value: g, label: g }))}
+                    isSearchable={false}
+                    styles={bigFilterSelectStyles}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">ห้อง</label>
+                  <input
+                    value={classForm.section}
+                    onChange={(e) => setClassForm((prev) => ({ ...prev, section: e.target.value }))}
+                    placeholder="เช่น 1"
+                    className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3.5 text-[13.5px] outline-none focus:border-pink-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-gray-700 mb-1.5">สายการเรียน (ถ้ามี)</label>
+                <input
+                  value={classForm.track}
+                  onChange={(e) => setClassForm((prev) => ({ ...prev, track: e.target.value }))}
+                  placeholder="เช่น วิทย์-คณิต, ศิลป์"
+                  className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3.5 text-[13.5px] outline-none focus:border-pink-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">ปีการศึกษา (พ.ศ.)</label>
+                  <input
+                    value={classForm.yearText}
+                    onChange={(e) => {
+                      const digitsOnly = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
+                      setClassForm((prev) => ({ ...prev, yearText: digitsOnly }));
+                    }}
+                    inputMode="numeric"
+                    placeholder="เช่น 2569"
+                    className="w-full h-11 rounded-xl border border-gray-200 bg-gray-50 px-3.5 text-[13.5px] outline-none focus:border-pink-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-700 mb-1.5">ภาคเรียน</label>
+                  <Select
+                    value={{ value: classForm.semester, label: `ภาคเรียนที่ ${classForm.semester}` }}
+                    onChange={(opt) => setClassForm((prev) => ({ ...prev, semester: opt.value }))}
+                    options={[
+                      { value: "1", label: "ภาคเรียนที่ 1" },
+                      { value: "2", label: "ภาคเรียนที่ 2" },
+                    ]}
+                    isSearchable={false}
+                    styles={bigFilterSelectStyles}
+                  />
+                </div>
+              </div>
+
+              <div className="text-[12.5px] text-gray-500">
+                ครูผู้ดูแล: <span className="text-gray-800 font-medium">{teacherName || "-"}</span>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowCreateClassroomModal(false)}
+                className="flex-1 h-11 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-[14px] font-medium"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitCreateClassroom}
+                disabled={!classForm.section.trim() || !classForm.yearText.trim() || creatingClassroom}
+                className="flex-1 h-11 rounded-xl bg-pink-500 hover:bg-pink-600 disabled:opacity-50 text-white text-[14px] font-semibold"
+              >
+                {creatingClassroom ? "กำลังสร้าง..." : "สร้างห้องเรียน"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddPeriodModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowAddPeriodModal(false)} />
+
+          <div className="relative bg-white rounded-2xl shadow-2xl w-120 max-w-full">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <h3 className="text-[18px] font-bold text-gray-900">เพิ่มคาบสอน</h3>
+              <button type="button" onClick={() => setShowAddPeriodModal(false)} className="text-gray-400 hover:text-gray-700 bg-transparent">
+                <FaTimes size={18} />
+              </button>
+            </div>
+
+            <div className="px-6 py-6 flex flex-col gap-5">
+              <div>
+                <label className="block text-[15px] font-medium text-gray-700 mb-2">วัน</label>
+                <Select
+                  styles={bigFilterSelectStyles}
+                  value={WEEKDAY_OPTIONS.find((o) => o.value === periodForm.day) || null}
+                  onChange={(opt) => setPeriodForm((prev) => ({ ...prev, day: opt.value }))}
+                  options={WEEKDAY_OPTIONS}
+                  isSearchable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[15px] font-medium text-gray-700 mb-2">คาบ</label>
+                <Select
+                  styles={bigFilterSelectStyles}
+                  value={
+                    periodForm.period
+                      ? { value: periodForm.period, label: `คาบ ${periodForm.period} (${PERIODS.find((p) => p.period === periodForm.period)?.time})` }
+                      : null
+                  }
+                  onChange={(opt) => setPeriodForm((prev) => ({ ...prev, period: opt.value }))}
+                  options={PERIODS.map((p) => {
+                    const taken = periodForm.day != null ? findScheduleConflict(periodForm.day, p.period) : null;
+                    return {
+                      value: p.period,
+                      label: `คาบ ${p.period} (${p.time})${taken ? ` — มีคาบสอนแล้ว (${taken.classroom})` : ""}`,
+                      isDisabled: !!taken,
+                    };
+                  })}
+                  isOptionDisabled={(opt) => opt.isDisabled}
+                  isSearchable={false}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[15px] font-medium text-gray-700 mb-2">ห้องเรียน</label>
+                {myClasses.length === 0 ? (
+                  <div className="text-[15px] text-gray-400 py-2">ยังไม่มีห้องเรียนที่คุณสอน</div>
+                ) : (
+                  <Select
+                    styles={bigFilterSelectStyles}
+                    value={periodForm.classroom ? { value: periodForm.classroom, label: periodForm.classroom } : null}
+                    onChange={(opt) => setPeriodForm((prev) => ({ ...prev, classroom: opt.value }))}
+                    options={myClasses.map((c) => ({ value: gradeLabel(c), label: gradeLabel(c) }))}
+                    isSearchable={false}
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 py-5 border-t border-gray-100 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAddPeriodModal(false)}
+                className="flex-1 h-12 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-[15px] font-medium"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleAddPeriod}
+                disabled={periodForm.day == null || !periodForm.period || !periodForm.classroom || savingPeriod}
+                className="flex-1 h-12 rounded-xl bg-pink-500 hover:bg-pink-600 disabled:opacity-50 text-white text-[15px] font-semibold"
+              >
+                บันทึก
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAllPeriodsModal && (
+        <AllPeriodsModal
+          schedule={teachingSchedule}
+          onClose={() => setShowAllPeriodsModal(false)}
+          onRemove={handleRemovePeriod}
+        />
+      )}
+    </div>
+  );
+}
+
+function AllPeriodsModal({ schedule, onClose, onRemove }) {
+  const grouped = WEEKDAY_OPTIONS.map((w) => ({
+    ...w,
+    items: schedule.filter((s) => s.day === w.value).sort((a, b) => a.period - b.period),
+  })).filter((g) => g.items.length > 0);
+
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      <div className="relative bg-white rounded-2xl shadow-2xl w-120 max-w-full max-h-[80vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 shrink-0">
+          <h3 className="text-[18px] font-bold text-gray-900">คาบสอนทั้งหมด</h3>
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 bg-transparent">
+            <FaTimes size={18} />
+          </button>
+        </div>
+
+        <div className="px-6 py-6 overflow-y-auto flex-1">
+          {grouped.length === 0 ? (
+            <div className="text-[15px] text-gray-400 text-center py-6">ยังไม่มีคาบสอนที่เพิ่มไว้</div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {grouped.map((g) => (
+                <div key={g.value}>
+                  <div className="text-[14.5px] font-semibold text-pink-600 mb-2">{g.label}</div>
+                  <div className="flex flex-col gap-2">
+                    {g.items.map((item) => {
+                      const periodInfo = PERIODS.find((p) => p.period === item.period);
+                      return (
+                        <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3">
+                          <div className="min-w-0">
+                            <div className="text-[15.5px] text-gray-900 truncate">
+                              {item.subject}
+                              {item.classroom && ` • ${item.classroom}`}
+                            </div>
+                            <div className="text-[13.5px] text-gray-400">คาบ {item.period} ({periodInfo?.time})</div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => onRemove(item.id)}
+                            className="w-8 h-8 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center shrink-0 bg-transparent"
+                            title="ลบคาบสอนนี้"
+                          >
+                            <FaTimes size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-5 border-t border-gray-100 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full h-12 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-[15px] font-medium"
+          >
+            ปิด
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -519,36 +890,38 @@ const STAT_TONES = {
   slate: { bg: "bg-gray-100", icon: "border-gray-200 text-gray-600" },
 };
 
-function ColorStat({ tone, icon: Icon, value, label, children, onClick }) {
+function ColorStat({ tone, icon, value, label, children, onClick }) {
+  const Icon = icon;
   const Tag = onClick ? "button" : "div";
   const t = STAT_TONES[tone];
   return (
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`text-left rounded-2xl p-4 ${t.bg} transition ${onClick ? "hover:brightness-[0.97]" : ""}`}
+      className={`h-36 flex flex-col text-left rounded-2xl p-3.5 ${t.bg} transition ${onClick ? "hover:brightness-[0.97]" : ""}`}
     >
-      <div className={`h-7 w-7 rounded-full bg-white border flex items-center justify-center ${t.icon}`}>
-        <Icon className="text-[12px]" />
+      <div className={`h-7 w-7 rounded-full bg-white border flex items-center justify-center shrink-0 ${t.icon}`}>
+        <Icon className="text-[14px]" />
       </div>
-      <div className="text-[19px] font-semibold text-gray-900 mt-2.5">{value}</div>
-      <div className="text-[12px] text-gray-600">{label}</div>
+      <div className="text-[21px] font-semibold text-gray-900 mt-2 shrink-0">{value}</div>
+      <div className="text-[14px] text-gray-600 shrink-0">{label}</div>
       {children}
     </Tag>
   );
 }
 
-function QuickAction({ icon: Icon, label, onClick }) {
+function QuickAction({ icon, label, onClick }) {
+  const Icon = icon;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-2xl border border-gray-200 p-4 text-left hover:bg-gray-50 hover:border-gray-300 transition"
+      className="rounded-2xl border border-gray-200 p-3.5 text-left hover:bg-gray-50 hover:border-gray-300 transition"
     >
       <div className="h-8 w-8 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center">
-        <Icon className="text-[13px]" />
+        <Icon className="text-[15px]" />
       </div>
-      <div className="text-[13px] text-gray-800 mt-3">{label}</div>
+      <div className="text-[15px] text-gray-800 mt-2.5">{label}</div>
     </button>
   );
 }
@@ -556,56 +929,16 @@ function QuickAction({ icon: Icon, label, onClick }) {
 function SectionHeader({ title, actionLabel, onAction }) {
   return (
     <div className="flex items-center justify-between">
-      <h2 className="text-[13px] font-medium text-gray-400">{title}</h2>
+      <h2 className="text-[15px] font-semibold text-black">{title}</h2>
       {actionLabel && (
         <button
           type="button"
           onClick={onAction}
-          className="text-[12px] text-gray-400 hover:text-pink-600 transition"
+          className="text-[14px] text-gray-400 hover:text-pink-600 transition"
         >
           {actionLabel}
         </button>
       )}
-    </div>
-  );
-}
-
-function BarChart({ data }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  return (
-    <div className="flex items-end gap-3 h-28">
-      {data.map((d) => (
-        <div key={d.label} className="flex-1 flex flex-col items-center gap-1.5">
-          <span className="text-[10px] text-gray-500">{d.value}</span>
-          <div
-            className="w-full rounded-t-md bg-pink-400 min-h-[2px]"
-            style={{ height: `${(d.value / max) * 80}px` }}
-          />
-          <span className="text-[10px] text-gray-400">{d.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function HorizontalBarChart({ data }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  return (
-    <div className="space-y-3">
-      {data.map((d) => (
-        <div key={d.label}>
-          <div className="flex justify-between text-[12px] text-gray-600 mb-1">
-            <span className="truncate">{d.label}</span>
-            <span className="shrink-0 text-gray-400">{d.value} คน</span>
-          </div>
-          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full bg-pink-400 rounded-full"
-              style={{ width: `${(d.value / max) * 100}%` }}
-            />
-          </div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -622,7 +955,7 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentCountByDat
   ];
 
   return (
-    <div className="grid grid-cols-7 gap-y-1">
+    <div className="grid grid-cols-7 gap-y-1.5">
       {cells.map((day, i) => {
         if (day === null) return <div key={`blank-${i}`} />;
 
@@ -637,10 +970,10 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentCountByDat
             key={key}
             type="button"
             onClick={() => onSelectDate(cellDate)}
-            className="flex flex-col items-center justify-center gap-0.5"
+            className="flex flex-col items-center justify-center gap-1"
           >
             <span
-              className={`h-7 w-7 rounded-full flex items-center justify-center text-[11px] transition
+              className={`h-9 w-9 rounded-full flex items-center justify-center text-[15px] transition
                 ${
                   isSelected
                     ? "bg-pink-500 text-white"
@@ -652,7 +985,7 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentCountByDat
               {day}
             </span>
             <span
-              className={`h-1 w-1 rounded-full ${
+              className={`h-1.5 w-1.5 rounded-full ${
                 count > 0 ? (isSelected ? "bg-pink-500" : "bg-pink-400") : "bg-transparent"
               }`}
             />

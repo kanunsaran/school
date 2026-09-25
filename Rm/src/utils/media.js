@@ -17,25 +17,27 @@ export const resolveFileUrl = (apiBase, url) =>
   /^https?:\/\//i.test(url || "") ? url : `${apiBase}${url}`;
 
 // รองรับ URL ยูทูปได้หลายแบบ (watch?v=, youtu.be, shorts, embed) กันฝังวิดีโอไม่ขึ้นตอนวางลิงก์แบบย่อ
-export function getYoutubeEmbedUrl(url) {
+export function getYoutubeVideoId(url) {
   if (!url) return null;
-
   try {
     const u = new URL(url);
-    let videoId = null;
-
-    if (u.hostname.includes("youtu.be")) {
-      videoId = u.pathname.slice(1);
-    } else if (u.searchParams.get("v")) {
-      videoId = u.searchParams.get("v");
-    } else if (u.pathname.startsWith("/embed/")) {
-      videoId = u.pathname.split("/embed/")[1];
-    } else if (u.pathname.startsWith("/shorts/")) {
-      videoId = u.pathname.split("/shorts/")[1];
-    }
-
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+    if (u.hostname.includes("youtu.be")) return u.pathname.slice(1);
+    if (u.searchParams.get("v")) return u.searchParams.get("v");
+    if (u.pathname.startsWith("/embed/")) return u.pathname.split("/embed/")[1];
+    if (u.pathname.startsWith("/shorts/")) return u.pathname.split("/shorts/")[1];
+    return null;
   } catch {
-    return url;
+    return null;
   }
+}
+
+export function getYoutubeEmbedUrl(url) {
+  const videoId = getYoutubeVideoId(url);
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
+}
+
+// รูปปกวิดีโอจาก thumbnail ของยูทูปเอง ใช้โชว์พรีวิวตอนแนบในคอมโพสเซอร์ก่อนโพสต์จริง
+export function getYoutubeThumbnailUrl(url) {
+  const videoId = getYoutubeVideoId(url);
+  return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
 }

@@ -1,17 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import Select from "react-select";
 import {
   FaSearch, FaSlidersH, FaDownload, FaPrint, FaTimes, FaChevronDown, FaEnvelope, FaChalkboardTeacher, FaBullseye, FaUniversity,
-  FaBrain, FaUserFriends, FaCalendarCheck, FaStickyNote, FaCommentDots, FaIdCard,
+  FaBrain, FaCalendarCheck, FaStickyNote, FaCommentDots, FaIdCard, FaCheck,
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
+import PageLoading from "../components/PageLoading.jsx";
+import Avatar from "../components/Avatar.jsx";
 import {
   getStudent, getEnrollments, getClasses, getAssAll, getAllSubmissions,
-  getGoals, getTypeResults, getTypes, getFaculties, getStudentAttendanceSummary,
+  getGoals, getTypeResults, getTypes, getFaculties, getStudentAttendanceSummary, getStudentGeneralInfo,
 } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import { notAvailableYet } from "../utils/feedShared.js";
+import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+
+const GOAL_FILTER_OPTIONS = [
+  { value: "all", label: "เป้าหมาย: ทั้งหมด" },
+  { value: "has", label: "ตั้งเป้าหมายแล้ว" },
+  { value: "none", label: "ยังไม่ตั้งเป้าหมาย" },
+];
+
+const HOLLAND_FILTER_OPTIONS = [
+  { value: "all", label: "แบบประเมิน Holland: ทั้งหมด" },
+  { value: "done", label: "ทำแบบประเมินแล้ว" },
+  { value: "none", label: "ยังไม่ทำแบบประเมิน" },
+];
+
+const INFO_FILTER_OPTIONS = [
+  { value: "all", label: "ข้อมูลทั่วไป: ทั้งหมด" },
+  { value: "has", label: "มีข้อมูลแล้ว" },
+  { value: "none", label: "ยังไม่มีข้อมูล" },
+];
 
 const PAGE_SIZE = 20;
 
@@ -44,16 +66,231 @@ const formatDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "n
 
 const csvEscape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
-// 7 หมวดตามภาพอ้างอิง — มีข้อมูลจริงแค่บางฟีลด์ในหมวด "ข้อมูลพื้นฐาน" (ชื่อ/วันเกิด/อายุ/รหัส/อีเมล) นอกนั้นระบบยังไม่มีคอลัมน์เก็บ
-// จึงขึ้น "ยังไม่มีข้อมูลในระบบ" ตรงๆ แทนการมั่วข้อมูล
+// ดึงจริงจาก getStudentGeneralInfo() — โครงสร้างข้อมูลจริงจาก backend เป็น personal/contact/address/family/health/education/interests
+// (ยืนยันจาก GET /studentinfo/1 จริง) ขยายให้ครบทุกฟิลด์ของฟอร์ม /studentinfo แล้ว (คอลัมน์ form_data เป็น JSON ขยาย shape ได้โดยไม่ต้อง
+// แก้ตาราง) — รองรับทั้งข้อมูลเก่าที่เคยบันทึกด้วย shape แบบย่อ (เช่น father.name ก้อนเดียว) และแบบเต็มใหม่ (father.first_name/last_name แยก)
+const val = (v) => (v === undefined || v === null || String(v).trim() === "" ? "" : v);
+
+// ตรงกับฟอร์ม /studentinfo ทุกฟิลด์แบบ 1:1 (แยกเป็น 13 ส่วนตามหัวข้อ FormSection จริงของฟอร์ม) — ฟิลด์ไหนฟอร์มไม่มีให้กรอกจริงจะไม่ปรากฏที่นี่
+
 const GENERAL_INFO_SECTIONS = [
-  { key: "basic", title: "ข้อมูลพื้นฐาน", desc: "ชื่อ-สกุล, วันเกิด, อายุ, เพศ, สัญชาติ, ศาสนา, กรุ๊ปเลือด, น้ำหนัก, ส่วนสูง" },
-  { key: "family", title: "ข้อมูลครอบครัว", desc: "บิดา, มารดา, ผู้ปกครอง, พี่น้อง" },
-  { key: "address", title: "ที่อยู่", desc: "ที่อยู่ตามทะเบียนบ้านและที่อยู่ปัจจุบัน" },
-  { key: "prevEdu", title: "ประวัติการศึกษาเดิม", desc: "ระดับชั้น, ชื่อสถานศึกษาเดิม, ผลการเรียนเดิม, วิชาที่ชอบ/ไม่ชอบ" },
-  { key: "health", title: "ข้อมูลสุขภาพ", desc: "โรคประจำตัว, แพ้ยา, ประวัติการรักษา, น้ำหนัก, ส่วนสูง, การนอน" },
-  { key: "interest", title: "ความสนใจและความสามารถพิเศษ", desc: "งานอดิเรก, ความสนใจ, ความสามารถพิเศษ, รางวัลที่ได้รับ" },
-  { key: "extra", title: "ข้อมูลเพิ่มเติม", desc: "ข้อมูลอื่น ๆ ที่เกี่ยวข้องกับนักเรียน" },
+  {
+    key: "student",
+    title: "ข้อมูลนักเรียน",
+    subtitle: "ชื่อ-นามสกุล, ชื่อเล่น, วันเกิด, อายุ, ศาสนา, เชื้อชาติ, สัญชาติ, โทรศัพท์, ชั้น/ห้อง/เลขที่",
+    fields: (fd) => {
+      const m = fd.meta || {};
+      const p = fd.personal || {};
+      return [
+        ["ชื่อ-นามสกุล", `${val(p.first_name)} ${val(p.last_name)}`.trim()],
+        ["ชื่อเล่น", val(p.nickname)],
+        ["วันเกิด", p.dob ? formatDate(p.dob) : ""],
+        ["อายุ", p.age ? `${p.age} ปี` : ""],
+        ["นับถือศาสนา", val(p.religion)],
+        ["เชื้อชาติ", val(p.ethnicity)],
+        ["สัญชาติ", val(p.nationality)],
+        ["โทรศัพท์", val(fd.contact?.phone)],
+        ["ปีการศึกษา", val(m.academic_year)],
+        ["ระดับชั้น", val(m.classroom)],
+        ["ห้อง", val(m.room)],
+        ["เลขที่", val(m.roll_number)],
+      ];
+    },
+  },
+  {
+    key: "address",
+    title: "ที่อยู่ปัจจุบัน",
+    subtitle: "บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, โทรศัพท์",
+    fields: (fd) => {
+      const a = fd.address || {};
+      return [
+        ["บ้านเลขที่", val(a.house_no)],
+        ["ถนน", val(a.road)],
+        ["ตำบล / แขวง", val(a.subdistrict)],
+        ["อำเภอ / เขต", val(a.district)],
+        ["จังหวัด", val(a.province)],
+        ["โทรศัพท์", val(fd.contact?.address_phone)],
+      ];
+    },
+  },
+  {
+    key: "father",
+    title: "ข้อมูลบิดา",
+    subtitle: "ชื่อ, อายุ, โทรศัพท์, การศึกษา, อาชีพ, รายได้, สถานที่ทำงาน",
+    fields: (fd) => {
+      const f = fd.family?.father || {};
+      return [
+        ["ชื่อ-นามสกุล", `${val(f.first_name)} ${val(f.last_name)}`.trim()],
+        ["อายุ", f.age ? `${f.age} ปี` : ""],
+        ["โทรศัพท์", val(f.phone)],
+        ["ระดับการศึกษา", val(f.education)],
+        ["อาชีพ", val(f.occupation)],
+        ["รายได้เฉลี่ยเดือนละ", f.income != null ? `${f.income} บาท` : ""],
+        ["สถานที่ทำงาน", val(f.workplace)],
+        ["โทรศัพท์ที่ทำงาน", val(f.work_phone)],
+      ];
+    },
+  },
+  
+  {
+    key: "mother",
+    title: "ข้อมูลมารดา",
+    subtitle: "ชื่อ, อายุ, โทรศัพท์, การศึกษา, อาชีพ, รายได้, สถานที่ทำงาน",
+    fields: (fd) => {
+      const m = fd.family?.mother || {};
+      return [
+        ["ชื่อ-นามสกุล", `${val(m.first_name)} ${val(m.last_name)}`.trim()],
+        ["อายุ", m.age ? `${m.age} ปี` : ""],
+        ["โทรศัพท์", val(m.phone)],
+        ["ระดับการศึกษา", val(m.education)],
+        ["อาชีพ", val(m.occupation)],
+        ["รายได้เฉลี่ยเดือนละ", m.income != null ? `${m.income} บาท` : ""],
+        ["สถานที่ทำงาน", val(m.workplace)],
+        ["โทรศัพท์ที่ทำงาน", val(m.work_phone)],
+      ];
+    },
+  },
+  {
+    key: "familyStatus",
+    title: "สถานภาพครอบครัว",
+    subtitle: "สถานภาพสมรสบิดามารดา, พักอาศัยอยู่กับ, จำนวนพี่น้อง",
+    fields: (fd) => {
+      const f = fd.family || {};
+      const s = f.siblings_same_parents || {};
+      const sf = f.siblings_father_other || {};
+      const sm = f.siblings_mother_other || {};
+      return [
+        ["สถานภาพสมรสบิดามารดา", (f.parents_marital_status || []).join(", ")],
+        ["นักเรียนพักอาศัยอยู่กับ", f.living_with === "อื่นๆ" ? `อื่นๆ (${val(f.living_with_other)})` : val(f.living_with)],
+        ["พี่น้องท้องเดียวกัน", s.total != null ? `${s.total} คน (ชาย ${val(s.male)} หญิง ${val(s.female)})` : ""],
+        ["นักเรียนเป็นบุตรลำดับที่", val(f.birth_order)],
+        ["พี่น้องจากบิดากับภรรยาคนอื่น", sf.total != null ? `${sf.total} คน (ชาย ${val(sf.male)} หญิง ${val(sf.female)})` : ""],
+        ["พี่น้องจากมารดากับสามีคนอื่น", sm.total != null ? `${sm.total} คน (ชาย ${val(sm.male)} หญิง ${val(sm.female)})` : ""],
+      ];
+    },
+  },
+  {
+    key: "guardian",
+    title: "ผู้ปกครอง (กรณีไม่ใช่บิดามารดา)",
+    subtitle: "ชื่อ, อายุ, เกี่ยวข้องโดยเป็น, โทรศัพท์, อาชีพ, รายได้",
+    fields: (fd) => {
+      const g = fd.family?.guardian || {};
+      return [
+        ["ชื่อ-นามสกุล", `${val(g.first_name)} ${val(g.last_name)}`.trim()],
+        ["อายุ", g.age ? `${g.age} ปี` : ""],
+        ["เกี่ยวข้องกับนักเรียนโดยเป็น", val(g.relation)],
+        ["โทรศัพท์", val(g.phone)],
+        ["อาชีพ", val(g.occupation)],
+        ["รายได้เฉลี่ยเดือนละ", g.income != null ? `${g.income} บาท` : ""],
+      ];
+    },
+  },
+  {
+    key: "living",
+    title: "สภาพความเป็นอยู่",
+    subtitle: "ลักษณะที่พักอาศัย, สภาพชุมชน, ภาระหน้าที่, ค่าใช้จ่ายประจำวัน, การเดินทาง",
+    fields: (fd) => {
+      const l = fd.living_situation || {};
+      return [
+        ["บุคคลในครอบครัวที่รักและไว้ใจมากที่สุด", val(l.most_trusted_family_member)],
+        ["ลักษณะที่พักอาศัย", val(l.housing_type)],
+        ["มีห้องส่วนตัวหรือไม่", val(l.has_own_room)],
+        ["จำนวนสมาชิกที่อาศัยในบ้าน", l.household_member_count != null ? `${l.household_member_count} คน (${val(l.household_members_description)})` : ""],
+        ["สภาพของชุมชน", (l.community_condition || []).join(", ") + (l.community_condition?.includes("อื่นๆ") ? ` (${val(l.community_condition_other)})` : "")],
+        ["บุคคลที่มีอิทธิพลมากที่สุดในบ้าน", val(l.most_influential_person)],
+        ["บุคคลที่มีอิทธิพลน้อยที่สุดในบ้าน", val(l.least_influential_person)],
+        ["ภาระหน้าที่นักเรียน", l.household_chores === "ต้องทำงานบ้าน" ? `ต้องทำงานบ้าน (${val(l.chores_detail)})` : val(l.household_chores)],
+        ["เวลาออกนอกบ้าน", val(l.leave_permission)],
+        ["ค่าใช้จ่ายประจำวันได้รับจาก", val(l.allowance_source)],
+        ["ประมาณวันละ", l.allowance_amount != null ? `${l.allowance_amount} บาท` : ""],
+        ["ระยะทางจากบ้านมาโรงเรียน", l.distance_km != null ? `${l.distance_km} กม.` : ""],
+        ["ยานพาหนะที่ใช้เดินทางมาโรงเรียน", l.transport_method === "ผู้ปกครองมาส่ง" ? `ผู้ปกครองมาส่ง (${val(l.transport_other)})` : val(l.transport_method)],
+      ];
+    },
+  },
+  {
+    key: "priorEducation",
+    title: "สำเร็จการศึกษาจากที่ใดมาก่อนแล้ว",
+    subtitle: "ระดับชั้น, ชื่อสถานศึกษา, เกรดเฉลี่ย",
+    table: (fd) => {
+      const rows = fd.education?.prior_education || [];
+      return { columns: ["ระดับชั้น", "ชื่อสถานศึกษา", "เกรดเฉลี่ย"], rows: rows.map((r) => [val(r.level), val(r.school), val(r.gpa)]) };
+    },
+  },
+  {
+    key: "studyBehavior",
+    title: "การเรียนและพฤติกรรม",
+    subtitle: "วิชาที่ชอบ/ไม่ชอบ, วิชาที่ได้คะแนนมาก/น้อย, การมาโรงเรียน, เวลาทำการบ้าน",
+    fields: (fd) => {
+      const e = fd.education || {};
+      return [
+        ["วิชาที่ชอบมากที่สุด", val(e.favorite_subject)],
+        ["เพราะ", val(e.favorite_subject_reason)],
+        ["วิชาที่ชอบน้อยที่สุด", val(e.least_favorite_subject)],
+        ["เพราะ", val(e.least_favorite_subject_reason)],
+        ["วิชาที่ได้คะแนนมากที่สุด", (e.top_score_subjects || []).join(", ")],
+        ["วิชาที่ได้คะแนนน้อยที่สุด", (e.low_score_subjects || []).join(", ")],
+        ["การมาโรงเรียน", e.attendance === "ขาดเรียนบ่อยๆ" ? `ขาดเรียนบ่อยๆ (${val(e.attendance_reason)})` : val(e.attendance)],
+        ["เวลาสำหรับทำการบ้านและอ่านหนังสือ", e.homework_time === "ไม่มีเวลา" ? `ไม่มีเวลา (${val(e.homework_time_reason)})` : val(e.homework_time)],
+      ];
+    },
+  },
+  {
+    key: "closeFriends",
+    title: "เพื่อนสนิทของนักเรียน",
+    subtitle: "ชื่อ-นามสกุล, ชั้น, โทรศัพท์",
+    table: (fd) => {
+      const friends = fd.education?.close_friends || [];
+      return { columns: ["ชื่อ-นามสกุล", "ชั้น", "โทรศัพท์"], rows: friends.map((f) => [`${val(f.first_name)} ${val(f.last_name)}`.trim(), val(f.classroom), val(f.phone)]) };
+    },
+  },
+  {
+    key: "interests",
+    title: "ความสนใจและแนวทางการประกอบอาชีพ",
+    subtitle: "งานอดิเรก, ความสามารถพิเศษ, เป้าหมายการศึกษา, อาชีพที่สนใจ",
+    fields: (fd) => {
+      const i = fd.interests || {};
+      return [
+        ["งานอดิเรกของนักเรียน", val(i.hobby)],
+        ["ความสามารถพิเศษ", val(i.special_ability)],
+        ["ระดับการศึกษาที่นักเรียนจะเรียนให้จบชั้นสูงสุด", val(i.student_edu_goal)],
+        ["ระดับการศึกษาที่ผู้ปกครองจะเรียนให้จบชั้นสูงสุด", val(i.guardian_edu_goal)],
+        ["อาชีพที่นักเรียนสนใจ", (i.interested_careers || []).join(", ")],
+        ["อาชีพที่ผู้ปกครองคาดหวังให้นักเรียนเป็น", val(i.guardian_expected_career)],
+      ];
+    },
+  },
+  {
+    key: "health",
+    title: "ประวัติสุขภาพ",
+    subtitle: "โรคประจำตัว, น้ำหนัก, ส่วนสูง, การนอน, ประวัติการเจ็บป่วย",
+    fields: (fd) => {
+      const h = fd.health || {};
+      return [
+        ["โรคประจำตัวของนักเรียน", val(h.chronic_disease)],
+        ["อาการเมื่อโรคกำเริบ", val(h.chronic_disease_symptoms)],
+        ["น้ำหนัก", h.weight_kg ? `${h.weight_kg} กก.` : ""],
+        ["ส่วนสูง", h.height_cm ? `${h.height_cm} ซม.` : ""],
+        ["ตามปกตินอนวันละ", val(h.sleep_hours)],
+      ];
+    },
+    table: (fd) => {
+      const list = (fd.health?.illness_history || []).filter((r) => r.cause);
+      return list.length ? { title: "นักเรียนเคยเจ็บป่วยหรือได้รับอุบัติเหตุร้ายแรง", columns: ["ป่วยเพราะ", "เมื่ออายุ (ปี)"], rows: list.map((r) => [val(r.cause), val(r.age)]) } : null;
+    },
+  },
+  {
+    key: "preparedBy",
+    title: "ผู้กรอกข้อมูล",
+    subtitle: "ลงชื่อ, ลงวันที่",
+    fields: (fd) => {
+      const pb = fd.prepared_by || {};
+      return [
+        ["ลงชื่อ (ผู้กรอกข้อมูล)", val(pb.name)],
+        ["ลงวันที่", pb.date ? formatDate(pb.date) : ""],
+      ];
+    },
+  },
 ];
 
 const DETAIL_TABS = [
@@ -61,7 +298,6 @@ const DETAIL_TABS = [
   { key: "goal", label: "เป้าหมาย", icon: FaBullseye },
   { key: "grades", label: "ผลการเรียน", icon: FaUniversity },
   { key: "attendance", label: "การเช็คชื่อ", icon: FaCalendarCheck },
-  { key: "activity", label: "กิจกรรม", icon: FaUserFriends },
   { key: "holland", label: "แบบประเมิน (Holland)", icon: FaBrain },
   { key: "counseling", label: "การให้คำปรึกษา", icon: FaCommentDots },
   { key: "notes", label: "บันทึกเพิ่มเติม", icon: FaStickyNote },
@@ -73,7 +309,12 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
   const [search, setSearch] = useState("");
   const [roomFilter, setRoomFilter] = useState(gradeFilter);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [goalFilter, setGoalFilter] = useState("all");
+  const [hollandFilter, setHollandFilter] = useState("all");
+  const [infoFilter, setInfoFilter] = useState("all");
+  const [advFilterOpen, setAdvFilterOpen] = useState(false);
+  const advFilterCount = (goalFilter !== "all" ? 1 : 0) + (hollandFilter !== "all" ? 1 : 0) + (infoFilter !== "all" ? 1 : 0);
+  const advFilterActive = advFilterCount > 0;
   const [page, setPage] = useState(1);
   const [checkedIds, setCheckedIds] = useState(new Set());
   const [selectedId, setSelectedId] = useState(null);
@@ -163,8 +404,10 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
   // ===== attendance summary รายคน โหลดแบบ lazy เฉพาะคนที่กำลังแสดงในหน้านี้ + cache ไว้ ไม่โหลดซ้ำ =====
   const [attendanceByUser, setAttendanceByUser] = useState({});
+  const [generalInfoByUser, setGeneralInfoByUser] = useState({});
 
-  const students = useMemo(() => {
+  // ห้อง+ค้นหา กรองก่อน แยกจากตัวกรองเพิ่มเติม เพราะตัวกรอง "ข้อมูลทั่วไป" ต้องรู้ก่อนว่าใครมี/ไม่มีข้อมูลทั่วไปบ้าง (ต้องโหลดครบทุกคนในห้องนี้ก่อน ไม่ใช่แค่หน้าที่กำลังดู)
+  const roomScopedStudents = useMemo(() => {
     let list = allStudents.map((s) => {
       const enroll = gradeByUserId.get(String(s.user_id));
       return { ...s, gradeId: enroll?.gradeId ?? null, seatNo: enroll?.seatNo ?? null };
@@ -172,18 +415,51 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
     if (roomFilter) list = list.filter((s) => String(s.gradeId) === String(roomFilter));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter((s) => s.fullname?.toLowerCase().includes(q) || s.student_code?.toLowerCase?.().includes(q));
-    }
-    list = list.slice().sort((a, b) => (a.fullname || "").localeCompare(b.fullname || "", "th"));
-    if (statusFilter) {
-      list = list.filter((s) => {
-        const att = attendanceByUser[s.user_id];
-        const pct = att && att.totalDays > 0 ? Math.round((Number(att.presentDays) / Number(att.totalDays)) * 100) : null;
-        return statusFromAttendance(pct) === statusFilter;
-      });
+      list = list.filter(
+        (s) =>
+          s.fullname?.toLowerCase().includes(q) ||
+          s.student_code?.toLowerCase?.().includes(q) ||
+          (s.seatNo != null && String(s.seatNo).includes(q))
+      );
     }
     return list;
-  }, [allStudents, gradeByUserId, roomFilter, search, statusFilter, attendanceByUser]);
+  }, [allStudents, gradeByUserId, roomFilter, search]);
+
+  // โหลดข้อมูลทั่วไปของทุกคนในห้องนี้ล่วงหน้า (ไม่ใช่แค่หน้าที่กำลังดู) เพราะตัวกรองเพิ่มเติมต้องใช้เช็คทั้งห้อง
+  useEffect(() => {
+    const toFetch = roomScopedStudents.filter((s) => !(s.user_id in generalInfoByUser));
+    if (toFetch.length === 0) return;
+    Promise.all(
+      toFetch.map((s) =>
+        getStudentGeneralInfo(s.user_id)
+          .then((res) => [s.user_id, res])
+          .catch(() => [s.user_id, null])
+      )
+    ).then((entries) => {
+      setGeneralInfoByUser((prev) => {
+        const next = { ...prev };
+        entries.forEach(([id, res]) => { next[id] = res; });
+        return next;
+      });
+    });
+  }, [roomScopedStudents]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const students = useMemo(() => {
+    let list = roomScopedStudents;
+    if (goalFilter !== "all") {
+      const hasGoal = (userId) => goals.some((g) => String(g.user_user_id) === String(userId));
+      list = list.filter((s) => (goalFilter === "has" ? hasGoal(s.user_id) : !hasGoal(s.user_id)));
+    }
+    if (hollandFilter !== "all") {
+      const hasResult = (userId) => typeResults.some((r) => String(r.user_user_id) === String(userId));
+      list = list.filter((s) => (hollandFilter === "done" ? hasResult(s.user_id) : !hasResult(s.user_id)));
+    }
+    if (infoFilter !== "all") {
+      list = list.filter((s) => (infoFilter === "has" ? !!generalInfoByUser[s.user_id] : !generalInfoByUser[s.user_id]));
+    }
+    list = list.slice().sort((a, b) => (a.fullname || "").localeCompare(b.fullname || "", "th"));
+    return list;
+  }, [roomScopedStudents, goalFilter, hollandFilter, infoFilter, goals, typeResults, generalInfoByUser]);
 
   const totalPages = Math.max(1, Math.ceil(students.length / PAGE_SIZE));
   const pagedStudents = useMemo(
@@ -191,7 +467,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
     [students, page]
   );
 
-  useEffect(() => { setPage(1); }, [roomFilter, search, statusFilter]);
+  useEffect(() => { setPage(1); }, [roomFilter, search, goalFilter, hollandFilter, infoFilter]);
 
   useEffect(() => {
     if (!pagedStudents.length) return;
@@ -395,7 +671,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
       <html lang="th"><head><meta charset="utf-8"><title>รายงานนักเรียน</title>
       <style>
         body { font-family: "Sarabun", "Noto Sans Thai", sans-serif; padding: 28px; color: #1f2937; }
-        h1 { font-size: 19px; margin: 0 0 2px; color: #db2777; }
+        h1 { font-size: 19px; margin: 0 0 2px; color: #ec4899; }
         p.meta { font-size: 12.5px; color: #6b7280; margin: 0 0 18px; }
         .toc { page-break-after: always; }
         .toc ol { font-size: 13px; line-height: 1.9; }
@@ -444,69 +720,107 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
       {!embedded && (
         <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-[22px] font-bold text-gray-900">นักเรียนของฉัน</h1>
-            <p className="text-[13px] text-gray-500 mt-1">ภาพรวมและข้อมูลรายบุคคลของนักเรียนที่ดูแล</p>
+            <h1 className="page-title">นักเรียนของฉัน</h1>
+            <p className="page-subtitle mt-1">ภาพรวมและข้อมูลรายบุคคลของนักเรียนที่ดูแล</p>
           </div>
         </div>
       )}
 
       {/* ===== Toolbar ===== */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        {!embedded && (
-          <div className="flex flex-col gap-1">
-            <label className="text-[12px] text-gray-500">ห้องเรียนที่สอน</label>
-            <select
-              value={roomFilter}
-              onChange={(e) => setRoomFilter(e.target.value)}
-              className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-[13.5px] outline-none focus:border-pink-400"
-            >
-              <option value="">ทุกห้อง</option>
-              {classesList.map((c) => (
-                <option key={c.id} value={c.id}>{gradeLabel(c)}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="flex flex-col gap-1">
-          <label className="text-[12px] text-gray-500">สถานะ</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 rounded-xl border border-gray-200 bg-white px-3 text-[13.5px] outline-none focus:border-pink-400"
-          >
-            <option value="">ทั้งหมด</option>
-            <option value="normal">ปกติ</option>
-            <option value="watch">ต้องติดตาม</option>
-            <option value="risk">เสี่ยง</option>
-          </select>
-        </div>
-
         <div className="flex flex-col gap-1 flex-1 min-w-55">
-          <label className="text-[12px] text-gray-500">&nbsp;</label>
+          <label className="text-[14px] text-gray-500">&nbsp;</label>
           <div className="relative">
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px] z-10" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ค้นหาชื่อหรือรหัสนักเรียน..."
-              className="w-full h-10 bg-white border border-gray-200 rounded-xl pl-9 pr-3 text-[13.5px] outline-none focus:border-pink-400"
+              placeholder="ค้นหาชื่อ หรือเลขที่..."
+              className="w-full h-10 bg-white border border-gray-200 rounded-xl pl-9 pr-3 text-[15.5px] outline-none focus:border-pink-400"
             />
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => notAvailableYet("ตัวกรองเพิ่มเติม")}
-          className="h-10 mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
-        >
-          <FaSlidersH size={12} /> ตัวกรองเพิ่มเติม
-        </button>
+        {!embedded && (
+          <div className="flex flex-col gap-1 w-56">
+            <label className="text-[14px] text-gray-500">ห้องเรียนที่สอน</label>
+            <Select
+              styles={bigFilterSelectStyles}
+              value={
+                roomFilter
+                  ? { value: roomFilter, label: gradeLabel(classesList.find((c) => String(c.id) === String(roomFilter)) || {}) }
+                  : { value: "", label: "ทุกห้อง" }
+              }
+              onChange={(opt) => setRoomFilter(opt.value)}
+              options={[{ value: "", label: "ทุกห้อง" }, ...classesList.map((c) => ({ value: c.id, label: gradeLabel(c) }))]}
+              isSearchable={false}
+            />
+          </div>
+        )}
+
+        <div className="relative mt-5">
+          <button
+            type="button"
+            onClick={() => setAdvFilterOpen((v) => !v)}
+            className={`h-10 px-4 rounded-xl border text-[15px] flex items-center gap-2 ${
+              advFilterActive ? "border-pink-400 bg-pink-50 text-pink-700" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <FaSlidersH size={12} /> ตัวกรองเพิ่มเติม{advFilterActive && ` (${advFilterCount})`}
+          </button>
+
+          {advFilterOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setAdvFilterOpen(false)} />
+              <div className="absolute right-0 top-12 z-20 w-72 rounded-2xl border border-gray-200 bg-white shadow-lg p-4 flex flex-col gap-3">
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-500 mb-1">เป้าหมาย</label>
+                  <Select
+                    styles={bigFilterSelectStyles}
+                    value={GOAL_FILTER_OPTIONS.find((o) => o.value === goalFilter)}
+                    onChange={(opt) => setGoalFilter(opt.value)}
+                    options={GOAL_FILTER_OPTIONS}
+                    isSearchable={false}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-500 mb-1">แบบประเมิน Holland</label>
+                  <Select
+                    styles={bigFilterSelectStyles}
+                    value={HOLLAND_FILTER_OPTIONS.find((o) => o.value === hollandFilter)}
+                    onChange={(opt) => setHollandFilter(opt.value)}
+                    options={HOLLAND_FILTER_OPTIONS}
+                    isSearchable={false}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-medium text-gray-500 mb-1">ข้อมูลทั่วไป</label>
+                  <Select
+                    styles={bigFilterSelectStyles}
+                    value={INFO_FILTER_OPTIONS.find((o) => o.value === infoFilter)}
+                    onChange={(opt) => setInfoFilter(opt.value)}
+                    options={INFO_FILTER_OPTIONS}
+                    isSearchable={false}
+                  />
+                </div>
+                {advFilterActive && (
+                  <button
+                    type="button"
+                    onClick={() => { setGoalFilter("all"); setHollandFilter("all"); setInfoFilter("all"); }}
+                    className="text-[13px] text-pink-600 hover:underline bg-transparent text-left"
+                  >
+                    ล้างตัวกรองเพิ่มเติม
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
 
         <button
           type="button"
           onClick={openExportWizard}
-          className="h-10 mt-5 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-[13px] font-semibold flex items-center gap-2"
+          className="h-10 mt-5 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold flex items-center gap-2"
         >
           <FaDownload size={12} /> ส่งออก{checkedIds.size > 0 ? ` (${checkedIds.size})` : "ทั้งหมด"}
         </button>
@@ -514,65 +828,55 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         <button
           type="button"
           onClick={() => window.print()}
-          className="h-10 mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+          className="h-10 mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
         >
           <FaPrint size={12} /> พิมพ์รายงาน
         </button>
       </div>
 
-      <div className="mb-3 text-[13px] text-gray-500">พบนักเรียน {students.length} คน</div>
+      <div className="mb-3 text-[15px] text-gray-500">พบนักเรียน {students.length} คน</div>
 
       {loading ? (
-        <div className="text-center text-gray-400 py-16">กำลังโหลด...</div>
+        <PageLoading />
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-6 items-start">
-          {/* ===== รายชื่อนักเรียน (ซ้าย) ===== */}
-          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2 text-[12.5px] text-gray-500">
-              <input
-                type="checkbox"
-                checked={pagedStudents.length > 0 && checkedIds.size === pagedStudents.length}
-                onChange={toggleCheckAll}
-                className="accent-pink-600"
-              />
+        <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-6">
+          {/* ===== รายชื่อนักเรียน (ซ้าย) — เส้นคั่นแทนกรอบครอบ ให้ต่อเนื่องกับฝั่งขวา ===== */}
+          <div className="xl:border-r xl:border-gray-200 xl:pr-6">
+            <button
+              type="button"
+              onClick={toggleCheckAll}
+              className="w-full px-2 py-2.5 border-b border-gray-100 flex items-center gap-2 text-[14.5px] text-gray-500 bg-transparent hover:bg-gray-50"
+            >
+              <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${pagedStudents.length > 0 && checkedIds.size === pagedStudents.length ? "bg-pink-500 text-white" : "border-2 border-gray-300"}`}>
+                {pagedStudents.length > 0 && checkedIds.size === pagedStudents.length && <FaCheck size={9} />}
+              </span>
               เลือกทั้งหมด{checkedIds.size > 0 && ` (เลือกแล้ว ${checkedIds.size})`}
-            </div>
+            </button>
             <div className="max-h-[720px] overflow-y-auto divide-y divide-gray-100">
               {pagedStudents.length === 0 ? (
-                <div className="text-center text-gray-400 py-10 text-[13px]">ไม่พบนักเรียน</div>
+                <div className="text-center text-gray-400 py-10 text-[15px]">ไม่พบนักเรียน</div>
               ) : (
                 pagedStudents.map((s) => {
-                  const att = attendanceByUser[s.user_id];
-                  const attPct = att && Number(att.totalDays) > 0 ? Math.round((Number(att.presentDays) / Number(att.totalDays)) * 100) : null;
-                  const scorePct = computeScorePct(s.user_id);
-                  const status = statusFromAttendance(attPct);
                   const isSelected = selectedStudent?.user_id === s.user_id;
                   return (
                     <button
                       type="button"
                       key={s.user_id}
                       onClick={() => { setSelectedId(s.user_id); setActiveTab("info"); }}
-                      className={`w-full text-left px-4 py-3 flex items-start gap-2.5 transition ${isSelected ? "bg-pink-50" : "hover:bg-gray-50 bg-white"}`}
+                      className={`w-full text-left px-2 py-3 flex items-center gap-2.5 transition rounded-lg ${isSelected ? "bg-pink-50" : "hover:bg-gray-50 bg-white"}`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={checkedIds.has(s.user_id)}
-                        onChange={(e) => { e.stopPropagation(); toggleCheck(s.user_id); }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="accent-pink-600 mt-1.5 shrink-0"
-                      />
-                      <img src={`https://i.pravatar.cc/80?u=student-${s.user_id}`} className="w-10 h-10 rounded-full shrink-0 object-cover" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13.5px] font-medium text-gray-900 truncate">{s.fullname}</div>
-                        <div className="text-[11.5px] text-gray-400">{s.student_code}</div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-[11px] text-gray-500">คะแนน {scorePct ?? "-"}{scorePct != null && "%"}</span>
-                          <span className="text-[11px] text-gray-500">· มาเรียน {attPct ?? "-"}{attPct != null && "%"}</span>
-                        </div>
-                        <span className={`inline-block mt-1 text-[10.5px] font-medium px-2 py-0.5 rounded-full ${STATUS_META[status].cls}`}>
-                          {STATUS_META[status].label}
-                        </span>
-                      </div>
+                      <span
+                        role="checkbox"
+                        aria-checked={checkedIds.has(s.user_id)}
+                        tabIndex={0}
+                        onClick={(e) => { e.stopPropagation(); toggleCheck(s.user_id); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggleCheck(s.user_id); } }}
+                        className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 cursor-pointer ${checkedIds.has(s.user_id) ? "bg-pink-500 text-white" : "border-2 border-gray-300"}`}
+                      >
+                        {checkedIds.has(s.user_id) && <FaCheck size={9} />}
+                      </span>
+                      <Avatar src={generalInfoByUser[s.user_id]?.avatar_url} name={s.fullname} size={40} />
+                      <div className="min-w-0 flex-1 text-[15.5px] font-medium text-gray-900 truncate">{s.fullname}</div>
                     </button>
                   );
                 })
@@ -586,17 +890,17 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
           ) : (
             <div className="min-w-0">
               {/* Profile header */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6 mb-5">
+              <div className="border-b border-gray-200 py-6 mb-5">
                 <div className="flex flex-wrap items-start gap-6">
-                  <img src={`https://i.pravatar.cc/160?u=student-${selectedStudent.user_id}`} className="w-20 h-20 rounded-full object-cover shrink-0" />
-                  <div className="flex-1 min-w-50">
+                  <Avatar src={generalInfoByUser[selectedStudent.user_id]?.avatar_url} name={selectedStudent.fullname} size={80} />
+                  <div className="flex-1 min-w-70">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <div className="text-[19px] font-bold text-gray-900">{selectedStudent.fullname}</div>
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${STATUS_META[selectedStatus].cls}`}>
+                      <div className="text-[21px] font-bold text-gray-900">{selectedStudent.fullname}</div>
+                      <span className={`text-[13px] font-medium px-2 py-0.5 rounded-full ${STATUS_META[selectedStatus].cls}`}>
                         {STATUS_META[selectedStatus].label}
                       </span>
                     </div>
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[13px] text-gray-500">
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-[15px] text-gray-500">
                       <div>รหัสนักเรียน <span className="text-gray-800">{selectedStudent.student_code}</span></div>
                       <div>ชั้น <span className="text-gray-800">{selectedGradeLabel || "ยังไม่ระบุห้อง"}{selectedStudent.seatNo != null && ` เลขที่ ${selectedStudent.seatNo}`}</span></div>
                       <div className="flex items-center gap-1.5"><FaChalkboardTeacher size={11} /> ครูที่ปรึกษา <span className="text-gray-800">{selectedTeacherName || "ยังไม่ระบุ"}</span></div>
@@ -604,7 +908,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full sm:w-auto">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full sm:w-auto shrink-0">
                     <MiniStat label="คะแนนเฉลี่ย" value={selectedScorePct != null ? `${selectedScorePct}%` : "-"} valueClass="text-pink-600" />
                     <MiniStat label="การมาเรียน" value={selectedAttendancePct != null ? `${selectedAttendancePct}%` : "-"} valueClass="text-emerald-600" />
                     <MiniStat label="เป้าหมาย" value={selectedGoal?.career_field || "ยังไม่ตั้ง"} small />
@@ -621,8 +925,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                       key={t.key}
                       type="button"
                       onClick={() => setActiveTab(t.key)}
-                      className={`flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-medium whitespace-nowrap border-b-2 -mb-px bg-transparent transition ${
-                        activeTab === t.key ? "border-pink-600 text-pink-700" : "border-transparent text-gray-500 hover:text-gray-800"
+                      className={`flex items-center gap-2 px-3.5 py-2.5 text-[15px] font-medium whitespace-nowrap border-b-2 -mb-px bg-transparent transition ${
+                        activeTab === t.key ? "border-pink-500 text-pink-700" : "border-transparent text-gray-500 hover:text-gray-800"
                       }`}
                     >
                       <t.icon size={12} /> {t.label}
@@ -631,52 +935,91 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                 </div>
               </div>
 
-              {activeTab === "info" && (
-                <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
-                  {GENERAL_INFO_SECTIONS.map((sec, i) => {
-                    const open = openInfoSections.has(sec.key);
-                    return (
-                      <div key={sec.key}>
-                        <button
-                          type="button"
-                          onClick={() => toggleInfoSection(sec.key)}
-                          className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 text-left bg-transparent"
-                        >
-                          <span className="w-6 h-6 rounded-full bg-pink-600 text-white text-[11.5px] font-semibold flex items-center justify-center shrink-0">{i + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-[13.5px] font-medium text-gray-900">{sec.title}</div>
-                            <div className="text-[11.5px] text-gray-400 truncate">{sec.desc}</div>
-                          </div>
-                          <FaChevronDown className={`text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} size={12} />
-                        </button>
-                        {open && (
-                          <div className="px-4 pb-4 pl-13">
-                            {sec.key === "basic" ? (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                                <InfoRow label="ชื่อ-สกุล" value={selectedStudent.fullname || "-"} />
-                                <InfoRow label="รหัสนักเรียน" value={selectedStudent.student_code || "-"} />
-                                <InfoRow label="วันเกิด" value={selectedStudent.dob ? formatDate(selectedStudent.dob) : "-"} />
-                                <InfoRow label="อายุ" value={selectedStudent.dob ? `${ageFromDob(selectedStudent.dob)} ปี` : "-"} />
-                                <InfoRow label="อีเมล" value={selectedStudent.email || "-"} />
-                                <InfoRow label="เพศ / สัญชาติ / ศาสนา" value="ยังไม่มีข้อมูล" muted />
-                                <InfoRow label="กรุ๊ปเลือด" value="ยังไม่มีข้อมูล" muted />
-                                <InfoRow label="น้ำหนัก / ส่วนสูง" value="ยังไม่มีข้อมูล" muted />
-                              </div>
-                            ) : (
-                              <div className="text-[13px] text-gray-400 py-1">ยังไม่มีข้อมูลในระบบ</div>
-                            )}
-                          </div>
-                        )}
+              {activeTab === "info" && (() => {
+                const generalInfo = generalInfoByUser[selectedStudent.user_id];
+                const formData = generalInfo?.form_data;
+                return (
+                  <>
+                    {generalInfoByUser[selectedStudent.user_id] === undefined ? (
+                      <div className="py-2 rounded-2xl border border-dashed border-gray-200">
+                        <PageLoading label="กำลังโหลดข้อมูลทั่วไป..." />
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    ) : !formData ? (
+                      <div className="text-center text-gray-400 py-10 rounded-2xl border border-dashed border-gray-200">
+                        นักเรียนคนนี้ยังไม่เคยกรอกแบบฟอร์มข้อมูลทั่วไป (/studentinfo)
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100">
+                        {GENERAL_INFO_SECTIONS.map((sec, i) => {
+                          const open = openInfoSections.has(sec.key);
+                          const rows = sec.fields ? sec.fields(formData) : [];
+                          const tableInfo = sec.table ? sec.table(formData) : null;
+                          return (
+                            <div key={sec.key}>
+                              <button
+                                type="button"
+                                onClick={() => toggleInfoSection(sec.key)}
+                                className="w-full flex items-center gap-3 px-2 py-3.5 hover:bg-gray-50 text-left bg-transparent"
+                              >
+                                <span className="w-6 h-6 rounded-full bg-pink-500 text-white text-[13.5px] font-semibold flex items-center justify-center shrink-0">{i + 1}</span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-[15.5px] font-medium text-gray-900">{sec.title}</div>
+                                  {!open && sec.subtitle && (
+                                    <div className="text-[12.5px] text-gray-400 truncate mt-0.5">{sec.subtitle}</div>
+                                  )}
+                                </div>
+                                <FaChevronDown className={`text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} size={12} />
+                              </button>
+                              {open && (
+                                <div className="px-2 pb-4 pl-11 space-y-4">
+                                  {rows.length > 0 && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                      {rows.map(([label, value]) => (
+                                        <InfoRow key={label} label={label} value={value || "-"} muted={!value} />
+                                      ))}
+                                    </div>
+                                  )}
+                                  {tableInfo && (
+                                    <div>
+                                      {tableInfo.title && <div className="text-[13.5px] text-gray-500 mb-1.5">{tableInfo.title}</div>}
+                                      {tableInfo.rows.length === 0 ? (
+                                        <div className="text-[15px] text-gray-400">ยังไม่มีข้อมูล</div>
+                                      ) : (
+                                        <table className="w-full text-[14px] border-collapse">
+                                          <thead>
+                                            <tr className="text-left text-gray-400 text-[12.5px]">
+                                              {tableInfo.columns.map((c) => <th key={c} className="font-normal pb-2 pr-3">{c}</th>)}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {tableInfo.rows.map((r, ri) => (
+                                              <tr key={ri} className="border-t border-gray-100">
+                                                {r.map((cell, ci) => <td key={ci} className="py-2 pr-3 text-gray-700">{cell || "-"}</td>)}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      )}
+                                    </div>
+                                  )}
+                                  {rows.length === 0 && !tableInfo && (
+                                    <div className="text-[15px] text-gray-400 py-1">ยังไม่มีข้อมูล</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {activeTab === "goal" && (
                 <InfoCard title="เป้าหมายของนักเรียน">
                   {!selectedGoal ? (
-                    <div className="text-[13px] text-gray-400 py-2">นักเรียนยังไม่ได้ตั้งเป้าหมาย</div>
+                    <div className="text-[15px] text-gray-400 py-2">นักเรียนยังไม่ได้ตั้งเป้าหมาย</div>
                   ) : (
                     <>
                       <InfoRow label="เป้าหมาย" value={selectedGoal.goal_text} />
@@ -689,13 +1032,13 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
               {activeTab === "grades" && (
                 <InfoCard title="ผลการเรียน (สะสมจากงานที่ส่ง)">
-                  <div className="mb-3 text-[12px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                  <div className="mb-3 text-[14px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
                     ระบบยังไม่มีแนวคิดวิชา/หน่วยกิต/เกรดรายภาคเรียน จึงแสดงเป็นคะแนนสะสมจากงานที่ส่งจริงแทน GPA/GPAX
                   </div>
                   {selectedSubmissions.length === 0 ? (
-                    <div className="text-[13px] text-gray-400 py-2">ยังไม่มีงานที่ให้คะแนนแล้ว</div>
+                    <div className="text-[15px] text-gray-400 py-2">ยังไม่มีงานที่ให้คะแนนแล้ว</div>
                   ) : (
-                    <table className="w-full text-[13px]">
+                    <table className="w-full text-[15px]">
                       <thead>
                         <tr className="text-left text-gray-400 border-b border-gray-100">
                           <th className="py-2 font-medium">งาน</th>
@@ -726,11 +1069,11 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
               {activeTab === "attendance" && (
                 <InfoCard title="สรุปการมาเรียน">
                   {!selectedAttendance || Number(selectedAttendance.totalDays) === 0 ? (
-                    <div className="text-[13px] text-gray-400 py-2">ยังไม่มีข้อมูลการเช็คชื่อ</div>
+                    <div className="text-[15px] text-gray-400 py-2">ยังไม่มีข้อมูลการเช็คชื่อ</div>
                   ) : (
                     <div className="flex flex-wrap items-center gap-8">
                       <StudentAttendanceDonut summary={selectedAttendance} />
-                      <div className="text-[13px] text-gray-600">
+                      <div className="text-[15px] text-gray-600">
                         จากทั้งหมด {selectedAttendance.totalDays} วัน · มาเรียน {selectedAttendancePct}%
                       </div>
                     </div>
@@ -738,16 +1081,10 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                 </InfoCard>
               )}
 
-              {activeTab === "activity" && (
-                <InfoCard title="กิจกรรม">
-                  <div className="text-[13px] text-gray-400 py-2">ระบบยังไม่มีการเก็บข้อมูลกิจกรรมของนักเรียนรายบุคคล</div>
-                </InfoCard>
-              )}
-
               {activeTab === "holland" && (
                 <InfoCard title="ผลแบบประเมินแนวทาง (Holland)">
                   {!selectedTypeResult ? (
-                    <div className="text-[13px] text-gray-400 py-2">นักเรียนยังไม่ได้ทำแบบทดสอบ</div>
+                    <div className="text-[15px] text-gray-400 py-2">นักเรียนยังไม่ได้ทำแบบทดสอบ</div>
                   ) : (
                     <>
                       <InfoRow label="กลุ่มบุคลิกภาพ" value={selectedType?.type_name || "-"} />
@@ -761,13 +1098,13 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
               {activeTab === "counseling" && (
                 <InfoCard title="การให้คำปรึกษา">
-                  <div className="text-[13px] text-gray-400 py-2">ฟีเจอร์นี้ยังไม่เปิดใช้งาน — ระบบยังไม่มีตารางบันทึกการให้คำปรึกษา</div>
+                  <div className="text-[15px] text-gray-400 py-2">ฟีเจอร์นี้ยังไม่เปิดใช้งาน — ระบบยังไม่มีตารางบันทึกการให้คำปรึกษา</div>
                 </InfoCard>
               )}
 
               {activeTab === "notes" && (
                 <InfoCard title="บันทึกเพิ่มเติม">
-                  <div className="text-[13px] text-gray-400 py-2">ฟีเจอร์นี้ยังไม่เปิดใช้งาน</div>
+                  <div className="text-[15px] text-gray-400 py-2">ฟีเจอร์นี้ยังไม่เปิดใช้งาน</div>
                 </InfoCard>
               )}
             </div>
@@ -777,11 +1114,11 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 mt-6">
-          <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-40 text-[13px]">
+          <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-40 text-[15px]">
             ก่อนหน้า
           </button>
-          <span className="text-[13px] text-gray-500">หน้า {page} / {totalPages}</span>
-          <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-40 text-[13px]">
+          <span className="text-[15px] text-gray-500">หน้า {page} / {totalPages}</span>
+          <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-9 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-40 text-[15px]">
             ถัดไป
           </button>
         </div>
@@ -793,16 +1130,16 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
             {exportStep === 1 && (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[16px] font-semibold text-gray-900">ส่งออกข้อมูลนักเรียน</h2>
+                  <h2 className="text-[18px] font-semibold text-gray-900">ส่งออกข้อมูลนักเรียน</h2>
                   <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
                 </div>
 
-                <div className="text-[12.5px] text-gray-500 mb-2">
+                <div className="text-[14.5px] text-gray-500 mb-2">
                   เลือกข้อมูลที่ต้องการส่งออก ({checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : `ทั้งหมด ${exportTargets.length} คน`})
                 </div>
                 <div className="flex flex-col gap-1 mb-4">
                   {EXPORT_CATEGORIES.map((c) => (
-                    <label key={c.key} className={`flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] ${c.available ? "text-gray-800" : "text-gray-300"}`}>
+                    <label key={c.key} className={`flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] ${c.available ? "text-gray-800" : "text-gray-300"}`}>
                       <input
                         type="checkbox"
                         disabled={!c.available}
@@ -811,31 +1148,31 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                         className="accent-pink-600"
                       />
                       {c.label}
-                      {!c.available && <span className="text-[11px] text-gray-300">(ยังไม่มีข้อมูล)</span>}
+                      {!c.available && <span className="text-[13px] text-gray-300">(ยังไม่มีข้อมูล)</span>}
                     </label>
                   ))}
                 </div>
 
-                <div className="text-[12.5px] text-gray-500 mb-2">รูปแบบไฟล์</div>
+                <div className="text-[14.5px] text-gray-500 mb-2">รูปแบบไฟล์</div>
                 <div className="flex flex-col gap-1 mb-5">
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-800">
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="radio" name="fmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} className="accent-pink-600" /> PDF
                   </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-300">
-                    <input type="radio" name="fmt" disabled className="accent-pink-600" /> Excel (.xlsx) <span className="text-[11px]">(เร็วๆ นี้)</span>
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-300">
+                    <input type="radio" name="fmt" disabled className="accent-pink-600" /> Excel (.xlsx) <span className="text-[13px]">(เร็วๆ นี้)</span>
                   </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-800">
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="radio" name="fmt" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-pink-600" /> CSV (.csv)
                   </label>
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={closeExportWizard} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-50">ยกเลิก</button>
+                  <button type="button" onClick={closeExportWizard} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ยกเลิก</button>
                   <button
                     type="button"
                     disabled={selectedCategories.length === 0}
                     onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 3)}
-                    className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-[13px] font-semibold disabled:opacity-40"
+                    className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold disabled:opacity-40"
                   >
                     ถัดไป
                   </button>
@@ -846,35 +1183,35 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
             {exportStep === 2 && (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[16px] font-semibold text-gray-900">ตั้งค่าการส่งออก PDF</h2>
+                  <h2 className="text-[18px] font-semibold text-gray-900">ตั้งค่าการส่งออก PDF</h2>
                   <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
                 </div>
 
-                <div className="text-[12.5px] text-gray-500 mb-2">วิธีจัดไฟล์</div>
+                <div className="text-[14.5px] text-gray-500 mb-2">วิธีจัดไฟล์</div>
                 <div className="flex flex-col gap-1 mb-4">
-                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-800">
+                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="radio" name="method" checked={exportMethod === "single"} onChange={() => setExportMethod("single")} className="accent-pink-600 mt-0.5" />
-                    <span>รวมเป็นไฟล์เดียว<br /><span className="text-[11.5px] text-gray-400">รวมข้อมูลนักเรียนทั้งหมดในไฟล์ PDF เดียว</span></span>
+                    <span>รวมเป็นไฟล์เดียว<br /><span className="text-[13.5px] text-gray-400">รวมข้อมูลนักเรียนทั้งหมดในไฟล์ PDF เดียว</span></span>
                   </label>
-                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-300">
+                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-300">
                     <input type="radio" name="method" disabled className="accent-pink-600 mt-0.5" />
-                    <span>แยกเป็นไฟล์คนละไฟล์ (ZIP) <span className="text-[11px]">(เร็วๆ นี้)</span><br /><span className="text-[11.5px] text-gray-300">แยกไฟล์ PDF รายบุคคล แล้วบีบอัดเป็นไฟล์ ZIP</span></span>
+                    <span>แยกเป็นไฟล์คนละไฟล์ (ZIP) <span className="text-[13px]">(เร็วๆ นี้)</span><br /><span className="text-[13.5px] text-gray-300">แยกไฟล์ PDF รายบุคคล แล้วบีบอัดเป็นไฟล์ ZIP</span></span>
                   </label>
                 </div>
 
-                <div className="text-[12.5px] text-gray-500 mb-2">ตัวเลือกเพิ่มเติม</div>
+                <div className="text-[14.5px] text-gray-500 mb-2">ตัวเลือกเพิ่มเติม</div>
                 <div className="flex flex-col gap-1 mb-5">
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-800">
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="checkbox" checked={exportIncludeToc} onChange={(e) => setExportIncludeToc(e.target.checked)} className="accent-pink-600" /> ใส่สารบัญ (สารบัญรายชื่อ)
                   </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[13.5px] text-gray-800">
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="checkbox" checked={exportIncludePhoto} onChange={(e) => setExportIncludePhoto(e.target.checked)} className="accent-pink-600" /> แสดงรูปนักเรียน
                   </label>
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setExportStep(1)} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
-                  <button type="button" onClick={() => setExportStep(3)} className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-[13px] font-semibold">ถัดไป</button>
+                  <button type="button" onClick={() => setExportStep(1)} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
+                  <button type="button" onClick={() => setExportStep(3)} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold">ถัดไป</button>
                 </div>
               </>
             )}
@@ -882,11 +1219,11 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
             {exportStep === 3 && (
               <>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[16px] font-semibold text-gray-900">ยืนยันการส่งออก</h2>
+                  <h2 className="text-[18px] font-semibold text-gray-900">ยืนยันการส่งออก</h2>
                   <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
                 </div>
 
-                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-5 text-[13px] text-gray-700">
+                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-5 text-[15px] text-gray-700">
                   <div className="font-medium text-emerald-800 mb-1.5">ข้อมูลที่ส่งออก</div>
                   <ul className="list-disc pl-5 space-y-0.5 mb-3">
                     {selectedCategories.map((c) => <li key={c.key}>{c.label}</li>)}
@@ -898,15 +1235,15 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
                 {exportProgress != null ? (
                   <div className="mb-5">
-                    <div className="text-[12.5px] text-gray-500 mb-1.5">กำลังสร้างไฟล์... {exportProgress}%</div>
+                    <div className="text-[14.5px] text-gray-500 mb-1.5">กำลังสร้างไฟล์... {exportProgress}%</div>
                     <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
                       <div className="h-full bg-pink-500 rounded-full transition-all" style={{ width: `${exportProgress}%` }} />
                     </div>
                   </div>
                 ) : (
                   <div className="flex justify-end gap-2">
-                    <button type="button" onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 1)} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
-                    <button type="button" onClick={confirmExport} className="h-10 px-4 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-[13px] font-semibold">ยืนยันการส่งออก</button>
+                    <button type="button" onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 1)} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
+                    <button type="button" onClick={confirmExport} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold">ยืนยันการส่งออก</button>
                   </div>
                 )}
               </>
@@ -935,8 +1272,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 function MiniStat({ label, value, valueClass = "text-gray-900", small }) {
   return (
     <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 min-w-0">
-      <div className="text-[11px] text-gray-400 truncate">{label}</div>
-      <div className={`font-semibold truncate ${small ? "text-[13px]" : "text-[17px]"} ${valueClass}`}>{value}</div>
+      <div className="text-[13px] text-gray-400 truncate">{label}</div>
+      <div className={`font-semibold truncate ${small ? "text-[15px]" : "text-[19px]"} ${valueClass}`}>{value}</div>
     </div>
   );
 }
@@ -944,7 +1281,7 @@ function MiniStat({ label, value, valueClass = "text-gray-900", small }) {
 function InfoCard({ title, children, className = "" }) {
   return (
     <div className={`rounded-2xl border border-gray-200 bg-white p-5 ${className}`}>
-      <div className="text-[14px] font-semibold text-gray-900 mb-3">{title}</div>
+      <div className="text-[16px] font-semibold text-gray-900 mb-3">{title}</div>
       {children}
     </div>
   );
@@ -952,7 +1289,7 @@ function InfoCard({ title, children, className = "" }) {
 
 function InfoRow({ label, value, muted }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-1.5 text-[13px]">
+    <div className="flex items-start justify-between gap-4 py-1.5 text-[15px]">
       <div className="text-gray-400 shrink-0">{label}</div>
       <div className={`text-right ${muted ? "text-gray-400" : "text-gray-800"}`}>{value}</div>
     </div>
@@ -963,7 +1300,7 @@ function StudentAttendanceDonut({ summary }) {
   const data = [
     { label: "มาเรียน", value: Number(summary.presentDays) || 0, color: "#10b981" },
     { label: "สาย", value: Number(summary.lateDays) || 0, color: "#f59e0b" },
-    { label: "ลา", value: Number(summary.leaveDays) || 0, color: "#db2777" },
+    { label: "ลา", value: Number(summary.leaveDays) || 0, color: "#ec4899" },
     { label: "ขาด", value: Number(summary.absentDays) || 0, color: "#ef4444" },
   ];
   const total = data.reduce((s, d) => s + d.value, 0) || 1;
@@ -982,7 +1319,7 @@ function StudentAttendanceDonut({ summary }) {
       <div className="w-28 h-28 rounded-full shrink-0 ring-4 ring-white shadow-sm" style={{ background: `conic-gradient(${stops})` }} />
       <div className="flex flex-col gap-1.5">
         {data.map((d) => (
-          <div key={d.label} className="flex items-center gap-2 text-[12.5px] text-gray-700">
+          <div key={d.label} className="flex items-center gap-2 text-[14.5px] text-gray-700">
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
             {d.label} · <span className="font-semibold">{d.value}</span> วัน
           </div>

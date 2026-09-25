@@ -1,6 +1,7 @@
 import { useState } from "react";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
+import Avatar from "../components/Avatar.jsx";
 
 export default function TeacherStudentGoalPage() {
   const [search, setSearch] = useState("");
@@ -17,7 +18,7 @@ export default function TeacherStudentGoalPage() {
     class: "6/17",
     goal: "ศิลปกรรมศาสตร์",
     gpa: "3.50",
-    avatar: "https://i.pravatar.cc/150?img=32",
+    avatar: null,
   };
 
   // ✅ filter search
@@ -94,10 +95,7 @@ export default function TeacherStudentGoalPage() {
             <>
               {/* PROFILE */}
               <div className="bg-white rounded-3xl p-7 flex items-center gap-6 border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.04)]">
-                <img
-                  src={student.avatar}
-                  className="w-28 h-28 rounded-2xl object-cover"
-                />
+                <Avatar src={student.avatar} name={student.name} size={112} rounded="rounded-2xl" />
 
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold text-gray-800">

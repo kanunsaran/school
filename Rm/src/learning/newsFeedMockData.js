@@ -3,24 +3,20 @@
 // ข้อมูลหลอกทั้งหมด ไว้ใช้ต่อ UI ก่อน ยังไม่เชื่อม backend จริง
 // ================================================================
 
-export const CATEGORY_META = {
-  announcement: { label: "ประกาศ", badge: "bg-pink-50 text-pink-700 border-pink-200", dot: "bg-pink-500" },
-  event: { label: "กิจกรรม", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  scholarship: { label: "ทุนการศึกษา", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  career: { label: "แนะแนวอาชีพ", badge: "bg-purple-50 text-purple-700 border-purple-200", dot: "bg-purple-500" },
-  mental: { label: "สุขภาพจิต", badge: "bg-sky-50 text-sky-700 border-sky-200", dot: "bg-sky-500" },
-  urgent: { label: "ประกาศด่วน", badge: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
-};
-
-export const FEED_CATEGORIES = [
-  { key: "all", label: "ทั้งหมด" },
-  { key: "announcement", label: "ประกาศ" },
-  { key: "event", label: "กิจกรรม" },
-  { key: "scholarship", label: "ทุน" },
-  { key: "career", label: "แนะแนวอาชีพ" },
-  { key: "mental", label: "สุขภาพจิต" },
-  { key: "urgent", label: "ด่วน" },
+// รายการหมวดหมู่ built-in — จุดเดียวที่กำหนดชื่อ/สี ทั้งตัวกรองด้านบนและป้ายหมวดหมู่บนโพสต์ดึงมาจากอันนี้อันเดียวกัน
+// กันปัญหาชื่อหมวดหมู่ไม่ตรงกันระหว่างจุดต่าง ๆ (เพิ่มหมวดหมู่ใหม่จากฝั่งครูจะถูกเก็บแยกไว้ที่ utils/feedCategories.js)
+export const CATEGORY_LIST = [
+  { key: "announcement", label: "ประกาศ", badge: "bg-pink-50 text-pink-700 border-pink-200", dot: "bg-pink-500" },
+  { key: "event", label: "กิจกรรม", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+  { key: "scholarship", label: "ทุนการศึกษา", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+  { key: "career", label: "แนะแนวอาชีพ", badge: "bg-purple-50 text-purple-700 border-purple-200", dot: "bg-purple-500" },
+  { key: "mental", label: "สุขภาพจิต", badge: "bg-sky-50 text-sky-700 border-sky-200", dot: "bg-sky-500" },
+  { key: "urgent", label: "ประกาศด่วน", badge: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
 ];
+
+export const CATEGORY_META = Object.fromEntries(CATEGORY_LIST.map((c) => [c.key, c]));
+
+export const FEED_CATEGORIES = [{ key: "all", label: "ทั้งหมด" }, ...CATEGORY_LIST.map(({ key, label }) => ({ key, label }))];
 
 export const REACTIONS = [
   { key: "helpful", emoji: "👍", label: "มีประโยชน์" },

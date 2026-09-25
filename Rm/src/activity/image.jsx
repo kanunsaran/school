@@ -1,24 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaImages } from "react-icons/fa";
-import SidebarNav from "../nav.jsx";
+import TeacherSidebarNav from "../nav.jsx";
+import StudentSidebarNav from "../navstudent.jsx";
 import Header from "../Header";
 import { getFeedPosts, getFeedPostFiles } from "../callapi/callapi_user.jsx";
-import { CATEGORY_META, FEED_CATEGORIES } from "../learning/newsFeedMockData.js";
+import { getCategoryMetaMap, getFilterOptions, loadFeedCategories } from "../utils/feedCategories.js";
 import { isImageFile, resolveFileUrl } from "../utils/media.js";
 import { API_BASE, CURRENT_TEACHER, formatRelativeTime } from "../utils/feedShared.js";
+import PageLoading from "../components/PageLoading.jsx";
 
 // ดึงเฉพาะโพสต์ที่มีรูปภาพแนบจากฟีดข่าวสารทั้งโรงเรียน (feed_posts) มาแสดงเป็นแกลเลอรีภาพกิจกรรม
-export default function ImagePage() {
+export default function ImagePage({ studentMode = false }) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");
   const [q, setQ] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState(() => getFilterOptions());
 
   useEffect(() => {
     const fetchImagePosts = async () => {
       try {
+        loadFeedCategories().then(() => setCategoryOptions(getFilterOptions()));
         const raw = await getFeedPosts();
         const withFiles = await Promise.all(
           raw.map(async (p) => {
@@ -52,6 +56,10 @@ export default function ImagePage() {
     fetchImagePosts();
   }, []);
 
+  useEffect(() => {
+    setCategoryOptions(getFilterOptions());
+  }, [posts]);
+
   const filtered = useMemo(() => {
     return posts.filter((p) => {
       const okCategory = category === "all" ? true : p.category === category;
@@ -63,24 +71,22 @@ export default function ImagePage() {
   }, [posts, category, q]);
 
   const openDetail = (post) => {
-    navigate(`/image/${post.post_id}`, { state: { post } });
+    navigate(`${studentMode ? "/studentimage" : "/image"}/${post.post_id}`, { state: { post } });
   };
 
   return (
-    <div className="min-h-screen w-full bg-white flex text-[14px] text-gray-800">
+    <div className="min-h-screen w-full bg-white flex text-[16px] text-gray-800">
       <Header />
-      <SidebarNav />
+      {studentMode ? <StudentSidebarNav /> : <TeacherSidebarNav />}
 
       <main className="flex-1 min-w-0 w-full px-8 pt-24 pb-16">
-        <div className="text-[24px] font-bold text-gray-900">รูปภาพกิจกรรม</div>
-        <div className="mt-1 text-[13px] text-gray-500">
-          รวมภาพกิจกรรมจากประกาศข่าวสารทั้งหมด — กดรูปเพื่อดูโพสต์เต็มและรูปทั้งหมด
-        </div>
+        <h1 className="page-title">รูปภาพกิจกรรม</h1>
+     
 
         {/* Search + category chips */}
         <div className="mt-5 flex flex-col gap-3">
           <div className="relative max-w-[360px]">
-            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -90,13 +96,13 @@ export default function ImagePage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {FEED_CATEGORIES.map((c) => (
+            {categoryOptions.map((c) => (
               <button
                 key={c.key}
                 type="button"
                 onClick={() => setCategory(c.key)}
-                className={`h-9 px-4 rounded-full border text-[13px] font-medium transition-colors ${
-                  category === c.key ? "border-pink-300 bg-pink-50 text-pink-700" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                className={`h-9 px-4 rounded-full border text-[15px] font-medium transition-colors ${
+                  category === c.key ? "bg-pink-500 border-pink-500 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
                 {c.label}
@@ -108,7 +114,7 @@ export default function ImagePage() {
         {/* Grid */}
         <div className="mt-6">
           {loading ? (
-            <div className="text-center text-gray-500 py-16">กำลังโหลดรูปภาพกิจกรรม…</div>
+            <PageLoading label="กำลังโหลดรูปภาพกิจกรรม…" />
           ) : filtered.length === 0 ? (
             <div className="text-center text-gray-400 py-20 rounded-2xl border border-dashed border-gray-200">
               ยังไม่มีโพสต์ที่มีรูปภาพในหมวดนี้
@@ -128,7 +134,7 @@ export default function ImagePage() {
 
 function PostCard({ post, onOpen }) {
   const cover = post.images[0];
-  const catMeta = CATEGORY_META[post.category];
+  const catMeta = getCategoryMetaMap()[post.category];
   const extraCount = post.images.length - 1;
 
   return (
@@ -147,23 +153,23 @@ function PostCard({ post, onOpen }) {
           />
 
           {catMeta && (
-            <span className={`absolute top-3 left-3 h-6 px-2.5 rounded-full text-[11px] font-semibold border ${catMeta.badge}`}>
+            <span className={`absolute top-3 left-3 h-6 px-2.5 rounded-full text-[13px] font-semibold border inline-flex items-center justify-center ${catMeta.badge}`}>
               {catMeta.label}
             </span>
           )}
 
           {extraCount > 0 && (
-            <span className="absolute bottom-3 right-3 h-6 px-2.5 rounded-full bg-black/60 text-white text-[11px] font-medium flex items-center gap-1">
+            <span className="absolute bottom-3 right-3 h-6 px-2.5 rounded-full bg-black/60 text-white text-[13px] font-medium flex items-center gap-1">
               <FaImages size={10} /> +{extraCount}
             </span>
           )}
         </div>
 
         <div className="p-4">
-          <div className="text-[15px] font-semibold text-gray-900 line-clamp-2 leading-snug">{post.title}</div>
-          <div className="mt-1.5 text-[13px] text-gray-500 line-clamp-2">{post.content}</div>
+          <div className="text-[17px] font-semibold text-gray-900 line-clamp-2 leading-snug">{post.title}</div>
+          <div className="mt-1.5 text-[15px] text-gray-500 line-clamp-2">{post.content}</div>
 
-          <div className="mt-3 flex items-center gap-2 text-[12px] text-gray-400">
+          <div className="mt-3 flex items-center gap-2 text-[14px] text-gray-400">
             <span>{post.authorName}</span>
             <span className="w-1 h-1 rounded-full bg-gray-300" />
             <span>{formatRelativeTime(post.createdAt)}</span>

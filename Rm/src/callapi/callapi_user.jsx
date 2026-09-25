@@ -1,7 +1,8 @@
-// let api = "http://127.0.0.1:8000";
-let api = API_URL;
-import { API_URL } from "../config.js";
 import axios from "axios";
+import { getCurrentUser } from "../utils/auth.js";
+import { API_BASE_URL } from "../config/api.js";
+
+let api = API_BASE_URL;
 
 // import DatatableStrig from "../component/strig";
 export async function GetLogin(email, password) {
@@ -275,6 +276,132 @@ export async function updateSendAssScore(sendId, score) {
   }
 }
 
+// บันทึกความคิดเห็นครู + สถานะส่งกลับ (teacher_comment, is_released) ต่อการส่งงานหนึ่งครั้ง
+export async function updateSubmissionComment(sendId, { teacher_comment, is_released }) {
+  try {
+    const response = await axios.patch(
+      `${api}/send_ass/${sendId}/comment`,
+      { teacher_comment, is_released },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updateSubmissionComment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ไฟล์แนบของการส่งงานหนึ่งครั้ง (ส่งได้หลายไฟล์ต่อ 1 send_id)
+export async function getSubmissionFiles(sendId) {
+  try {
+    const response = await axios.get(`${api}/send_ass/${sendId}/files`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getSubmissionFiles:", error);
+    throw error;
+  }
+}
+
+// นักเรียนส่งงาน (สร้างแถว send_ass) — file_path เป็นค่าเดิมของระบบที่ endpoint บังคับให้ส่งมาไม่ว่าง
+// ไฟล์จริงจะถูกอัปโหลดแยกต่อด้วย uploadSubmissionFiles ทันทีหลังจากนี้ (เก็บใน send_ass_files)
+export async function createSubmission({ assignment_ass_id, user_user_id, file_path, group_id }) {
+  try {
+    const response = await axios.post(
+      `${api}/send_ass`,
+      { assignment_ass_id, user_user_id, file_path, group_id: group_id || null },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createSubmission:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// อัปโหลดไฟล์แนบของการส่งงาน (หลายไฟล์ต่อ 1 send_id) — ผลลัพธ์: { message, files: [{file_id, file_url, file_name, file_type}] }
+export async function uploadSubmissionFiles(sendId, files) {
+  try {
+    const formData = new FormData();
+    files.forEach((file) => formData.append("files", file));
+    const response = await axios.post(`${api}/send_ass/${sendId}/files`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error uploadSubmissionFiles:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ยกเลิกการส่งงาน (soft delete แถว send_ass)
+export async function deleteSubmission(sendId) {
+  try {
+    const response = await axios.delete(`${api}/send_ass/${sendId}`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteSubmission:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= SUBMISSION GROUPS (จัดกลุ่มนักเรียนสำหรับงานกลุ่ม) =================
+export async function getSubmissionGroups(assId) {
+  try {
+    const response = await axios.get(`${api}/submission-groups`, {
+      params: { assignment_ass_id: assId },
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getSubmissionGroups:", error);
+    throw error;
+  }
+}
+
+export async function createSubmissionGroup({ assignment_ass_id, group_name, member_user_ids }) {
+  try {
+    const response = await axios.post(
+      `${api}/submission-groups`,
+      { assignment_ass_id, group_name, member_user_ids },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createSubmissionGroup:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateSubmissionGroup(groupId, { group_name, member_user_ids }) {
+  try {
+    const response = await axios.put(
+      `${api}/submission-groups/${groupId}`,
+      { group_name, member_user_ids },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updateSubmissionGroup:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteSubmissionGroup(groupId) {
+  try {
+    const response = await axios.delete(`${api}/submission-groups/${groupId}`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteSubmissionGroup:", error.response?.data || error);
+    throw error;
+  }
+}
+
 export async function getTeachers() {
   const res = await axios.get(`${api}/auth/teachers`);
   return res.data;
@@ -282,6 +409,22 @@ export async function getTeachers() {
 
 export async function getStudents() {
   const res = await axios.get(`${api}/auth/students`);
+  return res.data;
+}
+
+// นำเข้ารายชื่อนักเรียนแบบหลายคนพร้อมกัน (หน้า /ImportStudents) — ⚠️ backend ยังไม่มี endpoint นี้จริง
+// (ยืนยันแล้วว่าตอนนี้ /auth/students มีแค่ GET อย่างเดียว ไม่มีทางสร้างบัญชีผู้ใช้ผ่าน API เลย)
+// ต้องขอให้ backend เพิ่ม route นี้ก่อนฟีเจอร์นำเข้าจะทำงานได้จริง
+// แต่ละแถวใน students: { first_name, last_name, fullname, email, password, grade_id, seat_no }
+// password ฝั่งหน้าเว็บคำนวณมาแล้ว = ข้อความก่อน @ ของอีเมล (ตามที่ครูระบุ เช่น 691-64888@kkw.ac.th -> 691-64888)
+// backend ต้อง insert เข้า users + enrollment (grade_id, seat_no) จริง ให้นักเรียนล็อกอินได้ทันทีด้วย email/password นี้
+// โดยไม่ต้องให้นักเรียนกรอกชื่อ-สกุล-ห้องเองอีกในหน้าโปรไฟล์ — ดูสเปกเต็มที่ขอไว้ใน src/Teacher/ImportStudents.jsx
+export async function importStudents(students) {
+  const res = await axios.post(
+    `${api}/auth/students/import`,
+    { students },
+    { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+  );
   return res.data;
 }
 
@@ -465,7 +608,7 @@ export async function countReaction(postId) {
 // ================= COMMENTS =================
 
 export async function getComments() {
-  const res = await axios.get(`${API_URL}/post_comment`);
+  const res = await axios.get(`${api}/post_comment`);
   return res.data;
 }
 
@@ -493,6 +636,19 @@ export async function addComment(comment_text, postId) {
 
   } catch (error) {
     console.error("Error addComment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteYcComment(commentId) {
+  const token = localStorage.getItem("token");
+  try {
+    const response = await axios.delete(`${api}/post_comment/${commentId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteYcComment:", error.response?.data || error);
     throw error;
   }
 }
@@ -705,6 +861,78 @@ export async function getClasses() {
   }
 }
 
+// สร้างห้องเรียน/ระดับชั้นใหม่ — field ยืนยันตรงกับ schema จริงที่ GET /grades คืนมา (idgrade, grade_name, section, track, year_year_id, semester, teacher_user_id)
+// ⚠️ ทดสอบแล้วพบว่า backend endpoint นี้มีอยู่จริง แต่ insert ไม่ผ่านเพราะคอลัมน์ idgrade ยังไม่ได้ตั้ง auto-increment (error: "Field 'idgrade' doesn't have a default value") — ต้องให้ backend แก้ตรงนี้ก่อนถึงจะสร้างได้จริง
+export async function createClass({ grade_name, section, track, year_year_id, semester, teacher_user_id }) {
+  try {
+    const response = await axios.post(
+      `${api}/grades`,
+      { grade_name, section, track, year_year_id, semester, teacher_user_id },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createClass:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// รายชื่อปีการศึกษาจริง (ใช้ทำ dropdown ตอนสร้างห้องเรียน — grades.year_year_id เป็น FK ไปตารางนี้)
+export async function getAcademicYears() {
+  try {
+    const response = await axios.get(`${api}/year`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getAcademicYears:", error);
+    throw error;
+  }
+}
+
+// พิมพ์ปี พ.ศ. ใหม่ที่ยังไม่มีในรายการได้ (react-select creatable) — สร้างแถวจริงในตาราง years แล้วคืน year_id มาใช้ต่อ
+export async function createAcademicYear(yearName) {
+  try {
+    const response = await axios.post(
+      `${api}/year`,
+      { year_name: yearName },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createAcademicYear:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ลบห้องเรียน (soft delete)
+export async function deleteClass(idgrade) {
+  try {
+    const response = await axios.delete(`${api}/grades/${idgrade}`, {
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteClass:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// นักเรียนกรอกรหัสเข้าชั้นเรียนที่ครูสร้างไว้ (grades.class_code) — สร้างแถว enroll จริง
+export async function joinClassByCode(classCode, studentUserId) {
+  try {
+    const response = await axios.post(
+      `${api}/enroll/join`,
+      { class_code: classCode, user_user_id: studentUserId },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error joinClassByCode:", error.response?.data || error);
+    throw error;
+  }
+}
+
 export async function getTeacher() {
   try {
     const response = await axios.get(`${api}/users/teacher`, {
@@ -715,6 +943,19 @@ export async function getTeacher() {
 
   } catch (error) {
     console.error("Error getNews:", error);
+    throw error;
+  }
+}
+
+// แก้ไขข้อมูลบัญชีผู้ใช้ (คอลัมน์จริงในตาราง users — fullname/email/username/dob/student_code) ใช้ได้ทั้งครูและนักเรียน
+export async function updateUser(userId, patch) {
+  try {
+    const response = await axios.put(`${api}/users/${userId}`, patch, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateUser:", error.response?.data || error);
     throw error;
   }
 }
@@ -773,6 +1014,35 @@ export async function getGoals() {
     return response.data;
   } catch (error) {
     console.error("Error getGoals:", error);
+    throw error;
+  }
+}
+
+// POST/PUT /goal ต้อง login จริงถึงจะใช้ได้ (ทดสอบแล้วได้ 401 โดยไม่มี token) ต้องแนบ Authorization: Bearer จาก session จริง
+export async function createGoal({ user_user_id, goal_text, faculty_name, career_field }) {
+  try {
+    const response = await axios.post(
+      `${api}/goal`,
+      { user_user_id, goal_text, faculty_name, career_field },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createGoal:", error);
+    throw error;
+  }
+}
+
+export async function updateGoal(goalId, { goal_text, faculty_name, career_field }) {
+  try {
+    const response = await axios.put(
+      `${api}/goal/${goalId}`,
+      { goal_text, faculty_name, career_field },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updateGoal:", error);
     throw error;
   }
 }
@@ -844,6 +1114,108 @@ export async function getAssignmentFiles(assId) {
     return response.data;
   } catch (error) {
     console.error("Error getAssignmentFiles:", error);
+    throw error;
+  }
+}
+
+// แก้ไข/ลบงานที่มอบหมายไว้ — payload เป็น FormData รูปแบบเดียวกับตอนสร้าง (multipart เผื่อแนบไฟล์เพิ่ม) ไม่ตั้ง Content-Type เอง ให้ axios ใส่ boundary ให้อัตโนมัติ
+// ⚠️ ทดสอบจริงแล้ว (23 ส.ค. 69): backend ยังไม่มี route PUT/DELETE/PATCH /assignment/:id เลยสักตัว (มีแค่ GET) เรียกแล้ว 404 "Route not found" ทุกวิธี
+// ต้องขอ backend เพิ่ม route ทั้งสองนี้ก่อนถึงจะแก้ไข/ลบงานได้จริง — ฝั่ง frontend (ปุ่มแก้ไข/ลบใน work.jsx + โหมดแก้ไขใน WorkCreate.jsx) เขียนพร้อมเรียกใช้รอไว้แล้ว
+export async function updateAssignment(id, formData) {
+  try {
+    const response = await axios.put(`${api}/assignment/${id}`, formData, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateAssignment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteAssignment(id) {
+  try {
+    const response = await axios.delete(`${api}/assignment/${id}`, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteAssignment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= CONTENT (โพสต์ "เนื้อหา" — ตาราง content แยกจาก assignment) =================
+// ⚠️ payload field ต่างจาก /assignment ตรงชื่อ: ใช้ "body" ไม่ใช่ "description" (ทดสอบยิงตรงกับ server แล้วยืนยัน 24 ส.ค. 69)
+
+export async function getContents() {
+  try {
+    const response = await axios.get(`${api}/content`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getContents:", error);
+    throw error;
+  }
+}
+
+export async function getContentById(id) {
+  try {
+    const response = await axios.get(`${api}/content/${id}`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getContentById:", error);
+    throw error;
+  }
+}
+
+export async function getContentFiles(id) {
+  try {
+    const response = await axios.get(`${api}/content/${id}/files`, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getContentFiles:", error);
+    throw error;
+  }
+}
+
+export async function createContent(formData) {
+  try {
+    const response = await axios.post(`${api}/content`, formData, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error createContent:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateContent(id, formData) {
+  try {
+    const response = await axios.put(`${api}/content/${id}`, formData, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateContent:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteContent(id) {
+  try {
+    const response = await axios.delete(`${api}/content/${id}`, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteContent:", error.response?.data || error);
     throw error;
   }
 }
@@ -1331,6 +1703,33 @@ export async function createFeedPostComment({ post_id, user_id, content, parent_
   }
 }
 
+export async function updateFeedPostComment(commentId, { user_id, content }) {
+  try {
+    const response = await axios.put(
+      `${api}/feed-post-comments/${commentId}`,
+      { user_id, content },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updateFeedPostComment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteFeedPostComment(commentId, user_id) {
+  try {
+    const response = await axios.delete(`${api}/feed-post-comments/${commentId}`, {
+      params: { user_id },
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteFeedPostComment:", error.response?.data || error);
+    throw error;
+  }
+}
+
 export async function getFeedPostLikes(postId, userId) {
   try {
     const response = await axios.get(`${api}/feed-post-likes`, {
@@ -1447,6 +1846,463 @@ export async function uploadPortfolioFile(workId, file, coverUrl) {
     return response.data;
   } catch (error) {
     console.error("Error uploadPortfolioFile:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// endpoint นี้มีจริงแล้ว (ยืนยันจาก GET /studentinfo/1 คืน 200 พร้อมข้อมูลจริง) response: { student_user_id, form_data, avatar_url, created_at, updated_at }
+// form_data เป็น object ซ้อน 7 กลุ่ม: personal/contact/address/family/health/education/interests (ดู mapping เต็มๆ ใน students.jsx GENERAL_INFO_SECTIONS
+// และ toBackendSchema/fromBackendSchema ใน StudentInfoForm.jsx — คนละ shape กับฟอร์มยาวที่ StudentInfoForm.jsx เก็บ ต้องแปลงไปมาเอง)
+export async function getStudentGeneralInfo(userId) {
+  try {
+    const response = await axios.get(`${api}/studentinfo/${userId}`, { headers: { "Content-Type": "application/json" } });
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 404) return null; // ยังไม่เคยกรอกข้อมูล ไม่ถือเป็น error
+    console.error("Error getStudentGeneralInfo:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// upsert (สร้างครั้งแรก/แก้ไขซ้ำ) — formData ต้องเป็น shape จริงของ backend (personal/contact/address/family/health/education/interests)
+// ไม่ใช่ state ดิบของฟอร์ม — แปลงผ่าน toBackendSchema() ใน StudentInfoForm.jsx ก่อนเรียกฟังก์ชันนี้เสมอ
+export async function saveStudentGeneralInfo(userId, formData) {
+  try {
+    const response = await axios.put(
+      `${api}/studentinfo/${userId}`,
+      { form_data: formData },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error saveStudentGeneralInfo:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// อัปโหลดรูปโปรไฟล์นักเรียน — คืน { avatar_url } เป็น path สัมพัทธ์ (เช่น /uploads/avatars/xxx.jpg) ต้องต่อ api เองตอนแสดงผล
+export async function uploadStudentAvatar(userId, file) {
+  try {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const response = await axios.post(`${api}/studentinfo/${userId}/avatar`, formData);
+    return response.data;
+  } catch (error) {
+    console.error("Error uploadStudentAvatar:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= ข้อมูลทั่วไปของครู (เหมือน studentinfo แต่แยกตาราง teacher_general_info) =================
+
+export async function getTeacherGeneralInfo(userId) {
+  try {
+    const response = await axios.get(`${api}/teacherinfo/${userId}`, { headers: { "Content-Type": "application/json" } });
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 404) return null; // ยังไม่เคยกรอกข้อมูล ไม่ถือเป็น error
+    console.error("Error getTeacherGeneralInfo:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function saveTeacherGeneralInfo(userId, formData) {
+  try {
+    const response = await axios.put(
+      `${api}/teacherinfo/${userId}`,
+      { form_data: formData },
+      { headers: { "Content-Type": "application/json" } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error saveTeacherGeneralInfo:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// อัปโหลดรูปโปรไฟล์ครู — คืน { avatar_url } เป็น path สัมพัทธ์ (เช่น /uploads/avatars/xxx.jpg) ต้องต่อ api เองตอนแสดงผล
+export async function uploadTeacherAvatar(userId, file) {
+  try {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const response = await axios.post(`${api}/teacherinfo/${userId}/avatar`, formData);
+    return response.data;
+  } catch (error) {
+    console.error("Error uploadTeacherAvatar:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= APPOINTMENT (นัดหมายครู-นักเรียน) — ยืนยันแล้วว่า backend มีจริง =================
+// GET เปิดสาธารณะ, POST/PUT/DELETE/reply ต้อง login (แนบ Authorization: Bearer จาก session จริง)
+// แต่ละแถวที่ได้จาก GET join teacher_name/student_name และแนบ replies: [{reply_id, user_user_id, author_name, content, created_at}] มาให้แล้ว
+export async function getAppointments({ teacher_user_id, student_user_id } = {}) {
+  try {
+    const params = {};
+    if (teacher_user_id) params.teacher_user_id = teacher_user_id;
+    if (student_user_id) params.student_user_id = student_user_id;
+    const response = await axios.get(`${api}/appointment`, { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error getAppointments:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function createAppointment({ teacher_user_id, student_user_id, appointment_date, appointment_time, note }) {
+  try {
+    const response = await axios.post(
+      `${api}/appointment`,
+      { teacher_user_id, student_user_id, appointment_date, appointment_time, note },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createAppointment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateAppointment(id, patch) {
+  try {
+    const response = await axios.put(`${api}/appointment/${id}`, patch, {
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateAppointment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function cancelAppointment(id) {
+  try {
+    const response = await axios.delete(`${api}/appointment/${id}`, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error cancelAppointment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function replyAppointment(id, { user_user_id, content }) {
+  try {
+    const response = await axios.post(
+      `${api}/appointment/${id}/reply`,
+      { user_user_id, content },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error replyAppointment:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= CONSULTATION (คำขอปรึกษา ครู-นักเรียน) — mirror pattern จาก /appointment =================
+// GET เปิดสาธารณะ, POST/PUT/reply ต้อง login (แนบ Authorization: Bearer จาก session จริง)
+// แต่ละแถวที่ได้จาก GET join student_name มาให้แล้ว และแนบ messages: [{message_id, sender_user_id, sender_role, message_text, created_at}]
+export async function getConsultationRequests({ teacher_user_id, student_user_id, status } = {}) {
+  try {
+    const params = {};
+    if (teacher_user_id) params.teacher_user_id = teacher_user_id;
+    if (student_user_id) params.student_user_id = student_user_id;
+    if (status) params.status = status;
+    const response = await axios.get(`${api}/consultation`, { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error getConsultationRequests:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function createConsultationRequest({ student_user_id, category, subject, message }) {
+  try {
+    const response = await axios.post(
+      `${api}/consultation`,
+      { student_user_id, category, subject, message },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createConsultationRequest:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateConsultationStatus(id, status) {
+  try {
+    const response = await axios.put(`${api}/consultation/${id}`, { status }, {
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateConsultationStatus:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function replyToConsultation(id, { sender_user_id, sender_role, message_text }) {
+  try {
+    const response = await axios.post(
+      `${api}/consultation/${id}/reply`,
+      { sender_user_id, sender_role, message_text },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error replyToConsultation:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= TEACHING SCHEDULE (คาบสอนวันนี้ — แดชบอร์ดครู) =================
+export async function getTeachingSchedule({ teacher_user_id }) {
+  try {
+    const response = await axios.get(`${api}/teaching-schedule`, { params: { teacher_user_id } });
+    return response.data;
+  } catch (error) {
+    console.error("Error getTeachingSchedule:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function addTeachingPeriod({ teacher_user_id, weekday, period, classroom, subject }) {
+  try {
+    const response = await axios.post(
+      `${api}/teaching-schedule`,
+      { teacher_user_id, weekday, period, classroom, subject },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error addTeachingPeriod:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function removeTeachingPeriod(id) {
+  try {
+    const response = await axios.delete(`${api}/teaching-schedule/${id}`, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error removeTeachingPeriod:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= TEACHER NOTES (บันทึกลับของครูต่อนักเรียน) =================
+export async function getTeacherNotes(studentUserId) {
+  try {
+    const response = await axios.get(`${api}/teacher-notes`, {
+      params: { student_user_id: studentUserId },
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error getTeacherNotes:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function addTeacherNote({ teacher_user_id, student_user_id, note_text }) {
+  try {
+    const response = await axios.post(
+      `${api}/teacher-notes`,
+      { teacher_user_id, student_user_id, note_text },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error addTeacherNote:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteTeacherNote(id) {
+  try {
+    const response = await axios.delete(`${api}/teacher-notes/${id}`, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteTeacherNote:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= ASSESSMENT ADVICE (คำแนะนำของครูต่อผลประเมิน — นักเรียนอ่านได้) =================
+export async function getAssessmentAdvice(studentUserId) {
+  try {
+    const response = await axios.get(`${api}/assessment-advice`, { params: { student_user_id: studentUserId } });
+    return response.data;
+  } catch (error) {
+    console.error("Error getAssessmentAdvice:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function addAssessmentAdvice({ teacher_user_id, student_user_id, advice_text }) {
+  try {
+    const response = await axios.post(
+      `${api}/assessment-advice`,
+      { teacher_user_id, student_user_id, advice_text },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error addAssessmentAdvice:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteAssessmentAdvice(id) {
+  try {
+    const response = await axios.delete(`${api}/assessment-advice/${id}`, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteAssessmentAdvice:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= FEED CATEGORIES (หมวดหมู่ข่าวที่ครูตั้งเอง) =================
+export async function getFeedCategories() {
+  try {
+    const response = await axios.get(`${api}/feed-categories`);
+    return response.data;
+  } catch (error) {
+    console.error("Error getFeedCategories:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function createFeedCategory({ category_key, label, color_index, created_by_user_id }) {
+  try {
+    const response = await axios.post(
+      `${api}/feed-categories`,
+      { category_key, label, color_index, created_by_user_id },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error createFeedCategory:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= ASSESSMENTS (แบบประเมินหลายชุดที่ครูสร้างเอง) =================
+export async function getAssessmentsList(params = {}) {
+  try {
+    const response = await axios.get(`${api}/assessments`, { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error getAssessmentsList:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function getAssessmentById(id) {
+  try {
+    const response = await axios.get(`${api}/assessments/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error getAssessmentById:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function createAssessmentApi(payload) {
+  try {
+    const response = await axios.post(`${api}/assessments`, payload, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error createAssessmentApi:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateAssessmentApi(id, payload) {
+  try {
+    const response = await axios.put(`${api}/assessments/${id}`, payload, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateAssessmentApi:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function deleteAssessmentApi(id) {
+  try {
+    const response = await axios.delete(`${api}/assessments/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleteAssessmentApi:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function duplicateAssessmentApi(id) {
+  try {
+    const response = await axios.post(`${api}/assessments/${id}/duplicate`);
+    return response.data;
+  } catch (error) {
+    console.error("Error duplicateAssessmentApi:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function getAssessmentResponses(id) {
+  try {
+    const response = await axios.get(`${api}/assessments/${id}/responses`);
+    return response.data;
+  } catch (error) {
+    console.error("Error getAssessmentResponses:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function submitAssessmentResponse(id, { user_user_id, answers }) {
+  try {
+    const response = await axios.post(`${api}/assessments/${id}/responses`, { user_user_id, answers }, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error submitAssessmentResponse:", error.response?.data || error);
+    throw error;
+  }
+}
+
+// ================= SCHOOL INFO (ข้อมูลโรงเรียนหน้า /about — นักเรียนดูอย่างเดียว ครูแก้ไขได้) =================
+export async function getSchoolInfo() {
+  try {
+    const response = await axios.get(`${api}/school-info`);
+    return response.data;
+  } catch (error) {
+    console.error("Error getSchoolInfo:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateSchoolInfo(formData) {
+  try {
+    const response = await axios.put(`${api}/school-info`, formData, {
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error updateSchoolInfo:", error.response?.data || error);
     throw error;
   }
 }
