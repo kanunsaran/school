@@ -28,7 +28,8 @@ services:
       PMA_HOST: db
       UPLOAD_LIMIT: 100M
     ports:
-      - "${PMA_PORT:-8081}:80"
+      # localhost only; on the server use: ssh -L 8081:localhost:8081 root@<ip>
+      - "127.0.0.1:${PMA_PORT:-8081}:80"
     depends_on:
       - db
 

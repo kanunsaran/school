@@ -1,0 +1,47 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t school-backend ./projectrmb
+
+      - name: Build frontend image
+        run: docker build -t school-frontend ./Rm
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
+          script: |
+            set -e
+            cd ~/school
+            git pull --ff-only origin main
+            # build one at a time: the server has only 1 GB RAM
+            docker compose build backend
+            docker compose build frontend
+            docker compose up -d --remove-orphans
+            docker image prune -f
+            docker compose ps
