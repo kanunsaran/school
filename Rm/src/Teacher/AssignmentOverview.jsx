@@ -294,7 +294,7 @@ export default function AssignmentOverviewPage() {
           </div>
           <Select
             styles={filterSelectStyles}
-            className="w-44"
+            className="w-full sm:w-44"
             value={TYPE_OPTIONS.find((o) => o.value === typeFilter)}
             onChange={(opt) => setTypeFilter(opt.value)}
             options={TYPE_OPTIONS}
@@ -302,7 +302,7 @@ export default function AssignmentOverviewPage() {
           />
           <Select
             styles={filterSelectStyles}
-            className="w-56"
+            className="w-full sm:w-56"
             value={STATUS_OPTIONS.find((o) => o.value === statusFilter)}
             onChange={(opt) => setStatusFilter(opt.value)}
             options={STATUS_OPTIONS}

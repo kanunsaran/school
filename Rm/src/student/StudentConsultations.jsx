@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ChatMessages from "../components/ChatMessages.jsx";
 import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
 import { isBelowXl } from "../utils/breakpoints.js";
 import Swal from "sweetalert2";
@@ -32,16 +33,6 @@ const CATEGORY_ICONS = {
 const formatDate = (d) => new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
 const formatTime = (d) => new Date(d).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
 
-// รวมข้อความติดกันจากคนเดิมเป็นกลุ่มเดียว — โชว์เวลาแค่ใต้ข้อความสุดท้ายของกลุ่ม (แพทเทิร์นเดียวกับฝั่งครู)
-const groupMessages = (messages) => {
-  const groups = [];
-  messages.forEach((m) => {
-    const last = groups[groups.length - 1];
-    if (last && last.sender === m.sender) last.items.push(m);
-    else groups.push({ sender: m.sender, items: [m] });
-  });
-  return groups;
-};
 
 // เวลาแบบย่อในลิสต์แชท: วันนี้โชว์เวลา, เมื่อวานโชว์ "เมื่อวาน", ก่อนหน้านั้นโชว์ "N วันก่อน"
 const formatListTime = (d) => {
@@ -277,7 +268,7 @@ export default function StudentConsultationsPage() {
                       ครูที่ปรึกษา: {CURRENT_TEACHER.name}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <button
                       type="button"
                       onClick={() => setShowInfo((v) => !v)}
@@ -324,18 +315,13 @@ export default function StudentConsultationsPage() {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1.5">
-                  {groupMessages(selected.messages).map((g, gi) => (
-                    <div key={gi} className={`max-w-[80%] flex flex-col gap-1 ${g.sender === "student" ? "ml-auto items-end" : "items-start"}`}>
-                      {g.items.map((m) => (
-                        <div key={m.id} className={`w-fit rounded-xl px-4 py-3 ${g.sender === "student" ? "bg-pink-100 text-gray-900" : "bg-gray-100 text-gray-800"}`}>
-                          <div className="text-[16px] whitespace-pre-line">{m.text}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
+                <ChatMessages
+                  messages={selected.messages}
+                  mySender="student"
+                  otherName={CURRENT_TEACHER.name}
+                  otherAvatarUrl={null}
+                  endRef={messagesEndRef}
+                />
 
                 <div className="p-4 border-t border-gray-100 shrink-0 flex items-end gap-2">
                   <div className="relative flex-1">

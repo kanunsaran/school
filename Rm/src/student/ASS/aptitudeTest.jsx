@@ -217,19 +217,23 @@ export default function AptitudeTestPage() {
                   <p className="mb-3.5 font-medium text-[15.5px] text-gray-800">
                     {qNumber}. {q.text}
                   </p>
-                  <div className="flex gap-2 flex-wrap">
+                  {/* มือถือ: 5 ช่องเท่ากัน ตัวเลขใหญ่ + คำอธิบายเล็กด้านล่าง / จอใหญ่: ปุ่มแคปซูลเรียงแถว */}
+                  <div className="grid grid-cols-5 gap-1.5 sm:flex sm:gap-2 sm:flex-wrap">
                     {scale.map((s) => (
                       <button
                         key={s.value}
                         type="button"
                         onClick={() => handleSelect(q.id, s.value)}
-                        className={`flex-1 px-3.5 py-2.5 rounded-full border text-[15px] transition-all duration-200
+                        className={`sm:flex-1 min-w-0 !px-1 sm:!px-3.5 py-2 sm:py-2.5 rounded-2xl sm:rounded-full border text-[15px] transition-all duration-200 flex flex-col sm:block items-center
                           bg-white/70
                           hover:bg-pink-50 hover:border-pink-100
                           ${answers[q.id] === s.value ? "bg-pink-50 border-pink-200 text-pink-600 font-semibold" : "border-gray-200 text-gray-800"}
                         `}
                       >
-                        {s.value} ({s.label})
+                        <span className="text-[17px] sm:text-[15px] font-semibold sm:font-normal">{s.value}</span>
+                        <span className="text-[11.5px] leading-tight text-center sm:text-[15px]">
+                          <span className="hidden sm:inline"> (</span>{s.label}<span className="hidden sm:inline">)</span>
+                        </span>
                       </button>
                     ))}
                   </div>

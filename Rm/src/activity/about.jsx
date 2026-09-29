@@ -72,8 +72,8 @@ export default function About() {
                                 <div key={i} className="flex-1" style={colorStyle(c)} />
                             ))}
                         </div>
-                        <div className="px-6 py-7 flex items-center justify-between gap-5 bg-white">
-                            <div className="flex items-center gap-5">
+                        <div className="px-4 sm:px-6 py-7 flex flex-wrap items-center justify-between gap-5 bg-white">
+                            <div className="flex items-center gap-4 sm:gap-5 min-w-0">
                                 <div className="h-16 w-16 rounded-2xl bg-pink-500 text-white flex items-center justify-center text-[26px] shrink-0">
                                     <FaSchool />
                                 </div>

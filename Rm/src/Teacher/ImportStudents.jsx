@@ -548,7 +548,7 @@ function InfoBanner({ onDownloadTemplate, onShowHelp }) {
           <div className="text-[13px] text-gray-500">รองรับไฟล์ Excel (.xlsx) และ CSV (.csv) ขนาดไฟล์ไม่เกิน {MAX_SIZE_MB} MB</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={onDownloadTemplate} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-700 text-[13.5px] font-medium hover:bg-gray-50 flex items-center gap-2">
           <FaDownload size={12} /> ดาวน์โหลดไฟล์ตัวอย่าง
         </button>

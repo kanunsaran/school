@@ -271,7 +271,7 @@ export default function AssessmentListPage() {
               </div>
               <Select
                 styles={bigFilterSelectStyles}
-                className="w-56"
+                className="w-full sm:w-56"
                 value={gradeOptions.find((o) => o.value === gradeFilter)}
                 onChange={(opt) => setGradeFilter(opt.value)}
                 options={gradeOptions}
@@ -279,7 +279,7 @@ export default function AssessmentListPage() {
               />
               <Select
                 styles={bigFilterSelectStyles}
-                className="w-52"
+                className="w-full sm:w-52"
                 value={STATUS_OPTIONS.find((o) => o.value === statusFilter)}
                 onChange={(opt) => setStatusFilter(opt.value)}
                 options={STATUS_OPTIONS}

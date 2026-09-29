@@ -404,7 +404,7 @@ export default function WorkDetailPage() {
               </div>
 
               <Select
-                className="w-44"
+                className="w-full sm:w-44"
                 styles={filterSelectStyles}
                 value={SORT_OPTIONS.find((o) => o.value === sortBy)}
                 onChange={(opt) => setSortBy(opt.value)}

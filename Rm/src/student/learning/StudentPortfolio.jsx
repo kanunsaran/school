@@ -371,7 +371,7 @@ function FilterToolbar({
         />
       </div>
       <Select
-        className="w-40"
+        className="w-full sm:w-40"
         styles={filterSelectStyles}
         value={sortOptions.find((o) => o.value === sortBy)}
         onChange={(opt) => setSortBy(opt.value)}
@@ -379,7 +379,7 @@ function FilterToolbar({
         isSearchable={false}
       />
       <Select
-        className="w-48"
+        className="w-full sm:w-48"
         styles={filterSelectStyles}
         value={categoryOptions.find((o) => o.value === categoryFilter)}
         onChange={(opt) => setCategoryFilter(opt.value)}

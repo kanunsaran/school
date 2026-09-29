@@ -540,10 +540,10 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
           <div className="flex flex-col items-stretch sm:items-end gap-2 sm:ml-auto w-full sm:w-auto">
             <div className="flex flex-wrap items-center gap-2">
               {!embedded && (
-                <>
-                  <span className="text-[15px] text-gray-500">ห้อง</span>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <span className="text-[15px] text-gray-500 w-12 sm:w-auto shrink-0">ห้อง</span>
                   <Select
-                    className="w-48"
+                    className="flex-1 min-w-0 sm:flex-none sm:w-48"
                     styles={bigFilterSelectStyles}
                     value={
                       classesList.length === 0
@@ -557,17 +557,20 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                     options={classesList.map((c) => ({ value: c.id, label: gradeLabel(c) }))}
                     isSearchable={false}
                   />
-                </>
+                </div>
               )}
 
-              <span className="text-[15px] text-gray-500 sm:ml-2">วันที่</span>
-              <ThaiCalendarField
-                value={selectedDate}
-                onChange={setSelectedDate}
-                heightClass="h-11"
-                bgClass="bg-white"
-                className="w-60"
-              />
+              {/* ป้าย+ช่องกรอกอยู่คู่กันเสมอ (มือถือ: บรรทัดละคู่) */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="text-[15px] text-gray-500 w-12 sm:w-auto sm:ml-2 shrink-0">วันที่</span>
+                <ThaiCalendarField
+                  value={selectedDate}
+                  onChange={setSelectedDate}
+                  heightClass="h-11"
+                  bgClass="bg-white"
+                  className="flex-1 min-w-0 sm:flex-none sm:w-60"
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -661,7 +664,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             </div>
 
             <Select
-              className="w-44"
+              className="w-full sm:w-44"
               styles={bigFilterSelectStyles}
               value={STATUS_FILTER_OPTIONS.find((s) => s.value === statusFilter)}
               onChange={(opt) => {
@@ -673,7 +676,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
             />
 
             <Select
-              className="w-48"
+              className="w-full sm:w-48"
               styles={bigFilterSelectStyles}
               value={SORT_OPTIONS.find((s) => s.value === sortBy)}
               onChange={(opt) => setSortBy(opt.value)}
@@ -899,7 +902,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                 onChange={setHistoryFrom}
                 heightClass="h-10"
                 radiusClass="rounded-lg"
-                className="w-56"
+                className="flex-1 min-w-[10rem] sm:flex-none sm:w-56"
               />
               <span>ถึง</span>
               <ThaiCalendarField
@@ -907,7 +910,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                 onChange={setHistoryTo}
                 heightClass="h-10"
                 radiusClass="rounded-lg"
-                className="w-56"
+                className="flex-1 min-w-[10rem] sm:flex-none sm:w-56"
               />
               <button
                 type="button"
@@ -1210,7 +1213,7 @@ function AttendancePieChart({ data }) {
     .join(", ");
 
   return (
-    <div className="flex items-center gap-8">
+    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-6 sm:gap-8">
       <div className="w-40 h-40 rounded-full shrink-0 ring-8 ring-white shadow-sm" style={{ background: `conic-gradient(${stops})` }} />
       <div className="flex flex-col gap-3">
         {data.map((d) => (

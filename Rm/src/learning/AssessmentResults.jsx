@@ -293,7 +293,7 @@ export default function AssessmentResultsPage() {
           </div>
           <Select
             styles={bigFilterSelectStyles}
-            className="w-64"
+            className="w-full sm:w-64"
             value={assessmentSelectOptions.find((o) => o.value === assessmentFilter)}
             onChange={(opt) => setAssessmentFilter(opt.value)}
             options={assessmentSelectOptions}
@@ -301,7 +301,7 @@ export default function AssessmentResultsPage() {
           />
           <Select
             styles={bigFilterSelectStyles}
-            className="w-52"
+            className="w-full sm:w-52"
             value={roomSelectOptions.find((o) => o.value === roomFilter)}
             onChange={(opt) => setRoomFilter(opt.value)}
             options={roomSelectOptions}
@@ -309,7 +309,7 @@ export default function AssessmentResultsPage() {
           />
           <Select
             styles={bigFilterSelectStyles}
-            className="w-48"
+            className="w-full sm:w-48"
             value={STATUS_FILTER_OPTIONS.find((o) => o.value === statusFilter)}
             onChange={(opt) => setStatusFilter(opt.value)}
             options={STATUS_FILTER_OPTIONS}

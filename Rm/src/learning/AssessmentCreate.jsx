@@ -422,7 +422,7 @@ export default function AssessmentCreatePage() {
                           />
                           <Select
                             styles={bigFilterSelectStyles}
-                            className="w-56 shrink-0"
+                            className="w-full sm:w-56 shrink-0"
                             value={QUESTION_TYPES.find((qt) => qt.value === q.type)}
                             onChange={(opt) => updateQuestion(q.id, { type: opt.value })}
                             options={QUESTION_TYPES}

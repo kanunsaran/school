@@ -209,7 +209,7 @@ export default function AssessmentStatsPage() {
           </div>
           <Select
             styles={bigFilterSelectStyles}
-            className="w-52"
+            className="w-full sm:w-52"
             value={roomSelectOptions.find((o) => o.value === String(roomFilter))}
             onChange={(opt) => setRoomFilter(opt.value)}
             options={roomSelectOptions}

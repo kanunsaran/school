@@ -212,7 +212,7 @@ export default function PortfolioTeacherPage() {
               />
             </div>
             <Select
-              className="w-52"
+              className="w-full sm:w-52"
               styles={bigFilterSelectStyles}
               value={gradeOptions.find((o) => o.value === gradeFilter)}
               onChange={(opt) => setGradeFilter(opt.value)}
@@ -220,7 +220,7 @@ export default function PortfolioTeacherPage() {
               isSearchable={false}
             />
             <Select
-              className="w-48"
+              className="w-full sm:w-48"
               styles={bigFilterSelectStyles}
               value={categoryOptions.find((o) => o.value === categoryFilter)}
               onChange={(opt) => setCategoryFilter(opt.value)}
@@ -228,7 +228,7 @@ export default function PortfolioTeacherPage() {
               isSearchable={false}
             />
             <Select
-              className="w-40"
+              className="w-full sm:w-40"
               styles={bigFilterSelectStyles}
               value={sortOptions.find((o) => o.value === sortBy)}
               onChange={(opt) => setSortBy(opt.value)}
