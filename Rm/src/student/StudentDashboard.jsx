@@ -453,11 +453,12 @@ export default function StudentDashboard() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-[15px] font-medium text-gray-900">
-                      {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]}
-                    </div>
-                    <div className="text-[13px] text-gray-400">
-                      {selectedKey === toDateKey(today) ? "วันนี้" : `${selectedDate.getFullYear() + 543}`}
+                    {/* แบบเดียวกับวันที่ในรายการ "นัดหมายที่จะถึงนี้": ตัวหนา มีปี */}
+                    <div className="flex items-center gap-2 text-[15px] font-semibold text-gray-900">
+                      {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear() + 543}
+                      {selectedKey === toDateKey(today) && (
+                        <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600">วันนี้</span>
+                      )}
                     </div>
                   </div>
                 </div>
