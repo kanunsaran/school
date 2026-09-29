@@ -103,11 +103,11 @@ export default function StudentDashboard() {
       .catch((err) => console.error("โหลดนัดหมายไม่สำเร็จ:", err));
   }, []);
 
-  const appointmentCountByDate = useMemo(() => {
+  // นัดหมายแยกตามวัน เรียงตามเวลา — ใช้โชว์หัวข้อนัดในช่องปฏิทิน (เหมือนหน้าปฏิทินฝั่งครู)
+  const appointmentsByDate = useMemo(() => {
     const map = {};
-    for (const a of teacherAppointments) {
-      map[a.date] = (map[a.date] || 0) + 1;
-    }
+    for (const a of teacherAppointments) (map[a.date] ||= []).push(a);
+    Object.values(map).forEach((list) => list.sort((x, y) => String(x.time).localeCompare(String(y.time))));
     return map;
   }, [teacherAppointments]);
 
@@ -433,9 +433,21 @@ export default function StudentDashboard() {
                   viewDate={viewDate}
                   today={today}
                   selectedDate={selectedDate}
-                  appointmentCountByDate={appointmentCountByDate}
+                  appointmentsByDate={appointmentsByDate}
                   onSelectDate={setSelectedDate}
                 />
+
+                {/* คำอธิบายสี */}
+                <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-pink-100 border border-pink-300" />
+                    นัดหมายวันนี้หรือวันถัดไป
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-pink-50 border border-pink-200" />
+                    นัดหมายที่ผ่านไปแล้ว
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -498,10 +510,13 @@ export default function StudentDashboard() {
                         }}
                         className="w-full flex items-center justify-between gap-3 px-1 py-2.5 border-b last:border-b-0 border-gray-100 hover:bg-gray-50 text-left bg-transparent"
                       >
+                        {/* วันที่เด่นเป็นบรรทัดแรก ชื่อครู+หัวข้อเป็นบรรทัดรอง */}
                         <div className="min-w-0">
-                          <div className="text-[14px] text-gray-900 truncate">{a.teacher}</div>
+                          <div className="text-[15px] font-semibold text-gray-900">
+                            {d} {THAI_MONTHS[m - 1]} {y + 543}
+                          </div>
                           <div className="text-[13px] text-gray-400 mt-0.5 truncate">
-                            {d} {THAI_MONTHS[m - 1]} • {a.note}
+                            {a.teacher}{a.note ? ` • ${a.note}` : ""}
                           </div>
                         </div>
                         <div className="text-[13px] text-gray-500 shrink-0">{formatThaiTimeLabel(a.time)}</div>
@@ -648,37 +663,43 @@ function ReplyThread({ replies, onAdd, placeholder }) {
   );
 }
 
-function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentCountByDate, onSelectDate }) {
+function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, onSelectDate }) {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = toDateKey(today);
+  const selectedKey = toDateKey(selectedDate);
 
-  const cells = [
-    ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
+  // แสดง 6 สัปดาห์เสมอ (42 ช่อง) ช่องสูงเท่ากัน — ปฏิทินขนาดคงที่ทุกเดือน
+  const cells = Array.from({ length: 42 }, (_, i) => {
+    const day = i - firstWeekday + 1;
+    return day >= 1 && day <= daysInMonth ? day : null;
+  });
 
   return (
-    <div className="grid grid-cols-7 gap-y-1.5">
+    <div className="grid grid-cols-7 gap-y-1">
       {cells.map((day, i) => {
-        if (day === null) return <div key={`blank-${i}`} />;
+        if (day === null) return <div key={`blank-${i}`} className="h-14" />;
 
         const cellDate = new Date(year, month, day);
         const key = toDateKey(cellDate);
-        const isToday = key === toDateKey(today);
-        const isSelected = key === toDateKey(selectedDate);
-        const count = appointmentCountByDate[key] || 0;
+        const isToday = key === todayKey;
+        const isSelected = key === selectedKey;
+        const isPast = key < todayKey;
+        const list = appointmentsByDate[key] || [];
+        const firstTitle = list.length ? list[0].note?.trim() || list[0].teacher || "นัดหมาย" : "";
 
         return (
           <button
             key={key}
             type="button"
             onClick={() => onSelectDate(cellDate)}
-            className="flex flex-col items-center justify-center gap-1"
+            title={list.length ? list.map((a) => `${a.time} ${a.note?.trim() || a.teacher || "นัดหมาย"}`).join("\n") : undefined}
+            className="h-14 min-w-0 !p-0 flex flex-col items-center justify-start gap-0.5 bg-transparent"
           >
             <span
-              className={`h-9 w-9 rounded-full flex items-center justify-center text-[15px] transition
+              className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[15px] transition
                 ${
                   isSelected
                     ? "bg-pink-500 text-white"
@@ -689,11 +710,16 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentCountByDat
             >
               {day}
             </span>
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                count > 0 ? (isSelected ? "bg-pink-500" : "bg-pink-400") : "bg-transparent"
-              }`}
-            />
+            {list.length > 0 && (
+              <span
+                className={`w-full max-w-full truncate text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-none ${
+                  isPast ? "bg-pink-50 text-pink-400" : "bg-pink-100 text-pink-700"
+                }`}
+              >
+                {firstTitle}
+                {list.length > 1 && ` +${list.length - 1}`}
+              </span>
+            )}
           </button>
         );
       })}
