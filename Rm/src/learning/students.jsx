@@ -908,8 +908,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
               <div className="fixed inset-0 z-[55] bg-black/40 xl:hidden" onClick={() => setSheetOpen(false)} />
             )}
             <div
-              className={`min-w-0 fixed inset-x-0 bottom-0 z-[60] max-h-[88vh] overflow-y-auto overscroll-contain bg-white rounded-t-3xl shadow-2xl px-4 sm:px-6 pb-8 transition-transform duration-300 xl:static xl:z-auto xl:max-h-none xl:overflow-visible xl:rounded-none xl:shadow-none xl:p-0 xl:translate-y-0 xl:transition-none ${
-                sheetOpen ? "translate-y-0" : "translate-y-full"
+              className={`min-w-0 fixed inset-x-0 bottom-0 z-[60] max-h-[88vh] overflow-y-auto overscroll-contain bg-white rounded-t-3xl shadow-2xl px-4 sm:px-6 pb-8 transition-transform duration-300 xl:static xl:z-auto xl:max-h-none xl:overflow-visible xl:rounded-none xl:shadow-none xl:p-0 xl:translate-none xl:transition-none ${
+                sheetOpen ? "translate-none" : "translate-y-full"
               }`}
             >
               {/* แถบจับ + ปุ่มปิด (เฉพาะแบบ bottom sheet) */}

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
+import { isBelowXl } from "../utils/breakpoints.js";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import Select from "react-select";
@@ -75,6 +77,7 @@ export default function AssessmentResultsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false); // มือถือ/ไอแพด: ผลการประเมินเป็นป๊อปอัพ
   const [checkedIds, setCheckedIds] = useState(new Set());
   const PAGE_SIZE = 10;
 
@@ -354,7 +357,10 @@ export default function AssessmentResultsPage() {
                         <button
                           type="button"
                           key={r.student.user_id}
-                          onClick={() => setSelectedId(r.student.user_id)}
+                          onClick={() => {
+                            setSelectedId(r.student.user_id);
+                            if (isBelowXl()) setSheetOpen(true);
+                          }}
                           className={`w-full flex items-center gap-3 px-4 py-3 text-left transition ${isSelected ? "bg-pink-50" : "hover:bg-gray-50 bg-white"}`}
                         >
                           <span
@@ -387,9 +393,10 @@ export default function AssessmentResultsPage() {
             )}
           </div>
 
-          {/* ===== ขวา: รายละเอียด ===== */}
+          {/* ===== ขวา: รายละเอียด (จอเล็ก = ป๊อปอัพ) ===== */}
+          <ResponsiveSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
           <div className="min-w-0 h-full flex flex-col">
-          <div className="mb-2 text-[14.5px] text-transparent select-none shrink-0" aria-hidden="true">พบนักเรียน</div>
+          <div className="hidden xl:block mb-2 text-[14.5px] text-transparent select-none shrink-0" aria-hidden="true">พบนักเรียน</div>
           <div className="flex-1 flex flex-col xl:sticky xl:top-24 overflow-y-auto">
             {!selected ? (
               <div className="flex-1 text-center text-gray-400 flex flex-col items-center justify-center gap-2">
@@ -400,7 +407,7 @@ export default function AssessmentResultsPage() {
               <>
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-[17.5px] font-semibold text-gray-900">ผลการประเมินของนักเรียน</div>
-                  <button type="button" onClick={() => setSelectedId(null)} className="w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent">
+                  <button type="button" onClick={() => setSelectedId(null)} className="hidden xl:flex w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-400 items-center justify-center bg-transparent">
                     <FaTimes size={14} />
                   </button>
                 </div>
@@ -543,6 +550,7 @@ export default function AssessmentResultsPage() {
             )}
           </div>
           </div>
+          </ResponsiveSheet>
         </div>
       </main>
 

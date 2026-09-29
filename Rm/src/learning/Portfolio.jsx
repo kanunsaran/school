@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
+import { isBelowXl } from "../utils/breakpoints.js";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import SidebarNav from "../nav.jsx";
@@ -37,6 +39,7 @@ export default function PortfolioTeacherPage() {
   const [viewTab, setViewTab] = useState("all");
 
   const [selectedWorkId, setSelectedWorkId] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false); // มือถือ/ไอแพด: รายละเอียดเป็นป๊อปอัพ
   const [fileIndex, setFileIndex] = useState(0);
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
@@ -265,12 +268,16 @@ export default function PortfolioTeacherPage() {
                     student={studentMap[w.student_user_id]}
                     gradeText={gradeTextOf(w)}
                     selected={w.work_id === selectedWorkId}
-                    onClick={() => setSelectedWorkId(w.work_id)}
+                    onClick={() => {
+                      setSelectedWorkId(w.work_id);
+                      if (isBelowXl()) setSheetOpen(true);
+                    }}
                   />
                 ))}
               </div>
 
-              {/* ===== ขวา: รายละเอียด + คำแนะนำ ===== */}
+              {/* ===== ขวา: รายละเอียด + คำแนะนำ (จอเล็ก = ป๊อปอัพ) ===== */}
+              <ResponsiveSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
               <div className="min-w-0 xl:sticky xl:top-24 flex flex-col">
                 {!selectedWork ? (
                   <div className="flex-1 flex items-center justify-center text-center text-gray-400 text-[14.5px] py-16">เลือกผลงานเพื่อดูรายละเอียดและให้คำแนะนำ</div>
@@ -288,6 +295,7 @@ export default function PortfolioTeacherPage() {
                   />
                 )}
               </div>
+              </ResponsiveSheet>
             </div>
           )}
         </main>

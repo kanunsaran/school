@@ -425,7 +425,7 @@ useEffect(() => {
         </div>
 
         {/* Search */}
-        <div className="mt-6 w-full flex justify-center">
+        <div className="mt-6 w-full flex justify-center px-4 sm:px-6">
           <div className="w-full max-w-[980px]">
             <div className="relative">
               <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -457,7 +457,7 @@ useEffect(() => {
         </div>
 
         {/* Grid cards */}
-        <div className="mt-6 w-full flex justify-center">
+        <div className="mt-6 w-full flex justify-center px-4 sm:px-6">
           <div className="w-full max-w-[1080px]">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {loading ? (

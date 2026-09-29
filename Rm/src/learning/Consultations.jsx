@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
+import { isBelowXl } from "../utils/breakpoints.js";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import Select from "react-select";
@@ -74,6 +76,7 @@ export default function ConsultationsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  const [sheetOpen, setSheetOpen] = useState(false); // มือถือ/ไอแพด: หน้าแชทเป็นป๊อปอัพ
   const [replyText, setReplyText] = useState("");
   const [notesTick, setNotesTick] = useState(0);
   const [showStudentInfo, setShowStudentInfo] = useState(false);
@@ -338,7 +341,10 @@ export default function ConsultationsPage() {
                       <button
                         type="button"
                         key={c.studentUserId}
-                        onClick={() => setSelectedId(c.id)}
+                        onClick={() => {
+                          setSelectedId(c.id);
+                          if (isBelowXl()) setSheetOpen(true);
+                        }}
                         className={`w-full text-left py-4 px-2 rounded-lg transition ${isSelected ? "bg-pink-50" : "hover:bg-gray-50 bg-white"}`}
                       >
                         <div className="flex items-start gap-3">
@@ -365,9 +371,10 @@ export default function ConsultationsPage() {
             </div>
 
             {!selected ? (
-              <div className="text-center text-gray-400 py-16">เลือกนักเรียนเพื่อดูคำขอปรึกษา</div>
+              <div className="hidden xl:block text-center text-gray-400 py-16">เลือกนักเรียนเพื่อดูคำขอปรึกษา</div>
             ) : (
-              <div className="min-w-0 flex flex-col h-full overflow-hidden">
+              <ResponsiveSheet open={sheetOpen} onClose={() => setSheetOpen(false)} className="h-[88vh] flex flex-col xl:h-full">
+              <div className="min-w-0 flex-1 min-h-0 flex flex-col h-full overflow-hidden">
                 <div className="p-4 border-b border-gray-100 flex items-start justify-between gap-3 flex-wrap shrink-0">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -533,6 +540,7 @@ export default function ConsultationsPage() {
                   </button>
                 </div>
               </div>
+              </ResponsiveSheet>
             )}
           </div>
           </div>
