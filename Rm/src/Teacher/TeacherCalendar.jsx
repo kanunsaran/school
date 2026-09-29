@@ -31,6 +31,8 @@ import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import ThaiCalendarPicker from "../components/ThaiCalendarPicker.jsx";
 import ThaiTimeField from "../components/ThaiTimeField.jsx";
+import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
+import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import Avatar from "../components/Avatar.jsx";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
@@ -100,6 +102,8 @@ export default function TeacherCalendar() {
             time: a.appointment_time,
             studentId: a.student_user_id,
             note: a.note,
+            // นักเรียนเป็นคนขอนัดเอง (หน้า /studentcalendar)
+            byStudent: a.created_by_user_id != null && String(a.created_by_user_id) === String(a.student_user_id),
             replies: (a.replies || []).map((r) => ({
               author: r.author_name || "-",
               text: r.content,
@@ -350,12 +354,12 @@ export default function TeacherCalendar() {
                 ))}
               </div>
 
-              <CalendarGrid
+              <AppointmentCalendarGrid
                 viewDate={viewDate}
                 today={today}
                 selectedDate={selectedDate}
                 appointmentsByDate={appointmentsByDate}
-                studentById={studentById}
+                titleOf={(a) => a.note?.trim() || studentById(a.studentId)?.name || "นัดหมาย"}
                 onSelectDate={setSelectedDate}
               />
 
@@ -391,7 +395,12 @@ export default function TeacherCalendar() {
                         <div className="flex items-center gap-3">
                           <Avatar src={avatarByUser[String(a.studentId)]} name={student?.name} size={44} />
                           <div className="min-w-0 flex-1">
-                            <div className="text-[16px] text-gray-900 truncate">{student?.name || "ไม่ทราบชื่อ"}</div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[16px] text-gray-900 truncate">{student?.name || "ไม่ทราบชื่อ"}</span>
+                              {a.byStudent && (
+                                <span className="shrink-0 text-[12px] font-semibold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600">นักเรียนขอนัด</span>
+                              )}
+                            </div>
                             <div className="text-[15px] text-gray-400 truncate">
                               {student?.classroom} • {a.note}
                             </div>
@@ -486,7 +495,7 @@ export default function TeacherCalendar() {
                       >
                         {/* วันที่เด่นเป็นบรรทัดแรก ชื่อนักเรียน+หัวข้อเป็นบรรทัดรอง */}
                         <div className="min-w-0">
-                          <div className="text-[16.5px] font-semibold text-gray-900">
+                          <div className="text-[16.5px] font-semibold text-gray-500">
                             {d} {THAI_MONTHS[m - 1]} {y + 543}
                           </div>
                           <div className="text-[15px] text-gray-400 mt-0.5 truncate">
@@ -603,50 +612,6 @@ function EditAppointmentModal({ appointment, studentName, isDuplicate, onClose, 
   );
 }
 
-function ReplyThread({ replies, onAdd, placeholder }) {
-  const [expanded, setExpanded] = useState(false);
-  const [text, setText] = useState("");
-  const submit = () => {
-    if (!text.trim()) return;
-    onAdd(text);
-    setText("");
-  };
-  return (
-    <div className="mt-2.5 pl-13">
-      <button type="button" onClick={() => setExpanded((v) => !v)} className="text-pink-600 text-[13.5px] bg-transparent">
-        {expanded ? "ซ่อนการตอบกลับ" : replies.length > 0 ? `ดูการตอบกลับ (${replies.length})` : "ตอบกลับ"}
-      </button>
-
-      {expanded && (
-        <div className="mt-1.5">
-          {replies.length > 0 && (
-            <div className="space-y-2 mb-2">
-              {replies.map((r, i) => (
-                <div key={i} className="text-[14.5px] bg-gray-50 rounded-lg px-3 py-2">
-                  <span className="font-medium text-gray-700">{r.author}</span>
-                  <span className="text-[12.5px] text-gray-400"> • {r.time}</span>
-                  <div className="mt-1 text-gray-600">{r.text}</div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-1.5">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
-              placeholder={placeholder}
-              className="flex-1 h-10 rounded-lg border border-gray-200 bg-white px-3 text-[14.5px] outline-none focus:border-gray-400 placeholder:text-gray-400"
-            />
-            <button type="button" onClick={submit} className="h-10 px-3.5 rounded-lg bg-pink-500 text-white text-[14.5px] hover:bg-pink-600 transition shrink-0">
-              ส่ง
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function StudentPicker({ students, query, onQueryChange, selectedIds, onToggle }) {
   const [open, setOpen] = useState(false);
@@ -741,73 +706,6 @@ function StudentPicker({ students, query, onQueryChange, selectedIds, onToggle }
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function CalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, studentById, onSelectDate }) {
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const firstWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayKey = toDateKey(today);
-  const selectedKey = toDateKey(selectedDate);
-
-  // แสดง 6 สัปดาห์เสมอ (42 ช่อง) ให้ปฏิทินสูงเท่ากันทุกเดือน ไม่กระตุกตอนเปลี่ยนเดือน
-  const cells = Array.from({ length: 42 }, (_, i) => {
-    const day = i - firstWeekday + 1;
-    return day >= 1 && day <= daysInMonth ? day : null;
-  });
-
-  return (
-    <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-      {cells.map((day, i) => {
-        // ช่องว่างสูงเท่าช่องวันที่ เพื่อให้ความสูงคงที่
-        if (day === null) return <div key={`blank-${i}`} className="h-14 sm:h-16" />;
-
-        const cellDate = new Date(year, month, day);
-        const key = toDateKey(cellDate);
-        const isToday = key === todayKey;
-        const isSelected = key === selectedKey;
-        const list = appointmentsByDate[key] || [];
-        const count = list.length;
-        const isPast = key < todayKey;
-        // หัวข้อนัดแรกของวัน (ไม่มีหัวข้อใช้ชื่อนักเรียน)
-        const firstTitle = count ? list[0].note?.trim() || studentById(list[0].studentId)?.name || "นัดหมาย" : "";
-
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onSelectDate(cellDate)}
-            title={count ? list.map((a) => `${formatThaiTimeLabel(a.time)} ${a.note?.trim() || studentById(a.studentId)?.name || "นัดหมาย"}`).join("\n") : undefined}
-            className={`h-14 sm:h-16 min-w-0 !p-0 rounded-lg flex flex-col items-center justify-center gap-1 text-[15px] transition
-              ${
-                isSelected
-                  ? "bg-pink-500 text-white"
-                  : isToday
-                  ? "border border-pink-300 text-pink-600"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
-          >
-            <span className="leading-none">{day}</span>
-            {count > 0 && (
-              <span
-                className={`w-full max-w-full truncate text-center px-0.5 sm:px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-none ${
-                  isSelected
-                    ? "bg-white/25 text-white"
-                    : isPast
-                    ? "bg-pink-50 text-pink-400"
-                    : "bg-pink-100 text-pink-700"
-                }`}
-              >
-                {firstTitle}
-                {count > 1 && ` +${count - 1}`}
-              </span>
-            )}
-          </button>
-        );
-      })}
     </div>
   );
 }

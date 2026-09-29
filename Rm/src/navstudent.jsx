@@ -138,6 +138,17 @@ export default function SidebarNav() {
             <span className="ml-3">หน้าหลัก</span>
           </NavLink>
 
+          {/* ปฏิทินนัดหมาย */}
+          <NavLink
+            to="/studentcalendar"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive ? mainActive : mainInactive}`
+            }
+          >
+            <FaRegCalendarAlt className={location.pathname === "/studentcalendar" ? iconActive : iconInactive} />
+            <span className="ml-3">ปฏิทินนัดหมาย</span>
+          </NavLink>
+
           {/* ===== กิจกรรม ===== */}
           <div>
             <div

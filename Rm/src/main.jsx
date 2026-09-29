@@ -79,6 +79,7 @@ import StudentConsultationsPage from './student/StudentConsultations.jsx'
 import StudentDashboardPage from './student/StudentDashboard.jsx'
 import StudentInfoFormPage from './student/StudentInfoForm.jsx'
 import StudentProfilePage from './student/StudentProfile.jsx'
+import StudentCalendarPage from './student/StudentCalendar.jsx'
 
 
 
@@ -532,6 +533,15 @@ const router = createBrowserRouter([
   {
     path: "/profile",
     element: <StudentProfilePage />,
+  },
+
+  {
+    path: "/studentcalendar",
+    element: (
+      <RequireAuth role="student">
+        <StudentCalendarPage />
+      </RequireAuth>
+    ),
   },
 
   {

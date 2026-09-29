@@ -3,6 +3,11 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authRequired } = require('../middlewares/auth');
 
+// คอลัมน์ผู้สร้างนัด (ครูนัดนักเรียน / นักเรียนขอนัดครู) — เพิ่มให้อัตโนมัติถ้ายังไม่มี (ไม่กระทบข้อมูลเดิม)
+pool
+  .query('ALTER TABLE appointment ADD COLUMN IF NOT EXISTS created_by_user_id INT NULL')
+  .catch((e) => console.error('add appointment.created_by_user_id failed:', e.message));
+
 async function attachReplies(rows) {
   if (!rows.length) return rows;
   const ids = rows.map((r) => r.appointment_id);
@@ -39,6 +44,7 @@ router.get('/', async (req, res) => {
               a.teacher_user_id, t.fullname AS teacher_name,
               a.student_user_id, s.fullname AS student_name,
               a.appointment_date, a.appointment_time, a.note, a.status,
+              a.created_by_user_id,
               a.created_at, a.updated_at
        FROM appointment a
        JOIN users t ON t.user_id = a.teacher_user_id
@@ -63,6 +69,7 @@ router.get('/:id', async (req, res) => {
               a.teacher_user_id, t.fullname AS teacher_name,
               a.student_user_id, s.fullname AS student_name,
               a.appointment_date, a.appointment_time, a.note, a.status,
+              a.created_by_user_id,
               a.created_at, a.updated_at
        FROM appointment a
        JOIN users t ON t.user_id = a.teacher_user_id
@@ -84,16 +91,19 @@ router.get('/:id', async (req, res) => {
 // ---------------------- POST สร้างนัดหมาย ----------------------
 router.post('/', authRequired, async (req, res) => {
   try {
-    const { teacher_user_id, student_user_id, appointment_date, appointment_time, note } = req.body;
+    const { teacher_user_id, appointment_date, appointment_time, note } = req.body;
+    // นักเรียนนัดได้เฉพาะตัวเอง (ไม่เชื่อ student_user_id จาก body)
+    const student_user_id = req.user?.role === 'student' ? req.user.id : req.body.student_user_id;
+    const created_by_user_id = req.user?.id || null;
 
     if (!teacher_user_id || !student_user_id || !appointment_date || !appointment_time) {
       return res.status(400).json({ message: 'teacher_user_id, student_user_id, appointment_date, appointment_time จำเป็น' });
     }
 
     const [result] = await pool.query(
-      `INSERT INTO appointment (teacher_user_id, student_user_id, appointment_date, appointment_time, note)
-       VALUES (?, ?, ?, ?, ?)`,
-      [teacher_user_id, student_user_id, appointment_date, appointment_time, note || null]
+      `INSERT INTO appointment (teacher_user_id, student_user_id, appointment_date, appointment_time, note, created_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [teacher_user_id, student_user_id, appointment_date, appointment_time, note || null, created_by_user_id]
     );
 
     res.status(201).json({
@@ -104,6 +114,7 @@ router.post('/', authRequired, async (req, res) => {
       appointment_time,
       note: note || null,
       status: 'confirmed',
+      created_by_user_id,
     });
   } catch (e) {
     console.error(e);
