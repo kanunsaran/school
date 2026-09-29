@@ -311,7 +311,7 @@ export default function TeacherCalendar() {
       <div className="flex-1 min-w-0">
         <Header />
 
-        <main className="flex-1 min-w-0 px-8 pt-24 pb-16">
+        <main className="flex-1 min-w-0 px-4 sm:px-8 pt-24 pb-16">
           <div>
             <h1 className="page-title">ปฏิทินนัดหมาย</h1>
             <p className="page-subtitle mt-1">
@@ -319,9 +319,9 @@ export default function TeacherCalendar() {
             </p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-x-10 gap-y-10">
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-x-10 gap-y-10 items-start">
             {/* Calendar */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="rounded-2xl border border-gray-200 bg-white p-2.5 sm:p-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="text-[16px] font-medium text-gray-900">
                   {THAI_MONTHS[viewDate.getMonth()]} {viewDate.getFullYear() + 543}
@@ -344,7 +344,7 @@ export default function TeacherCalendar() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center text-[13px] text-gray-400 mb-2">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[13px] text-gray-400 mb-2">
                 {WEEKDAYS.map((w) => (
                   <div key={w}>{w}</div>
                 ))}
@@ -357,6 +357,18 @@ export default function TeacherCalendar() {
                 appointmentCountByDate={appointmentCountByDate}
                 onSelectDate={setSelectedDate}
               />
+
+              {/* คำอธิบายป้ายในปฏิทิน */}
+              <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 rounded bg-pink-100 text-pink-700 text-[11px] font-semibold leading-none">มีนัด</span>
+                  นัดหมายวันนี้หรือวันถัดไป
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[11px] font-semibold leading-none">เคยนัด</span>
+                  นัดหมายที่ผ่านไปแล้ว
+                </span>
+              </div>
             </div>
 
             {/* Appointments panel */}
@@ -734,29 +746,34 @@ function CalendarGrid({ viewDate, today, selectedDate, appointmentCountByDate, o
   const month = viewDate.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = toDateKey(today);
+  const selectedKey = toDateKey(selectedDate);
 
-  const cells = [
-    ...Array.from({ length: firstWeekday }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
+  // แสดง 6 สัปดาห์เสมอ (42 ช่อง) ให้ปฏิทินสูงเท่ากันทุกเดือน ไม่กระตุกตอนเปลี่ยนเดือน
+  const cells = Array.from({ length: 42 }, (_, i) => {
+    const day = i - firstWeekday + 1;
+    return day >= 1 && day <= daysInMonth ? day : null;
+  });
 
   return (
-    <div className="grid grid-cols-7 gap-1">
+    <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
       {cells.map((day, i) => {
-        if (day === null) return <div key={`blank-${i}`} />;
+        // ช่องว่างสูงเท่าช่องวันที่ เพื่อให้ความสูงคงที่
+        if (day === null) return <div key={`blank-${i}`} className="h-14 sm:h-16" />;
 
         const cellDate = new Date(year, month, day);
         const key = toDateKey(cellDate);
-        const isToday = key === toDateKey(today);
-        const isSelected = key === toDateKey(selectedDate);
+        const isToday = key === todayKey;
+        const isSelected = key === selectedKey;
         const count = appointmentCountByDate[key] || 0;
+        const isPast = key < todayKey;
 
         return (
           <button
             key={key}
             type="button"
             onClick={() => onSelectDate(cellDate)}
-            className={`aspect-square rounded-lg flex flex-col items-center justify-center gap-0.5 text-[15px] transition
+            className={`h-14 sm:h-16 min-w-0 !p-0 rounded-lg flex flex-col items-center justify-center gap-1 text-[15px] transition
               ${
                 isSelected
                   ? "bg-pink-500 text-white"
@@ -765,11 +782,20 @@ function CalendarGrid({ viewDate, today, selectedDate, appointmentCountByDate, o
                   : "text-gray-700 hover:bg-gray-50"
               }`}
           >
-            <span>{day}</span>
+            <span className="leading-none">{day}</span>
             {count > 0 && (
               <span
-                className={`h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white" : "bg-pink-500"}`}
-              />
+                className={`max-w-full truncate px-0.5 sm:px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-none ${
+                  isSelected
+                    ? "bg-white/25 text-white"
+                    : isPast
+                    ? "bg-gray-100 text-gray-500"
+                    : "bg-pink-100 text-pink-700"
+                }`}
+              >
+                {isPast ? "เคยนัด" : "มีนัด"}
+                {count > 1 && ` ${count}`}
+              </span>
             )}
           </button>
         );
