@@ -39,14 +39,18 @@ services:
     env_file:
       - ./projectrmb/.env
     environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_USER: ${DB_USER}
-      DB_PASS: ${DB_PASS}
+      # ค่าเริ่มต้นใช้ MariaDB ใน Docker (service db)
+      # บนเครื่อง dev ใช้ MySQL ของ XAMPP แทนได้: ตั้ง BACKEND_DB_HOST=host.docker.internal ใน .env
+      DB_HOST: ${BACKEND_DB_HOST:-db}
+      DB_PORT: ${BACKEND_DB_PORT:-3306}
+      DB_USER: ${BACKEND_DB_USER:-${DB_USER}}
+      DB_PASS: ${BACKEND_DB_PASS-${DB_PASS}}
       DB_NAME: ${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./projectrmb/uploads:/app/uploads
     depends_on:
