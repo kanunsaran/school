@@ -514,11 +514,12 @@ export default function ImportStudentsPage() {
 /* ===== ส่วนย่อย ===== */
 
 function StepIndicator({ step }) {
+  // มือถือ: 4 ขั้นแบ่งช่องเท่ากัน วงกลมอยู่บน ชื่อขั้นอยู่ล่าง / จอใหญ่: เรียงแนวนอนมีเส้นคั่น
   return (
-    <div className="flex items-center justify-center gap-1.5 py-4 mb-2 border-b border-gray-100 overflow-x-auto">
+    <div className="grid grid-cols-4 sm:flex sm:items-center sm:justify-center gap-1 sm:gap-1.5 py-4 mb-2 border-b border-gray-100">
       {STEPS.map((s, i) => (
-        <div key={s.key} className="flex items-center gap-1.5 shrink-0">
-          <div className="flex items-center gap-2">
+        <div key={s.key} className="flex items-center gap-1.5 min-w-0 sm:shrink-0">
+          <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 w-full sm:w-auto">
             <span
               className={`w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${
                 step === s.key ? "bg-pink-500 text-white" : step > s.key ? "bg-pink-100 text-pink-600" : "bg-gray-100 text-gray-400"
@@ -526,9 +527,9 @@ function StepIndicator({ step }) {
             >
               {step > s.key ? <FaCheck size={10} /> : s.key}
             </span>
-            <span className={`text-[14px] font-medium whitespace-nowrap ${step === s.key ? "text-pink-700" : "text-gray-400"}`}>{s.label}</span>
+            <span className={`text-[12px] sm:text-[14px] leading-tight text-center font-medium sm:whitespace-nowrap ${step === s.key ? "text-pink-700" : "text-gray-400"}`}>{s.label}</span>
           </div>
-          {i < STEPS.length - 1 && <span className="w-10 h-px bg-gray-200 mx-2" />}
+          {i < STEPS.length - 1 && <span className="hidden sm:block w-10 h-px bg-gray-200 mx-2" />}
         </div>
       ))}
     </div>

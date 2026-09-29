@@ -318,6 +318,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
   const [page, setPage] = useState(1);
   const [checkedIds, setCheckedIds] = useState(new Set());
   const [selectedId, setSelectedId] = useState(null);
+  // จอเล็กกว่า xl: กดชื่อแล้วรายละเอียดเด้งขึ้นเป็นแผ่นจากด้านล่าง (bottom sheet) ไม่ต้องเลื่อนลงไปดู
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
   const [openInfoSections, setOpenInfoSections] = useState(new Set());
   const toggleInfoSection = (key) => {
@@ -491,6 +493,15 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
   useEffect(() => {
     if (!selectedId && pagedStudents.length > 0) setSelectedId(pagedStudents[0].user_id);
   }, [pagedStudents, selectedId]);
+
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sheetOpen]);
 
   const selectedStudent = students.find((s) => s.user_id === selectedId) || pagedStudents[0] || null;
 
@@ -728,8 +739,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
       {/* ===== Toolbar ===== */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="flex flex-col gap-1 flex-1 min-w-55">
-          <label className="text-[14px] text-gray-500">&nbsp;</label>
+        <div className="flex flex-col gap-1 w-full sm:w-auto sm:flex-1 sm:min-w-55">
+          <label className="hidden sm:block text-[14px] text-gray-500">&nbsp;</label>
           <div className="relative">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[16px] z-10" />
             <input
@@ -742,7 +753,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         </div>
 
         {!embedded && (
-          <div className="flex flex-col gap-1 w-56">
+          <div className="flex flex-col gap-1 w-full sm:w-56">
             <label className="text-[14px] text-gray-500">ห้องเรียนที่สอน</label>
             <Select
               styles={bigFilterSelectStyles}
@@ -758,7 +769,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
           </div>
         )}
 
-        <div className="relative mt-5">
+        <div className="relative sm:mt-5">
           <button
             type="button"
             onClick={() => setAdvFilterOpen((v) => !v)}
@@ -772,7 +783,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
           {advFilterOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setAdvFilterOpen(false)} />
-              <div className="absolute right-0 top-12 z-20 w-72 rounded-2xl border border-gray-200 bg-white shadow-lg p-4 flex flex-col gap-3">
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-12 z-20 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-gray-200 bg-white shadow-lg p-4 flex flex-col gap-3">
                 <div>
                   <label className="block text-[13px] font-medium text-gray-500 mb-1">เป้าหมาย</label>
                   <Select
@@ -820,7 +831,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         <button
           type="button"
           onClick={openExportWizard}
-          className="h-10 mt-5 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold flex items-center gap-2"
+          className="h-10 sm:mt-5 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold flex items-center gap-2"
         >
           <FaDownload size={12} /> ส่งออก{checkedIds.size > 0 ? ` (${checkedIds.size})` : "ทั้งหมด"}
         </button>
@@ -828,7 +839,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         <button
           type="button"
           onClick={() => window.print()}
-          className="h-10 mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
+          className="h-10 sm:mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
         >
           <FaPrint size={12} /> พิมพ์รายงาน
         </button>
@@ -862,7 +873,11 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                     <button
                       type="button"
                       key={s.user_id}
-                      onClick={() => { setSelectedId(s.user_id); setActiveTab("info"); }}
+                      onClick={() => {
+                        setSelectedId(s.user_id);
+                        setActiveTab("info");
+                        if (!window.matchMedia("(min-width: 1280px)").matches) setSheetOpen(true);
+                      }}
                       className={`w-full text-left px-2 py-3 flex items-center gap-2.5 transition rounded-lg ${isSelected ? "bg-pink-50" : "hover:bg-gray-50 bg-white"}`}
                     >
                       <span
@@ -886,9 +901,29 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
           {/* ===== รายละเอียดนักเรียน (ขวา) ===== */}
           {!selectedStudent ? (
-            <div className="rounded-2xl border border-gray-200 bg-white p-16 text-center text-gray-400">เลือกนักเรียนเพื่อดูรายละเอียด</div>
+            <div className="hidden xl:block rounded-2xl border border-gray-200 bg-white p-16 text-center text-gray-400">เลือกนักเรียนเพื่อดูรายละเอียด</div>
           ) : (
-            <div className="min-w-0">
+            <>
+            {sheetOpen && (
+              <div className="fixed inset-0 z-[55] bg-black/40 xl:hidden" onClick={() => setSheetOpen(false)} />
+            )}
+            <div
+              className={`min-w-0 fixed inset-x-0 bottom-0 z-[60] max-h-[88vh] overflow-y-auto overscroll-contain bg-white rounded-t-3xl shadow-2xl px-4 sm:px-6 pb-8 transition-transform duration-300 xl:static xl:z-auto xl:max-h-none xl:overflow-visible xl:rounded-none xl:shadow-none xl:p-0 xl:translate-y-0 xl:transition-none ${
+                sheetOpen ? "translate-y-0" : "translate-y-full"
+              }`}
+            >
+              {/* แถบจับ + ปุ่มปิด (เฉพาะแบบ bottom sheet) */}
+              <div className="xl:hidden sticky top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-1 bg-white flex items-center justify-center">
+                <span className="w-10 h-1.5 rounded-full bg-gray-300" />
+                <button
+                  type="button"
+                  onClick={() => setSheetOpen(false)}
+                  aria-label="ปิด"
+                  className="absolute right-3 top-1.5 w-9 h-9 rounded-full !p-0 bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center"
+                >
+                  <FaTimes size={14} />
+                </button>
+              </div>
               {/* Profile header */}
               <div className="border-b border-gray-200 py-6 mb-5">
                 <div className="flex flex-wrap items-start gap-6">
@@ -1108,6 +1143,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                 </InfoCard>
               )}
             </div>
+            </>
           )}
         </div>
       )}

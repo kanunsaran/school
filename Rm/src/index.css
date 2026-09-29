@@ -110,9 +110,12 @@ button:focus-visible {
   animation: skeleton-slide-in 0.4s ease both;
 }
 /* responsive: ให้ flex child หดได้ (ไม่ดันจนล้นจอ), สื่อไม่ล้นกล่อง */
-.flex-1 {
-  min-width: 0;
-}
-img, video, iframe {
-  max-width: 100%;
+/* อยู่ใน layer base เพื่อให้ utility class ของ Tailwind (เช่น min-w-70) ทับได้ */
+@layer base {
+  .flex-1 {
+    min-width: 0;
+  }
+  img, video, iframe {
+    max-width: 100%;
+  }
 }
