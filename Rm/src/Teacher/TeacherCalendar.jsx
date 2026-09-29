@@ -146,13 +146,6 @@ export default function TeacherCalendar() {
     setNewStudentIds((prev) => (prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id]));
   };
 
-  const appointmentCountByDate = useMemo(() => {
-    const map = {};
-    for (const a of appointments) {
-      map[a.date] = (map[a.date] || 0) + 1;
-    }
-    return map;
-  }, [appointments]);
 
   const selectedKey = toDateKey(selectedDate);
   const isPastSelectedDate = selectedKey < toDateKey(today);
@@ -319,34 +312,49 @@ export default function TeacherCalendar() {
             </p>
           </div>
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-x-10 gap-y-10 items-start">
-            {/* Calendar */}
-            <div className="rounded-2xl border border-gray-200 bg-white p-2.5 sm:p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="text-[16px] font-medium text-gray-900">
+          {/* ปฏิทินกว้างเต็ม (จอใหญ่มาก: แผงนัดหมายอยู่ขวา) — คอลัมน์ล็อกด้วย minmax(0,…) ขนาดไม่เปลี่ยนตามเนื้อหา */}
+          <div className="mt-8 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-x-8 gap-y-10 items-start">
+            {/* Calendar (แบบปฏิทินเดือนของ iPhone/Mac) */}
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+              <div className="flex items-center justify-between gap-2 px-3 sm:px-5 py-3 sm:py-4">
+                <div className="text-[20px] sm:text-[26px] font-bold text-gray-900">
                   {THAI_MONTHS[viewDate.getMonth()]} {viewDate.getFullYear() + 543}
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={goPrevMonth}
-                    className="h-8 w-8 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center transition"
+                    onClick={() => {
+                      setViewDate(new Date(today.getFullYear(), today.getMonth(), 1));
+                      setSelectedDate(today);
+                    }}
+                    className="h-8 px-3 rounded-lg text-pink-600 hover:bg-pink-50 text-[15px] font-medium bg-transparent"
                   >
-                    <FaChevronLeft className="text-[16px]" />
+                    วันนี้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goPrevMonth}
+                    aria-label="เดือนก่อน"
+                    className="h-8 w-8 !p-0 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center transition"
+                  >
+                    <FaChevronLeft className="text-[14px]" />
                   </button>
                   <button
                     type="button"
                     onClick={goNextMonth}
-                    className="h-8 w-8 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center transition"
+                    aria-label="เดือนถัดไป"
+                    className="h-8 w-8 !p-0 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center transition"
                   >
-                    <FaChevronRight className="text-[16px]" />
+                    <FaChevronRight className="text-[14px]" />
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[13px] text-gray-400 mb-2">
-                {WEEKDAYS.map((w) => (
-                  <div key={w}>{w}</div>
+              <div className="grid grid-cols-7 border-b border-gray-200 text-[12.5px] sm:text-[14px]">
+                {WEEKDAYS.map((w, i) => (
+                  <div key={w} className={`px-1 sm:px-2 pb-2 text-right ${i === 0 || i === 6 ? "text-gray-400" : "text-gray-700 font-medium"}`}>
+                    {w}
+                  </div>
                 ))}
               </div>
 
@@ -354,19 +362,22 @@ export default function TeacherCalendar() {
                 viewDate={viewDate}
                 today={today}
                 selectedDate={selectedDate}
-                appointmentCountByDate={appointmentCountByDate}
-                onSelectDate={setSelectedDate}
+                appointments={appointments}
+                studentById={studentById}
+                onSelectDate={(d) => {
+                  setSelectedDate(d);
+                  // กดวันของเดือนก่อน/ถัดไปที่โผล่ในตาราง → เลื่อนไปเดือนนั้น
+                  if (d.getMonth() !== viewDate.getMonth()) setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
+                }}
               />
 
-              {/* คำอธิบายป้ายในปฏิทิน */}
-              <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-gray-500">
+              {/* คำอธิบายสี */}
+              <div className="px-3 sm:px-5 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-gray-500">
                 <span className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 rounded bg-pink-100 text-pink-700 text-[11px] font-semibold leading-none">มีนัด</span>
-                  นัดหมายวันนี้หรือวันถัดไป
+                  <span className="w-2.5 h-2.5 rounded-full bg-pink-500" /> นัดหมาย
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[11px] font-semibold leading-none">เคยนัด</span>
-                  นัดหมายที่ผ่านไปแล้ว
+                  <span className="w-2.5 h-2.5 rounded-full bg-pink-200" /> นัดหมายที่ผ่านไปแล้ว
                 </span>
               </div>
             </div>
@@ -741,62 +752,72 @@ function StudentPicker({ students, query, onQueryChange, selectedIds, onToggle }
   );
 }
 
-function CalendarGrid({ viewDate, today, selectedDate, appointmentCountByDate, onSelectDate }) {
+// ปฏิทินเดือนแบบ iPhone/Mac: 6 สัปดาห์เสมอ ช่องสูงคงที่, วันเสาร์-อาทิตย์พื้นเทา, วันนี้วงกลมชมพู,
+// นัดหมายเป็นแถบสีชมพูพร้อมหัวข้อ (ผ่านไปแล้ว = ชมพูจาง) แสดงได้ 2 รายการ เกินนั้นเป็น "+N"
+function CalendarGrid({ viewDate, today, selectedDate, appointments, studentById, onSelectDate }) {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = toDateKey(today);
   const selectedKey = toDateKey(selectedDate);
 
-  // แสดง 6 สัปดาห์เสมอ (42 ช่อง) ให้ปฏิทินสูงเท่ากันทุกเดือน ไม่กระตุกตอนเปลี่ยนเดือน
-  const cells = Array.from({ length: 42 }, (_, i) => {
-    const day = i - firstWeekday + 1;
-    return day >= 1 && day <= daysInMonth ? day : null;
-  });
+  const byDate = useMemo(() => {
+    const map = {};
+    for (const a of appointments) (map[a.date] ||= []).push(a);
+    Object.values(map).forEach((list) => list.sort((x, y) => String(x.time).localeCompare(String(y.time))));
+    return map;
+  }, [appointments]);
+
+  const cells = Array.from({ length: 42 }, (_, i) => new Date(year, month, i - firstWeekday + 1));
 
   return (
-    <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-      {cells.map((day, i) => {
-        // ช่องว่างสูงเท่าช่องวันที่ เพื่อให้ความสูงคงที่
-        if (day === null) return <div key={`blank-${i}`} className="h-14 sm:h-16" />;
-
-        const cellDate = new Date(year, month, day);
+    <div className="grid grid-cols-7 border-b border-gray-200">
+      {cells.map((cellDate, i) => {
         const key = toDateKey(cellDate);
+        const inMonth = cellDate.getMonth() === month;
+        const weekend = i % 7 === 0 || i % 7 === 6;
         const isToday = key === todayKey;
         const isSelected = key === selectedKey;
-        const count = appointmentCountByDate[key] || 0;
         const isPast = key < todayKey;
+        const list = byDate[key] || [];
+        const shown = list.slice(0, 2);
+        const more = list.length - shown.length;
 
         return (
           <button
             key={key}
             type="button"
             onClick={() => onSelectDate(cellDate)}
-            className={`h-14 sm:h-16 min-w-0 !p-0 rounded-lg flex flex-col items-center justify-center gap-1 text-[15px] transition
-              ${
-                isSelected
-                  ? "bg-pink-500 text-white"
-                  : isToday
-                  ? "border border-pink-300 text-pink-600"
-                  : "text-gray-700 hover:bg-gray-50"
-              }`}
+            className={`relative h-20 sm:h-24 lg:h-28 min-w-0 !p-0 !rounded-none text-left flex flex-col border-gray-200 transition
+              ${i % 7 !== 0 ? "border-l" : ""} ${i >= 7 ? "border-t" : ""}
+              ${isSelected ? "!bg-pink-50 ring-2 ring-inset ring-pink-300" : weekend ? "!bg-gray-100/70 hover:!bg-pink-50/60" : "!bg-white hover:!bg-pink-50/60"}`}
           >
-            <span className="leading-none">{day}</span>
-            {count > 0 && (
+            <div className="flex justify-end px-1 sm:px-1.5 pt-1">
               <span
-                className={`max-w-full truncate px-0.5 sm:px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-none ${
-                  isSelected
-                    ? "bg-white/25 text-white"
-                    : isPast
-                    ? "bg-gray-100 text-gray-500"
-                    : "bg-pink-100 text-pink-700"
-                }`}
+                className={`min-w-6 h-6 sm:min-w-7 sm:h-7 px-1 rounded-full flex items-center justify-center text-[13px] sm:text-[15px] leading-none
+                  ${isToday ? "bg-pink-500 text-white font-semibold" : !inMonth ? "text-gray-300" : weekend ? "text-gray-400" : "text-gray-800"}`}
               >
-                {isPast ? "เคยนัด" : "มีนัด"}
-                {count > 1 && ` ${count}`}
+                {cellDate.getDate()}
               </span>
-            )}
+            </div>
+
+            <div className="mt-0.5 px-0.5 sm:px-1 flex flex-col gap-0.5 min-w-0">
+              {shown.map((a) => {
+                const title = a.note?.trim() || studentById(a.studentId)?.name || "นัดหมาย";
+                return (
+                  <span
+                    key={a.id}
+                    title={`${formatThaiTimeLabel(a.time)} • ${title}${studentById(a.studentId)?.name ? ` (${studentById(a.studentId).name})` : ""}`}
+                    className={`flex items-center gap-1 min-w-0 rounded px-1 py-0.5 text-[10px] sm:text-[11.5px] leading-tight font-medium
+                      ${isPast ? "bg-pink-50 text-pink-400" : "bg-pink-100 text-pink-700"}`}
+                  >
+                    <span className={`hidden sm:block w-1.5 h-1.5 rounded-full shrink-0 ${isPast ? "bg-pink-200" : "bg-pink-500"}`} />
+                    <span className="truncate">{title}</span>
+                  </span>
+                );
+              })}
+              {more > 0 && <span className="px-1 text-[10px] sm:text-[11px] text-gray-500 leading-tight">+{more} รายการ</span>}
+            </div>
           </button>
         );
       })}
