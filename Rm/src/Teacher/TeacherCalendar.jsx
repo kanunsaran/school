@@ -380,7 +380,11 @@ export default function TeacherCalendar() {
             <div className="space-y-8">
               <div>
                 <h2 className="text-[16.5px] font-medium text-gray-400">
-                  นัดหมายวันที่ {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear() + 543}
+                  นัดหมายวันที่{" "}
+                  {/* วันที่สี/ขนาดเดียวกับวันที่ในรายการ "นัดหมายที่จะถึงนี้" */}
+                  <span className="font-semibold text-gray-500">
+                    {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear() + 543}
+                  </span>
                 </h2>
 
                 <div className="mt-3 space-y-2">
