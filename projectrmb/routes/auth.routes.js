@@ -225,11 +225,37 @@ router.post('/logout', async (req, res) => {
 
 
 // ── Google Login ──────────────────────────────────────────
+// ตรวจ access_token กับ Google เอง ไม่เชื่อ email ที่ frontend ส่งมา (ไม่งั้นใครก็ปลอม email ครูแล้วได้ token ได้)
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+
+async function verifyGoogleAccessToken(accessToken) {
+  const { data: info } = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
+    params: { access_token: accessToken },
+  });
+  // token ต้องออกให้แอปเรา และอีเมลต้องยืนยันแล้ว
+  if (GOOGLE_CLIENT_ID && info.aud !== GOOGLE_CLIENT_ID && info.azp !== GOOGLE_CLIENT_ID) return null;
+  if (!info.email || String(info.email_verified) !== 'true') return null;
+
+  const { data: profile } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return { email: info.email, name: profile.name || info.email.split('@')[0], picture: profile.picture };
+}
+
 router.post('/google', async (req, res) => {
   try {
-    const { email, name, picture } = req.body;
+    const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ message: 'ข้อมูลไม่ครบ' });
 
-    if (!email) return res.status(400).json({ message: 'ข้อมูลไม่ครบ' });
+    let googleUser;
+    try {
+      googleUser = await verifyGoogleAccessToken(access_token);
+    } catch {
+      googleUser = null;
+    }
+    if (!googleUser) return res.status(401).json({ message: 'ยืนยันตัวตนกับ Google ไม่สำเร็จ' });
+
+    const { email, name } = googleUser;
 
     // ค้นหา user จาก email
     const [rows] = await pool.query(

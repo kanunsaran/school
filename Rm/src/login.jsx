@@ -63,27 +63,16 @@ export default function LoginPage() {
         onSuccess: async (tokenResponse) => {
             setLoading(true);
             try {
-                // ดึง User Profile จาก Google API
-                const googleRes = await fetch(
-                    "https://www.googleapis.com/oauth2/v3/userinfo",
-                    { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
-                );
-                const googleUser = await googleRes.json();
-
-                // ส่งข้อมูลไปให้ Backend (อ้างอิงจากไฟล์ auth.routes.js ของคุณ)
+                // ส่ง access_token ให้ backend ไปตรวจกับ Google เอง (ไม่ส่ง email ตรงๆ เพราะปลอมได้)
                 const res = await fetch(`${API_BASE_URL}/auth/google`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        email: googleUser.email,
-                        name: googleUser.name,
-                        picture: googleUser.picture,
-                    }),
+                    body: JSON.stringify({ access_token: tokenResponse.access_token }),
                 });
                 const data = await res.json();
 
                 if (res.ok) {
-                    storeSession(data, googleUser.email);
+                    storeSession(data);
                     redirectByRole(data.role);
                 } else {
                     alert(data.message || "Google Login failed");

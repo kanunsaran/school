@@ -537,8 +537,8 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
           )}
 
           {/* ตัวกรองห้อง + ปุ่มเปิดการเช็กชื่อ — มุมขวาบน ใกล้ตัวกรองวันที่ เพราะเป็นสิ่งที่ครูทำก่อนทุกคาบ */}
-          <div className="flex flex-col items-end gap-2 ml-auto">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col items-stretch sm:items-end gap-2 sm:ml-auto w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2">
               {!embedded && (
                 <>
                   <span className="text-[15px] text-gray-500">ห้อง</span>
@@ -560,7 +560,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
                 </>
               )}
 
-              <span className="text-[15px] text-gray-500 ml-2">วันที่</span>
+              <span className="text-[15px] text-gray-500 sm:ml-2">วันที่</span>
               <ThaiCalendarField
                 value={selectedDate}
                 onChange={setSelectedDate}
@@ -570,7 +570,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <SessionStatusBadge session={session} now={now} />
               <button
                 type="button"
@@ -733,7 +733,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         {/* ===== ตารางรายชื่อนักเรียน ===== */}
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full min-w-[900px] text-left">
               <thead>
                 <tr className="border-b border-gray-100 text-[14px] text-gray-500">
                   <th className="py-3 pl-4 pr-2 w-10">
@@ -887,13 +887,13 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
         </div>
 
         {/* ===== สถิติย้อนหลัง (โทนสีชมพูเดียวกับเว็บ ใช้ตัวกรองห้องเดียวกับด้านบน) ===== */}
-        <div className="mt-8 rounded-2xl border border-pink-100 bg-white p-8">
+        <div className="mt-8 rounded-2xl border border-pink-100 bg-white p-4 sm:p-8">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
             <div>
               <div className="text-[21px] font-bold text-gray-900">สถิติย้อนหลัง</div>
               <div className="text-[15px] text-pink-600 font-medium mt-0.5">ห้อง {selectedRoomLabel}</div>
             </div>
-            <div className="flex items-center gap-2 text-[15px] text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 text-[15px] text-gray-500">
               <ThaiCalendarField
                 value={historyFrom}
                 onChange={setHistoryFrom}

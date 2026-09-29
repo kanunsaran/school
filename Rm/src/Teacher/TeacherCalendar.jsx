@@ -319,7 +319,7 @@ export default function TeacherCalendar() {
             </p>
           </div>
 
-          <div className="mt-8 grid md:grid-cols-[1.3fr_1fr] gap-x-10 gap-y-10">
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-x-10 gap-y-10">
             {/* Calendar */}
             <div className="rounded-2xl border border-gray-200 bg-white p-6">
               <div className="flex items-center justify-between mb-5">

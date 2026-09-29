@@ -1,0 +1,5 @@
+# HTTPS reverse proxy -> frontend (nginx), cert จาก Let's Encrypt อัตโนมัติ
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy frontend:80
+}

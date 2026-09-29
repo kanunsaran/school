@@ -323,7 +323,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Goal / Aptitude / Community */}
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-2xl border border-gray-200 p-5">
                   <SectionHeader
                     title="เป้าหมายของฉัน"
@@ -358,7 +358,7 @@ export default function StudentDashboard() {
               </div>
 
               {/* Work + News */}
-              <div className="grid sm:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="rounded-2xl border border-gray-200 bg-white p-5">
                   <SectionHeader
                     title="งานที่ต้องส่ง"

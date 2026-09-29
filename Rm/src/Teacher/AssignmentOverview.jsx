@@ -310,7 +310,7 @@ export default function AssignmentOverviewPage() {
           />
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-2xl border border-gray-200 bg-white overflow-x-auto">
           <div className="min-w-[900px]">
             <div className="grid grid-cols-[2fr_0.9fr_1.6fr_1fr_0.9fr_0.9fr_1.1fr_0.6fr] gap-2 px-4 py-2.5 text-[13px] text-gray-400 border-b border-gray-100">
               <div>งาน</div>

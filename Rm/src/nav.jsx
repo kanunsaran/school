@@ -1,4 +1,5 @@
 
+import { useSidebarOpen, setSidebarOpen, registerSidebar } from "./utils/sidebarStore.js";
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -29,6 +30,12 @@ const isCurrentClassroom = (pathname, id) =>
 
 export default function SidebarNav() {
   const location = useLocation();
+  const sidebarOpen = useSidebarOpen();
+  useEffect(registerSidebar, []);
+  // เปลี่ยนหน้าแล้วปิดเมนูลิ้นชัก
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
   const navigate = useNavigate();
 
   const [classrooms, setClassrooms] = useState([]);
@@ -121,7 +128,15 @@ export default function SidebarNav() {
 
   return (
     <>
-      <aside className="w-[270px] shrink-0 bg-white border-r border-gray-200 h-screen sticky top-0 overflow-y-auto pt-23">
+      {/* จอเล็ก (< lg): เมนูเป็นลิ้นชักเลื่อนออกมาจากซ้าย เปิดด้วยปุ่ม ☰ ใน Header */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-[270px] max-w-[85vw] shrink-0 bg-white border-r border-gray-200 h-screen overflow-y-auto pt-20 lg:pt-23 transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
+        }`}
+      >
         <nav className="px-3 pb-6 text-[17px] space-y-2">
 
 <NavLink

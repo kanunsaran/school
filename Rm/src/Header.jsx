@@ -1,4 +1,5 @@
-import { FaBell } from "react-icons/fa";
+import { FaBell, FaBars } from "react-icons/fa";
+import { toggleSidebar, useHasSidebar } from "./utils/sidebarStore.js";
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser } from "./utils/auth.js";
 import Avatar from "./components/Avatar.jsx";
@@ -8,6 +9,8 @@ export default function Header() {
   const navigate = useNavigate();
   const user = getCurrentUser();
   const { avatarUrl } = useCurrentUserProfile();
+
+  const hasSidebar = useHasSidebar();
 
   const goToProfile = () => navigate(user?.role === "teacher" ? "/TeacherProfile" : "/profile");
 
@@ -19,22 +22,32 @@ export default function Header() {
       bg-white/70 backdrop-blur-xl
       border-b border-gray-200/60
       flex items-center justify-between
-      px-6 z-50
+      px-3 sm:px-6 z-50
     "
     >
-      {/* LOGO */}
-      <div className="flex items-center cursor-pointer gap-3 h-full -ml-2">
+      {/* LOGO (+ ปุ่ม ☰ เปิดเมนูบนจอเล็ก) */}
+      <div className="flex items-center cursor-pointer gap-1 sm:gap-3 h-full -ml-1 sm:-ml-2 min-w-0">
+        {hasSidebar && (
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="เปิดเมนู"
+            className="lg:hidden shrink-0 !p-2 !bg-transparent !border-0 text-gray-600 hover:text-black"
+          >
+            <FaBars size={22} />
+          </button>
+        )}
 
         <img
           src="/image/guidance-kkw-logo.png"
           alt="School Logo"
-          className="h-30 w-auto object-contain"
+          className="h-24 sm:h-30 w-auto max-w-[55vw] sm:max-w-none object-contain"
         />
 
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
 
         <FaBell size={20} className="text-gray-500 cursor-pointer hover:text-black transition" />
 

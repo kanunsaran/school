@@ -449,7 +449,7 @@ export default function TeacherDashboard() {
               </div>
 
               {/* วันนี้: คาบสอน + แจ้งเตือน */}
-              <div className="mt-6 grid md:grid-cols-2 gap-6">
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <SectionHeader title="คาบสอนวันนี้" />
                   <div className="mt-2 border-t border-gray-200">

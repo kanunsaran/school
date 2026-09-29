@@ -6,6 +6,8 @@ WORKDIR /app
 # ค่าเริ่มต้น /api = เรียกผ่าน nginx proxy ใน nginx.conf (ใช้กับ docker-compose.yml ที่โฟลเดอร์หลัก)
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
+ARG VITE_GOOGLE_CLIENT_ID=
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 # server RAM 1 GB: vite build heap ไม่พอ (ต้องมี swap)
 ENV NODE_OPTIONS=--max-old-space-size=2048
 

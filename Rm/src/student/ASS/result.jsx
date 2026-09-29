@@ -510,7 +510,7 @@ export default function ResultPage() {
             {/* Meaning */}
             <div className={CARD}>
               <SectionHeader emoji="📖" title="ความหมายของแต่ละด้าน" />
-              <div className="grid sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {resultsData.map((r) => {
                   let bgColor = "bg-gray-50/60";
 
@@ -534,7 +534,7 @@ export default function ResultPage() {
             {/* Strengths */}
             <div className={CARD}>
               <SectionHeader emoji="⭐" title="จุดเด่นของคุณ" />
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {top3Codes.map((code, i) => {
                   const r = resultsData.find((d) => d.code === code);
                   const medal = ["🥇", "🥈", "🥉"][i];
@@ -620,7 +620,7 @@ export default function ResultPage() {
             {goalProfile && (
               <div className={`${CARD} border-pink-100 bg-pink-50/50`}>
                 <SectionHeader emoji="🌱" title="สิ่งที่ควรพัฒนาเพื่อไปสู่เป้าหมาย" subtitle={`สำหรับเป้าหมาย: ${goalProfile.name}`} />
-                <div className="grid sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {goalProfile.tips.map((tip, i) => (
                     <div key={i} className="flex items-center gap-2.5 bg-white/70 rounded-xl px-3.5 py-3">
                       <span className="text-[19px] shrink-0">{tip.emoji}</span>
@@ -639,7 +639,7 @@ export default function ResultPage() {
 
             <div className={CARD}>
               <SectionHeader emoji="🗺️" title="Roadmap การเตรียมตัว" />
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {ROADMAP.map((step) => (
                   <div key={step.grade} className="bg-white/70 rounded-xl p-4">
                     <div className="text-[15.5px] font-semibold text-pink-600">{step.grade}</div>

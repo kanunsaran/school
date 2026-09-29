@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router/dom";
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { GOOGLE_CLIENT_ID } from './config/api.js';
 import './index.css';
 import App from './App.jsx';
 import RequireAuth from './components/RequireAuth.jsx';
@@ -561,7 +562,7 @@ createRoot(document.getElementById('root')).render(
   //   <Dash/>
   //   <Dash2/>
   // </StrictMode>,
-  <GoogleOAuthProvider clientId="959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com">
+  <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <RouterProvider router={router} />
   </GoogleOAuthProvider>
 )

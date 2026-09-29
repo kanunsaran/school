@@ -45,6 +45,7 @@ services:
       DB_PASS: ${DB_PASS}
       DB_NAME: ${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     volumes:
       - ./projectrmb/uploads:/app/uploads
@@ -53,12 +54,34 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./Rm
+    build:
+      context: ./Rm
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com}
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-5173}:80"
     depends_on:
       - backend
 
+  # HTTPS (Let's Encrypt อัตโนมัติ) — เปิดเฉพาะบน server: ตั้ง COMPOSE_PROFILES=https และ DOMAIN ใน .env
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
 volumes:
   db_data:
+  caddy_data:
+  caddy_config:

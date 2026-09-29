@@ -102,7 +102,7 @@ export default function About() {
                         </div>
                     </div>
 
-                    <div className="mt-6 grid lg:grid-cols-[1.2fr_1fr] gap-8">
+                    <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-8">
 
                         {/* LEFT */}
                         <div className="space-y-6">

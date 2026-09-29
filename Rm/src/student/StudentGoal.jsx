@@ -309,7 +309,7 @@ export default function StudentGoalPage() {
               </div>
             </div>
 
-            <div className="mt-5 pt-5 border-t border-gray-100 grid sm:grid-cols-2 gap-5">
+            <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <p className="text-[13.5px] text-gray-400 mb-1 flex items-center gap-1.5">
                   <FaGraduationCap className="text-pink-400" /> คณะที่สนใจ
@@ -344,7 +344,7 @@ export default function StudentGoalPage() {
           </div>
 
           {/* MAIN 2-COLUMN LAYOUT */}
-          <div className="grid lg:grid-cols-[1.2fr_1fr] gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-8">
 
             {/* LEFT */}
             <div className="space-y-6">
@@ -353,7 +353,7 @@ export default function StudentGoalPage() {
               <div className="rounded-2xl border border-gray-200 bg-white p-6">
                 <CardHeader icon={FaBookOpen} title="คำแนะนำการศึกษาต่อ" subtitle={`อ้างอิงจากผลทดสอบ (${top3Codes.join("")})`} />
 
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {recommendedFaculties.map((f, i) => (
                     <div key={i} className="rounded-xl bg-gray-50 px-3.5 py-2.5">
                       <p className="text-[15.5px] font-medium text-gray-800">✔ {f.name}</p>

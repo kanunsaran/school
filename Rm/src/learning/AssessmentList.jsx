@@ -308,7 +308,9 @@ export default function AssessmentListPage() {
             </div>
 
             {/* ===== Table ===== */}
-            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+            {/* จอเล็ก: เลื่อนตารางซ้าย-ขวาแทนการบีบคอลัมน์ */}
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-x-auto">
+              <div className="min-w-[760px]">
               <div className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_1.2fr_1fr_0.9fr] gap-2 px-4 py-2.5 text-[13px] text-gray-400 border-b border-gray-100">
                 <div>ชื่อแบบประเมิน</div>
                 <div>ประเภท</div>
@@ -407,6 +409,7 @@ export default function AssessmentListPage() {
                   );
                 })
               )}
+              </div>
             </div>
 
             <div className="mt-3 text-[13.5px] text-gray-400 flex items-center gap-1.5">

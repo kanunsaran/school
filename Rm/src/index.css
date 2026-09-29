@@ -109,3 +109,10 @@ button:focus-visible {
 .skeleton-card {
   animation: skeleton-slide-in 0.4s ease both;
 }
+/* responsive: ให้ flex child หดได้ (ไม่ดันจนล้นจอ), สื่อไม่ล้นกล่อง */
+.flex-1 {
+  min-width: 0;
+}
+img, video, iframe {
+  max-width: 100%;
+}

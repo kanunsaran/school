@@ -125,7 +125,7 @@ export default function TeacherStudentGoalPage() {
               </div>
 
               {/* GRID */}
-              <div className="grid md:grid-cols-[1.1fr_0.9fr] gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-[1.1fr_0.9fr] gap-8">
 
                 {/* LEFT */}
                 <div className="space-y-8">
