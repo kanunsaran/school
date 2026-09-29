@@ -484,10 +484,13 @@ export default function TeacherCalendar() {
                         }}
                         className="w-full flex items-center justify-between gap-4 px-1 py-3 border-b last:border-b-0 border-gray-100 hover:bg-gray-50 text-left"
                       >
+                        {/* วันที่เด่นเป็นบรรทัดแรก ชื่อนักเรียน+หัวข้อเป็นบรรทัดรอง */}
                         <div className="min-w-0">
-                          <div className="text-[16px] text-gray-900 truncate">{student?.name}</div>
-                          <div className="text-[15px] text-gray-400 mt-0.5">
-                            {d} {THAI_MONTHS[m - 1]} • {a.note}
+                          <div className="text-[16.5px] font-semibold text-gray-900">
+                            {d} {THAI_MONTHS[m - 1]} {y + 543}
+                          </div>
+                          <div className="text-[15px] text-gray-400 mt-0.5 truncate">
+                            {student?.name}{a.note ? ` • ${a.note}` : ""}
                           </div>
                         </div>
                         <div className="text-[15px] text-gray-500 shrink-0">{formatThaiTimeLabel(a.time)}</div>
