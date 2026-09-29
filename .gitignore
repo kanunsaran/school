@@ -13,3 +13,6 @@ projectrmb/uploads/*
 
 .DS_Store
 *.log
+
+# DB backups made by scripts/sync-db-to-server.sh
+backups/
