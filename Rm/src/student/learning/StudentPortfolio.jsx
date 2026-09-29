@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import ResponsiveSheet from "../../components/ResponsiveSheet.jsx";
+import { isBelowXl } from "../../utils/breakpoints.js";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import SidebarNav from "../../navstudent";
@@ -565,12 +567,13 @@ function AdviceThumb({ work }) {
 // แท็บ "คำแนะนำจากครู" — ผลงานของฉันฝั่งซ้าย เลือกดูคำแนะนำ (จริง) ฝั่งขวา
 // หมายเหตุ: ระบบเก็บคำแนะนำจากครูได้แค่ 1 ข้อความต่อผลงาน (ไม่ใช่กระทู้สนทนาไปกลับ) จึงยังไม่มีช่องให้พิมพ์ตอบกลับ
 function AdviceTab({ list, selectedId, onSelect, selectedWork, gradeText, reviewerById }) {
+  const [sheetOpen, setSheetOpen] = useState(false); // มือถือ/ไอแพด: คำแนะนำเป็นป๊อปอัพ
   if (list.length === 0) {
     return <div className="text-center text-gray-400 py-16 rounded-2xl border border-dashed border-gray-200">ยังไม่มีผลงานที่ส่งให้ครูดู</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5 items-start">
+    <div className="grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-5 items-start">
       <div className="rounded-2xl border border-gray-200 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 text-[14px] font-semibold text-gray-500">การสนทนา ({list.length})</div>
         <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
@@ -581,7 +584,10 @@ function AdviceTab({ list, selectedId, onSelect, selectedWork, gradeText, review
               <button
                 key={w.work_id}
                 type="button"
-                onClick={() => onSelect(w.work_id)}
+                onClick={() => {
+                  onSelect(w.work_id);
+                  if (isBelowXl()) setSheetOpen(true);
+                }}
                 className={`w-full text-left px-4 py-3 flex items-center gap-3 transition ${isSelected ? "bg-pink-50" : "hover:bg-gray-50 bg-white"}`}
               >
                 <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-gray-50 border border-gray-100">
@@ -602,9 +608,10 @@ function AdviceTab({ list, selectedId, onSelect, selectedWork, gradeText, review
         </div>
       </div>
 
-      <div className="min-w-0 rounded-2xl border border-gray-200 p-5">
+      <ResponsiveSheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+      <div className="min-w-0 xl:rounded-2xl xl:border xl:border-gray-200 xl:p-5">
         {!selectedWork ? (
-          <div className="text-center text-gray-400 text-[14.5px] py-16">เลือกผลงานเพื่อดูคำแนะนำ</div>
+          <div className="hidden xl:block text-center text-gray-400 text-[14.5px] py-16">เลือกผลงานเพื่อดูคำแนะนำ</div>
         ) : (
           <>
             <div className="flex items-start gap-3 mb-4 pb-4 border-b border-gray-100">
@@ -643,6 +650,7 @@ function AdviceTab({ list, selectedId, onSelect, selectedWork, gradeText, review
           </>
         )}
       </div>
+      </ResponsiveSheet>
     </div>
   );
 }

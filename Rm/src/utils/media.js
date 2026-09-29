@@ -13,8 +13,13 @@ export const isVideoFile = (f) => {
 };
 
 // ไฟล์จาก Google Drive จะเป็น URL เต็มอยู่แล้ว ส่วนไฟล์ที่เก็บในเครื่อง server ยังเป็น path สัมพัทธ์ (เช่น /uploads/xxx) ต้องต่อ apiBase เอง
-export const resolveFileUrl = (apiBase, url) =>
-  /^https?:\/\//i.test(url || "") ? url : `${apiBase}${url}`;
+// ถ้า url ถูกต่อ apiBase มาแล้ว (เช่น "/api/uploads/..." ตอนรันผ่าน Docker ที่ apiBase = "/api") ไม่ต่อซ้ำ
+export const resolveFileUrl = (apiBase, url) => {
+  const u = url || "";
+  if (/^(https?:\/\/|data:|blob:)/i.test(u)) return url;
+  if (apiBase && u.startsWith(`${apiBase}/`)) return url;
+  return `${apiBase}${url}`;
+};
 
 // รองรับ URL ยูทูปได้หลายแบบ (watch?v=, youtu.be, shorts, embed) กันฝังวิดีโอไม่ขึ้นตอนวางลิงก์แบบย่อ
 export function getYoutubeVideoId(url) {
