@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { exportStudentInfoForms } from "../utils/studentInfoPdf.js";
 import { useSearchParams } from "react-router-dom";
 import Select from "react-select";
 import {
@@ -605,7 +606,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
   const [exportStep, setExportStep] = useState(0); // 0 = ปิด, 1-3 = ขั้นตอน
   const [exportCategoryKeys, setExportCategoryKeys] = useState(() => new Set(["personal", "goal", "academic"]));
-  const [exportFormat, setExportFormat] = useState("pdf"); // pdf | excel | csv
+  const [exportFormat, setExportFormat] = useState("form"); // form (แบบฟอร์มโรงเรียน) | pdf | excel | csv
   const [exportMethod, setExportMethod] = useState("single"); // single | zip (zip ยังไม่เปิดใช้งาน)
   const [exportIncludeToc, setExportIncludeToc] = useState(true);
   const [exportIncludePhoto, setExportIncludePhoto] = useState(true);
@@ -710,7 +711,42 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
     win.onload = () => win.print();
   };
 
+  const runFormExport = async () => {
+    setExportProgress(0);
+    try {
+      const items = [];
+      for (const s of exportTargets) {
+        let info = generalInfoByUser[s.user_id];
+        if (info === undefined) info = await getStudentGeneralInfo(s.user_id).catch(() => null);
+        let fd = info?.form_data || null;
+        if (typeof fd === "string") {
+          try {
+            fd = JSON.parse(fd);
+          } catch {
+            fd = null;
+          }
+        }
+        const c = classesList.find((cc) => String(cc.id) === String(s.gradeId));
+        const [firstName, ...rest] = String(s.fullname || "").replace(/^(นางสาว|เด็กหญิง|เด็กชาย|นาย|นาง)\s*/, "").trim().split(/\s+/);
+        items.push({
+          formData: fd,
+          fallback: { firstName, lastName: rest.join(" "), fullname: s.fullname, grade: c?.grade_name, room: c?.section, rollNumber: s.seatNo },
+        });
+      }
+      await exportStudentInfoForms(items, (p) => setExportProgress(Math.round(p * 100)));
+      setTimeout(closeExportWizard, 300);
+    } catch (err) {
+      console.error("ส่งออกแบบฟอร์มไม่สำเร็จ:", err);
+      setExportProgress(null);
+      notAvailableYet("สร้างไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  };
+
   const confirmExport = () => {
+    if (exportFormat === "form") {
+      runFormExport();
+      return;
+    }
     setExportProgress(0);
     const timer = setInterval(() => {
       setExportProgress((p) => {
@@ -1170,6 +1206,28 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
                 </div>
 
+                <div className="text-[14.5px] text-gray-500 mb-2">รูปแบบไฟล์</div>
+                <div className="flex flex-col gap-1 mb-4">
+                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
+                    <input type="radio" name="fmt" checked={exportFormat === "form"} onChange={() => setExportFormat("form")} className="accent-pink-600 mt-1" />
+                    <span>
+                      แบบฟอร์มข้อมูลส่วนตัว (PDF ตามแบบโรงเรียน)
+                      <span className="block text-[13.5px] text-gray-400">ข้อมูลทั่วไปที่นักเรียนกรอก จัดหน้า-หลังตามแบบฟอร์มกระดาษ • 1 คน = PDF, หลายคน = แยกไฟล์รายคนรวมเป็น ZIP</span>
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
+                    <input type="radio" name="fmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} className="accent-pink-600" /> รายงานสรุป PDF
+                  </label>
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-300">
+                    <input type="radio" name="fmt" disabled className="accent-pink-600" /> Excel (.xlsx) <span className="text-[13px]">(เร็วๆ นี้)</span>
+                  </label>
+                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
+                    <input type="radio" name="fmt" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-pink-600" /> CSV (.csv)
+                  </label>
+                </div>
+
+                {exportFormat !== "form" && (
+                <>
                 <div className="text-[14.5px] text-gray-500 mb-2">
                   เลือกข้อมูลที่ต้องการส่งออก ({checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : `ทั้งหมด ${exportTargets.length} คน`})
                 </div>
@@ -1189,24 +1247,19 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   ))}
                 </div>
 
-                <div className="text-[14.5px] text-gray-500 mb-2">รูปแบบไฟล์</div>
-                <div className="flex flex-col gap-1 mb-5">
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="fmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} className="accent-pink-600" /> PDF
-                  </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-300">
-                    <input type="radio" name="fmt" disabled className="accent-pink-600" /> Excel (.xlsx) <span className="text-[13px]">(เร็วๆ นี้)</span>
-                  </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="fmt" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-pink-600" /> CSV (.csv)
-                  </label>
-                </div>
+                </>
+                )}
+                {exportFormat === "form" && (
+                  <div className="mb-5 rounded-xl bg-pink-50/60 border border-pink-100 px-3 py-2.5 text-[14px] text-gray-600">
+                    ส่งออก {checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : `ทั้งหมด ${exportTargets.length} คน`} — ช่องที่นักเรียนยังไม่กรอกจะแสดงเป็น "-"
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={closeExportWizard} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ยกเลิก</button>
                   <button
                     type="button"
-                    disabled={selectedCategories.length === 0}
+                    disabled={exportFormat !== "form" && selectedCategories.length === 0}
                     onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 3)}
                     className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold disabled:opacity-40"
                   >
@@ -1261,10 +1314,27 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
                 <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-5 text-[15px] text-gray-700">
                   <div className="font-medium text-emerald-800 mb-1.5">ข้อมูลที่ส่งออก</div>
-                  <ul className="list-disc pl-5 space-y-0.5 mb-3">
-                    {selectedCategories.map((c) => <li key={c.key}>{c.label}</li>)}
-                  </ul>
-                  <div>รูปแบบไฟล์: <span className="font-medium">{exportFormat === "pdf" ? "PDF" : "CSV"}</span></div>
+                  {exportFormat === "form" ? (
+                    <ul className="list-disc pl-5 space-y-0.5 mb-3">
+                      <li>แบบฟอร์มข้อมูลส่วนตัวของนักเรียน (หน้า-หลัง)</li>
+                    </ul>
+                  ) : (
+                    <ul className="list-disc pl-5 space-y-0.5 mb-3">
+                      {selectedCategories.map((c) => <li key={c.key}>{c.label}</li>)}
+                    </ul>
+                  )}
+                  <div>
+                    รูปแบบไฟล์:{" "}
+                    <span className="font-medium">
+                      {exportFormat === "form"
+                        ? exportTargets.length > 1
+                          ? `ZIP (PDF แยกรายคน ${exportTargets.length} ไฟล์)`
+                          : "PDF"
+                        : exportFormat === "pdf"
+                        ? "PDF"
+                        : "CSV"}
+                    </span>
+                  </div>
                   {exportFormat === "pdf" && <div>วิธีจัดไฟล์: <span className="font-medium">{exportMethod === "single" ? "รวมเป็นไฟล์เดียว" : "แยกเป็นไฟล์ (ZIP)"}</span></div>}
                   <div>จำนวน: <span className="font-medium">{exportTargets.length} คน</span></div>
                 </div>
@@ -1278,7 +1348,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   </div>
                 ) : (
                   <div className="flex justify-end gap-2">
-                    <button type="button" onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 1)} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
+                    <button type="button" onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 1)} disabled={exportProgress != null} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
                     <button type="button" onClick={confirmExport} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold">ยืนยันการส่งออก</button>
                   </div>
                 )}
