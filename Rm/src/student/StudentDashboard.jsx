@@ -454,7 +454,7 @@ export default function StudentDashboard() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     {/* แบบเดียวกับวันที่ในรายการ "นัดหมายที่จะถึงนี้": ตัวหนา มีปี */}
-                    <div className="flex items-center gap-2 text-[15px] font-semibold text-gray-900">
+                    <div className="flex items-center gap-2 text-[15px] font-semibold text-gray-500">
                       {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear() + 543}
                       {selectedKey === toDateKey(today) && (
                         <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600">วันนี้</span>
@@ -513,7 +513,7 @@ export default function StudentDashboard() {
                       >
                         {/* วันที่เด่นเป็นบรรทัดแรก ชื่อครู+หัวข้อเป็นบรรทัดรอง */}
                         <div className="min-w-0">
-                          <div className="text-[15px] font-semibold text-gray-900">
+                          <div className="text-[15px] font-semibold text-gray-500">
                             {d} {THAI_MONTHS[m - 1]} {y + 543}
                           </div>
                           <div className="text-[13px] text-gray-400 mt-0.5 truncate">

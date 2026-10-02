@@ -5,6 +5,7 @@ import SidebarNav from "../nav.jsx";
 import Header from "../Header.jsx";
 import {
   FaChevronLeft,
+  FaImage,
   FaChevronRight,
   FaUsers,
   FaUserFriends,
@@ -36,6 +37,7 @@ const normalizeSchedule = (raw) => ({
 });
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
+import ScheduleImportModal from "../components/ScheduleImportModal.jsx";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -221,6 +223,7 @@ export default function TeacherDashboard() {
 
   const [showAddPeriodModal, setShowAddPeriodModal] = useState(false);
   const [showAllPeriodsModal, setShowAllPeriodsModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [periodForm, setPeriodForm] = useState({ day: null, period: null, classroom: "" });
   const [savingPeriod, setSavingPeriod] = useState(false);
 
@@ -463,6 +466,13 @@ export default function TeacherDashboard() {
                         >
                           <FaPlus size={11} /> เพิ่มคาบสอน
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowImportModal(true)}
+                          className="mt-2 h-9 px-3.5 rounded-full border border-gray-200 bg-white text-gray-700 text-[14px] font-medium hover:bg-gray-50 flex items-center gap-1.5"
+                        >
+                          <FaImage size={12} className="text-pink-500" /> นำเข้าจากรูปตารางสอน
+                        </button>
                       </div>
                     )}
                     {todaysClasses.map((c) => (
@@ -493,6 +503,15 @@ export default function TeacherDashboard() {
                         className="mt-2 text-[14px] text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1.5"
                       >
                         <FaPlus size={10} /> เพิ่มคาบสอน
+                      </button>
+                    )}
+                    {todaysClasses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowImportModal(true)}
+                        className="mt-1.5 text-[14px] text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1.5"
+                      >
+                        <FaImage size={11} /> นำเข้าจากรูปตารางสอน
                       </button>
                     )}
                     <button
@@ -577,7 +596,7 @@ export default function TeacherDashboard() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     {/* แบบเดียวกับวันที่ในรายการ "นัดหมายที่จะถึงนี้": ตัวหนา มีปี */}
-                    <div className="flex items-center gap-2 text-[15px] font-semibold text-gray-900">
+                    <div className="flex items-center gap-2 text-[15px] font-semibold text-gray-500">
                       {selectedDate.getDate()} {THAI_MONTHS[selectedDate.getMonth()]} {selectedDate.getFullYear() + 543}
                       {isSelectedToday && (
                         <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full bg-pink-50 text-pink-600">วันนี้</span>
@@ -801,6 +820,15 @@ export default function TeacherDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {showImportModal && (
+        <ScheduleImportModal
+          teacherId={CURRENT_TEACHER_ID}
+          existing={teachingSchedule}
+          onClose={() => setShowImportModal(false)}
+          onSaved={loadTeachingSchedule}
+        />
       )}
 
       {showAllPeriodsModal && (
