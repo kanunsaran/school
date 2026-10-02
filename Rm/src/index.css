@@ -119,3 +119,13 @@ button:focus-visible {
     max-width: 100%;
   }
 }
+
+/* กระดิ่งแจ้งเตือนสั่นเบาๆ เมื่อมีรายการใหม่ */
+@keyframes bell {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(2deg); }
+}

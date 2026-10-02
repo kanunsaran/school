@@ -5,6 +5,7 @@ import { WEEKDAY_OPTIONS, PERIOD_OPTIONS } from "../utils/teachingScheduleStore.
 import { readScheduleFromImage, readSchedulesFromPdf } from "../utils/scheduleOcr.js";
 import { getCurrentUser, isInvalidTokenResponse } from "../utils/auth.js";
 import { addTeachingPeriod, removeTeachingPeriod } from "../callapi/callapi_user.jsx";
+import { pushSystemNotification } from "../utils/notifications.js";
 
 // นำเข้าตารางสอนจากรูป: เลือกรูป → OCR อ่านเป็นรายการคาบ → ครูตรวจ/แก้ → บันทึก
 // existing: ตารางสอนเดิม [{id, day, period, classroom}]
@@ -130,6 +131,11 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
       setStatus("review");
     }
     await onSaved();
+    pushSystemNotification(teacherId, {
+      title: failed.length ? "นำเข้าตารางสอนไม่ครบ" : "ตารางสอนมีการเปลี่ยนแปลง",
+      text: failed.length ? `บันทึกได้ ${ok} คาบ ไม่สำเร็จ ${failed.length} คาบ` : `นำเข้าตารางสอน ${ok} คาบเรียบร้อยแล้ว`,
+      link: "/TeacherDashboard",
+    });
     if (failed.length) {
       Swal.fire({ icon: "warning", title: `บันทึกได้ ${ok} คาบ`, html: `ไม่สำเร็จ ${failed.length} คาบ:<br/>${failed.join("<br/>")}` });
     } else {

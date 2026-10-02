@@ -1,4 +1,5 @@
-import { FaBell, FaBars } from "react-icons/fa";
+import { FaBars, FaChevronDown } from "react-icons/fa";
+import NotificationBell from "./components/NotificationBell.jsx";
 import { toggleSidebar, useHasSidebar } from "./utils/sidebarStore.js";
 import { useNavigate } from "react-router-dom";
 import { getCurrentUser } from "./utils/auth.js";
@@ -47,17 +48,25 @@ export default function Header() {
       </div>
 
       {/* RIGHT */}
-      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+      <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
 
-        <FaBell size={20} className="text-gray-500 cursor-pointer hover:text-black transition" />
+        {user && <NotificationBell user={user} />}
 
-        <Avatar
+        <button
+          type="button"
           onClick={goToProfile}
-          src={avatarUrl}
-          name={user?.name}
-          size={44}
-          className="hover:scale-105 transition"
-        />
+          className="flex items-center gap-2.5 !p-0 bg-transparent rounded-full sm:pr-1 hover:opacity-90"
+          title="โปรไฟล์ของฉัน"
+        >
+          <Avatar src={avatarUrl} name={user?.name} size={44} className="hover:scale-105 transition" />
+          {user && (
+            <span className="hidden md:flex flex-col items-start leading-tight text-left max-w-[160px]">
+              <span className="text-[15px] font-bold text-gray-900 truncate max-w-full">{user.role === "teacher" ? `ครู${(user.name || "").replace(/^(คุณครู|ครู)\s*/, "").split(" ")[0]}` : (user.name || "").split(" ")[0]}</span>
+              <span className="text-[12.5px] text-gray-500">{user.role === "teacher" ? "ครูแนะแนว" : "นักเรียน"}</span>
+            </span>
+          )}
+          {user && <FaChevronDown size={11} className="hidden md:block text-gray-400" />}
+        </button>
 
       </div>
     </div>
