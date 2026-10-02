@@ -1,8 +1,9 @@
 import { useState } from "react";
 import Swal from "sweetalert2";
-import { FaTimes, FaImage, FaTrash, FaPlus, FaMagic } from "react-icons/fa";
+import { FaTimes, FaImage, FaTrash, FaPlus, FaMagic, FaFilePdf } from "react-icons/fa";
 import { WEEKDAY_OPTIONS, PERIOD_OPTIONS } from "../utils/teachingScheduleStore.js";
-import { readScheduleFromImage } from "../utils/scheduleOcr.js";
+import { readScheduleFromImage, readSchedulesFromPdf } from "../utils/scheduleOcr.js";
+import { getCurrentUser } from "../utils/auth.js";
 import { addTeachingPeriod, removeTeachingPeriod } from "../callapi/callapi_user.jsx";
 
 // นำเข้าตารางสอนจากรูป: เลือกรูป → OCR อ่านเป็นรายการคาบ → ครูตรวจ/แก้ → บันทึก
@@ -15,19 +16,28 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
   const [rows, setRows] = useState([]);
   const [info, setInfo] = useState(null);
   const [replaceAll, setReplaceAll] = useState(false);
+  // PDF 1 ไฟล์มีหลายตาราง (หลายครู) → ให้เลือกตารางของตัวเอง
+  const [tables, setTables] = useState([]);
+  const [tableIdx, setTableIdx] = useState(0);
+  const isPdf = file?.type === "application/pdf" || /\.pdf$/i.test(file?.name || "");
+
+  const toRows = (entries) =>
+    entries.map((e, i) => ({ key: `${Date.now()}-${i}`, day: e.day, period: e.period, classroom: e.classroom, subject: e.subject || "แนะแนว", raw: e.raw }));
 
   const pickFile = (f) => {
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      Swal.fire({ icon: "warning", title: "ใช้ได้เฉพาะไฟล์รูปภาพ", text: "รองรับ .jpg .png .webp" });
+    const pdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+    if (!f.type.startsWith("image/") && !pdf) {
+      Swal.fire({ icon: "warning", title: "ไฟล์ไม่รองรับ", text: "รองรับรูปภาพ (.jpg .png .webp) และ PDF" });
       return;
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    setPreviewUrl(pdf ? "" : URL.createObjectURL(f));
     setStatus("idle");
     setRows([]);
     setInfo(null);
+    setTables([]);
   };
 
   const runOcr = async () => {
@@ -35,9 +45,21 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
     setStatus("reading");
     setProgress(0);
     try {
-      const res = await readScheduleFromImage(file, setProgress);
-      setRows(res.entries.map((e, i) => ({ key: i, day: e.day, period: e.period, classroom: e.classroom, subject: e.subject || "แนะแนว", raw: e.raw })));
-      setInfo(res.info);
+      if (isPdf) {
+        const found = await readSchedulesFromPdf(file, setProgress);
+        setTables(found);
+        // เลือกตารางที่ชื่อครูตรงกับผู้ใช้ที่ล็อกอินอยู่ก่อน
+        const myName = (getCurrentUser()?.name || "").replace(/^(ครู|คุณครู|นาย|นางสาว|นาง)\s*/, "").split(" ")[0];
+        const mine = myName ? found.findIndex((t) => t.name.includes(myName)) : -1;
+        const idx = mine >= 0 ? mine : 0;
+        setTableIdx(idx);
+        setRows(toRows(found[idx]?.entries || []));
+        setInfo(found[idx]?.info || { daysFound: 0 });
+      } else {
+        const res = await readScheduleFromImage(file, setProgress);
+        setRows(toRows(res.entries));
+        setInfo(res.info);
+      }
       setStatus("review");
     } catch (err) {
       console.error("อ่านตารางจากรูปไม่สำเร็จ:", err);
@@ -49,6 +71,11 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
   const update = (key, patch) => setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const remove = (key) => setRows((prev) => prev.filter((r) => r.key !== key));
   const addRow = () => setRows((prev) => [...prev, { key: Date.now(), day: 0, period: 1, classroom: "", subject: "แนะแนว", raw: "" }]);
+  const chooseTable = (idx) => {
+    setTableIdx(idx);
+    setRows(toRows(tables[idx]?.entries || []));
+    setInfo(tables[idx]?.info || null);
+  };
 
   const conflictOf = (r) => (replaceAll ? null : existing.find((s) => s.day === r.day && s.period === r.period) || null);
   const dupInList = (r) => rows.some((o) => o.key !== r.key && o.day === r.day && o.period === r.period);
@@ -109,8 +136,8 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
       <div className="relative w-full sm:max-w-3xl max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-2xl shadow-xl p-4 sm:p-6">
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <div className="text-[19px] font-bold text-gray-900">นำเข้าตารางสอนจากรูป</div>
-            <div className="text-[14px] text-gray-500 mt-0.5">อัปโหลดรูปตารางสอน ระบบจะอ่านวัน คาบ และห้องให้อัตโนมัติ</div>
+            <div className="text-[19px] font-bold text-gray-900">นำเข้าตารางสอนจากรูปหรือ PDF</div>
+            <div className="text-[14px] text-gray-500 mt-0.5">อัปโหลดรูปหรือไฟล์ PDF ตารางสอน ระบบจะอ่านวัน คาบ และห้องให้อัตโนมัติ</div>
           </div>
           <button type="button" onClick={onClose} aria-label="ปิด" disabled={status === "reading" || status === "saving"} className="w-9 h-9 !p-0 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center shrink-0">
             <FaTimes size={14} />
@@ -126,14 +153,20 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
             pickFile(e.dataTransfer.files?.[0]);
           }}
         >
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
+          <input type="file" accept="image/*,application/pdf,.pdf" className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
           {previewUrl ? (
             <img src={previewUrl} alt="ตารางสอน" className="mx-auto max-h-56 rounded-lg object-contain" />
+          ) : file ? (
+            <div className="py-6 text-center text-gray-600">
+              <FaFilePdf size={30} className="mx-auto mb-2 text-red-500" />
+              <div className="text-[15px] font-medium break-all">{file.name}</div>
+              <div className="text-[13px] text-gray-400 mt-1">กดเพื่อเปลี่ยนไฟล์</div>
+            </div>
           ) : (
             <div className="py-6 text-center text-gray-500">
               <FaImage size={28} className="mx-auto mb-2 text-gray-300" />
-              <div className="text-[15px] font-medium">เลือกรูปตารางสอน หรือลากรูปมาวางที่นี่</div>
-              <div className="text-[13px] text-gray-400 mt-1">ถ่ายให้ตรง ไม่เอียง เห็นชื่อวันด้านซ้าย และเลขคาบหรือเวลาด้านบน</div>
+              <div className="text-[15px] font-medium">เลือกรูปหรือไฟล์ PDF ตารางสอน หรือลากมาวางที่นี่</div>
+              <div className="text-[13px] text-gray-400 mt-1">แนะนำ PDF ของโรงเรียน (อ่านได้แม่นที่สุด) • รูปถ่ายให้ตรง ไม่เอียง เห็นชื่อวันด้านซ้าย และเลขคาบ/เวลาด้านบน</div>
             </div>
           )}
         </label>
@@ -143,7 +176,7 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
             {status === "reading" ? (
               <div>
                 <div className="flex justify-between text-[13.5px] text-gray-500 mb-1.5">
-                  <span>{progress === 0 ? "กำลังเตรียมตัวอ่านภาษาไทย (ครั้งแรกอาจใช้เวลาสักครู่)..." : "กำลังอ่านตาราง..."}</span>
+                  <span>{progress === 0 ? (isPdf ? "กำลังเปิดไฟล์ PDF..." : "กำลังเตรียมตัวอ่านภาษาไทย (ครั้งแรกอาจใช้เวลาสักครู่)...") : "กำลังอ่านตาราง..."}</span>
                   <span>{Math.round(progress * 100)}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -161,6 +194,23 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
         {/* 2) ตรวจและแก้ไข */}
         {(status === "review" || status === "saving") && (
           <div className="mt-5">
+            {tables.length > 1 && (
+              <div className="mb-3">
+                <label className="block text-[14px] font-medium text-gray-700 mb-1">ไฟล์นี้มี {tables.length} ตาราง — เลือกตารางของคุณ</label>
+                <select
+                  value={tableIdx}
+                  onChange={(e) => chooseTable(+e.target.value)}
+                  disabled={status === "saving"}
+                  className="w-full h-11 rounded-xl border border-gray-200 bg-white px-3 text-[15px]"
+                >
+                  {tables.map((t, i) => (
+                    <option key={i} value={i}>
+                      {t.name} (หน้า {t.page}, {t.entries.length} คาบ)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className={`rounded-xl px-4 py-3 text-[14px] ${rows.length ? "bg-pink-50 text-pink-800" : "bg-amber-50 text-amber-800"}`}>
               {rows.length
                 ? `อ่านเจอ ${rows.length} คาบ — ตรวจวัน คาบ และห้องให้ถูกต้องก่อนบันทึก (OCR อาจอ่านตัวหนังสือผิดได้)`

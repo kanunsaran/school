@@ -71,15 +71,25 @@ const IGNORE_CELL = /พัก|lunch|break|เที่ยง/i;
 
 // แยก "ห้อง" (เช่น ม.6/2, 6/12) ออกจากข้อความในช่อง ที่เหลือถือเป็นชื่อวิชา
 export const splitCellText = (text) => {
-  const roomRe = /(ม\.?\s*)?([1-6])\s*[/\\-]\s*(\d{1,2})/;
-  const m = text.match(roomRe);
-  const classroom = m ? `${m[2]}/${m[3]}` : "";
+  const roomRe = /(ม\.?\s*)?([1-6])\s*[/\\-]\s*(\d{1,2})(?!\d)/;
+  // ไม่มีเลขห้อง แต่ระบุระดับชั้น เช่น "ม.3"
+  const gradeRe = /ม\.\s*([1-6])(?!\s*[/\d])/;
+  // OCR ทำ "/" หาย เช่น "3/17 335" → "317 335": ตัวเลข 2-3 หลักตามด้วยเลขห้องเรียน = ชั้น/ห้อง
+  const lostSlash = /(^|\s)([1-6])(\d{1,2})(?=\s+\d{3,4}(\s|$))/;
+  const ls = !text.match(roomRe) && text.match(lostSlash);
+  if (ls) {
+    return splitCellText(text.replace(ls[0], `${ls[1]}${ls[2]}/${ls[3]}`));
+  }
+  const m = text.match(roomRe) || text.match(gradeRe);
+  const classroom = !m ? "" : m[3] ? `${m[2]}/${m[3]}` : `ม.${m[1]}`;
   const subject = text
     .replace(m ? m[0] : "", " ")
     .replace(/\s+/g, " ")
     .trim()
-    // เศษเลข/จุดที่ OCR ติดมา เช่น "แนะแนว 2."
-    .replace(/^[\s\d.,:;/\\-]+|[\s\d.,:;/\\-]+$/g, "");
+    // ตัดคำที่เป็นตัวเลข/เครื่องหมายล้วน (เลขห้องเรียน "1134", เศษ OCR "2.") แต่เก็บรหัสวิชาอย่าง "ก32907"
+    .split(" ")
+    .filter((tok) => !/^[\d.,:;/\\-]+$/.test(tok))
+    .join(" ");
   return { classroom, subject };
 };
 
@@ -104,15 +114,12 @@ export const parseScheduleFromWords = (words, imageWidth) => {
   if (rows.length === 0) return { entries: [], info: { daysFound: 0, periodsFound: 0 } };
 
   const gap = rows.length > 1 ? (rows[rows.length - 1].y - rows[0].y) / (rows.length - 1) : 80;
-  rows.forEach((r, i) => {
-    r.top = i === 0 ? r.y - gap / 2 : (rows[i - 1].y + r.y) / 2;
-    r.bottom = i === rows.length - 1 ? r.y + gap / 2 : (r.y + rows[i + 1].y) / 2;
-  });
+  const labelH = Math.max(...rows.map((r) => r.word.bbox.y1 - r.word.bbox.y0));
   const dayWords = new Set(rows.map((r) => r.word));
   const dayColRight = Math.max(...rows.map((r) => r.word.bbox.x1));
 
   // 2) หัวคอลัมน์คาบ — คำที่อยู่เหนือแถววันแรก
-  const headerBottom = rows[0].top;
+  const headerBottom = rows[0].y - labelH * 0.6;
   const periodCols = new Map();
   clean.forEach((w) => {
     if (center(w.bbox).y > headerBottom || w.bbox.x0 < dayColRight - 4) return;
@@ -122,7 +129,7 @@ export const parseScheduleFromWords = (words, imageWidth) => {
   const cols = [...periodCols.values()].sort((a, b) => a.x - b.x);
   const headerWords = new Set(cols.map((c) => c.word));
 
-  // ไม่เจอหัวคาบ (หรือเจอน้อยเกินไป) → แบ่งพื้นที่ขวาของคอลัมน์วันเป็น 8 ช่องเท่าๆ กัน
+  // ไม่เจอหัวคาบ (หรือเจอน้อยเกินไป) → แบ่งพื้นที่ขวาของคอลัมน์วันเป็นช่องเท่าๆ กัน
   const maxX = Math.max(...clean.map((w) => w.bbox.x1));
   const colWidth = (maxX - dayColRight) / PERIOD_COUNT;
   const periodOfX = (x) => {
@@ -136,6 +143,37 @@ export const parseScheduleFromWords = (words, imageWidth) => {
     const idx = Math.floor((x - dayColRight) / colWidth);
     return Math.min(PERIOD_COUNT, Math.max(1, idx + 1));
   };
+
+  // ชื่อวันชิดบนของแถว (แบบ PDF โรงเรียน) หรืออยู่กึ่งกลาง?
+  // สมมติชิดบน แล้วดูว่าบรรทัดแรกของช่องส่วนใหญ่อยู่ระดับเดียวกับชื่อวันไหม
+  const dataWords = clean.filter((w) => {
+    const c = center(w.bbox);
+    return !dayWords.has(w) && c.x > dayColRight && c.y >= headerBottom && c.y < rows[rows.length - 1].y + gap;
+  });
+  const firstLineOfCell = new Map();
+  dataWords.forEach((w) => {
+    const y = center(w.bbox).y;
+    let ri = -1;
+    rows.forEach((r, i) => {
+      if (r.y - labelH * 0.6 <= y) ri = i;
+    });
+    if (ri < 0) return;
+    const key = `${ri}-${periodOfX(center(w.bbox).x)}`;
+    firstLineOfCell.set(key, Math.min(firstLineOfCell.get(key) ?? Infinity, y - rows[ri].y));
+  });
+  const offsets = [...firstLineOfCell.values()];
+  const topAligned = offsets.length > 0 && offsets.filter((o) => Math.abs(o) <= labelH * 0.6).length >= offsets.length * 0.7;
+
+  const lead = labelH * 0.6;
+  rows.forEach((r, i) => {
+    if (topAligned) {
+      r.top = r.y - lead;
+      r.bottom = i === rows.length - 1 ? r.y + gap - lead : rows[i + 1].y - lead;
+    } else {
+      r.top = i === 0 ? r.y - gap / 2 : (rows[i - 1].y + r.y) / 2;
+      r.bottom = i === rows.length - 1 ? r.y + gap / 2 : (r.y + rows[i + 1].y) / 2;
+    }
+  });
 
   // 3) จับคำลงช่อง (วัน, คาบ)
   const cells = new Map();
@@ -285,20 +323,103 @@ const groupLines = (counts, threshold, mergeDist) => {
   return lines;
 };
 
-export const detectGrid = (gray, w, h, th) => {
-  const dark = (x, y) => gray[(y * w + x) * 4] < th;
-  const rowCounts = new Array(h).fill(0);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x += 2) if (dark(x, y)) rowCounts[y]++;
-  const ys = groupLines(rowCounts, Math.max(...rowCounts) * 0.5, h * 0.008);
-  if (ys.length < 3) return null;
+// เส้นตาราง = เส้น "บาง" ที่ลากยาวต่อเนื่อง (สองข้างของเส้นเป็นพื้นขาว) → พื้นที่สีเข้มทึบ เช่น แถบเมนู/ขอบจอ
+// ในภาพแคปหน้าจอ จะไม่ถูกนับเป็นเส้น; 1 รูปอาจมีหลายตาราง → คืนเป็นหลายกริด
+const longestRun = (len, isOn, maxGap) => {
+  let best = 0, run = 0, gap = 0;
+  for (let i = 0; i < len; i++) {
+    if (isOn(i)) {
+      run += gap + 1;
+      gap = 0;
+      if (run > best) best = run;
+    } else if (run > 0 && gap < maxGap) {
+      gap++;
+    } else {
+      run = 0;
+      gap = 0;
+    }
+  }
+  return best;
+};
 
-  const top = ys[0];
-  const bottom = ys[ys.length - 1];
-  const colCounts = new Array(w).fill(0);
-  for (let x = 0; x < w; x++) for (let y = top; y <= bottom; y += 2) if (dark(x, y)) colCounts[x]++;
-  const xs = groupLines(colCounts, ((bottom - top) / 2) * 0.5, w * 0.006);
-  if (xs.length < 3) return null;
-  return { xs, ys };
+export const detectGrids = (gray, w, h, th) => {
+  const t = Math.max(3, Math.round(w / 500)); // เส้นหนาไม่เกิน ~2t px
+  const dark = (x, y) => gray[(y * w + x) * 4] < th;
+  // เส้นบาง = มีพื้นขาวภายในระยะ t ทั้งสองฝั่ง (รองรับเส้นคู่ที่ชิดกัน) / พื้นที่ทึบ = ไม่มี
+  const thinH = (x, y) => {
+    if (!dark(x, y)) return false;
+    let up = false, down = false;
+    for (let k = 1; k <= t && !(up && down); k++) {
+      if (!up && !dark(x, y - k)) up = true;
+      if (!down && !dark(x, y + k)) down = true;
+    }
+    return up && down;
+  };
+  const thinV = (x, y) => {
+    if (!dark(x, y)) return false;
+    let l = false, r = false;
+    for (let k = 1; k <= t && !(l && r); k++) {
+      if (!l && !dark(x - k, y)) l = true;
+      if (!r && !dark(x + k, y)) r = true;
+    }
+    return l && r;
+  };
+
+  const hRun = new Array(h).fill(0);
+  // จุดตัดกับเส้นแนวตั้งทำให้เส้นขาดเป็นช่วงสั้นๆ → ยอมให้ข้ามช่องว่างได้ ~3t
+  const bridge = t * 3;
+  for (let y = t; y < h - t; y++) hRun[y] = longestRun(w, (x) => thinH(x, y), bridge);
+  const allYs = groupLines(hRun, w * 0.25, t * 2);
+  if (allYs.length < 3) return [];
+
+  // แยกเป็นตาราง: ระยะห่างระหว่างเส้นแนวนอนที่ใหญ่ผิดปกติ = คนละตาราง
+  const gaps = allYs.slice(1).map((y, i) => y - allYs[i]).sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)] || 1;
+  const clusters = [[allYs[0]]];
+  for (let i = 1; i < allYs.length; i++) {
+    if (allYs[i] - allYs[i - 1] > median * 3) clusters.push([]);
+    clusters[clusters.length - 1].push(allYs[i]);
+  }
+
+  const columnsFor = (ys) => {
+    const top = ys[0];
+    const bottom = ys[ys.length - 1];
+    const vRun = new Array(w).fill(0);
+    for (let x = t; x < w - t; x++) {
+      let run = 0, best = 0, gap = 0;
+      for (let y = top; y <= bottom; y++) {
+        if (thinV(x, y)) {
+          run += gap + 1;
+          gap = 0;
+          if (run > best) best = run;
+        } else if (run > 0 && gap < bridge) gap++;
+        else {
+          run = 0;
+          gap = 0;
+        }
+      }
+      vRun[x] = best;
+    }
+    return groupLines(vRun, (bottom - top) * 0.6, t * 2);
+  };
+
+  // ไม่เจอเส้นแนวตั้งที่ยาวพอ = น่าจะรวมสองตารางเข้าด้วยกัน → แบ่งตรงช่องห่างที่กว้างที่สุดแล้วลองใหม่
+  const grids = [];
+  const findGrids = (ys, depth = 0) => {
+    if (ys.length < 3) return;
+    const xs = columnsFor(ys);
+    if (xs.length >= 3) {
+      grids.push({ xs, ys });
+      return;
+    }
+    if (depth > 4 || ys.length < 6) return;
+    let cut = 1;
+    for (let i = 1; i < ys.length; i++) if (ys[i] - ys[i - 1] > ys[cut] - ys[cut - 1]) cut = i;
+    findGrids(ys.slice(0, cut), depth + 1);
+    findGrids(ys.slice(cut), depth + 1);
+  };
+  clusters.forEach((ys) => findGrids(ys));
+  return grids;
 };
 
 // ช่องว่างจริงไหม (แทบไม่มีหมึก) — ข้าม OCR ช่องว่างให้เร็วขึ้น
@@ -310,6 +431,31 @@ const inkRatio = (gray, w, r, th) => {
 };
 
 const cleanText = (t) => (t || "").replace(/[|_~=]/g, " ").replace(/\s+/g, " ").trim();
+
+// ตารางในรูปเล็ก (เช่น แคปทั้งหน้าจอ) ตัวหนังสือในช่องเล็กเกินจะอ่านตัวเลขผิด (3 → จ)
+// → ตัดเฉพาะตารางมาขยายให้แถวสูงราว 200px ก่อนอ่าน
+const zoomGrid = (canvas, grid) => {
+  const gaps = grid.ys.slice(1).map((y, i) => y - grid.ys[i]).sort((a, b) => a - b);
+  const rowH = gaps[Math.floor(gaps.length / 2)] || 200;
+  const f = Math.min(3, 200 / rowH, 4500 / (grid.xs[grid.xs.length - 1] - grid.xs[0]));
+  if (f < 1.15) return { target: canvas, grid };
+  const m = 8;
+  const x0 = Math.max(0, grid.xs[0] - m);
+  const y0 = Math.max(0, grid.ys[0] - m);
+  const x1 = Math.min(canvas.width, grid.xs[grid.xs.length - 1] + m);
+  const y1 = Math.min(canvas.height, grid.ys[grid.ys.length - 1] + m);
+  const target = document.createElement("canvas");
+  target.width = Math.round((x1 - x0) * f);
+  target.height = Math.round((y1 - y0) * f);
+  const ctx = target.getContext("2d", { willReadFrequently: true });
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(canvas, x0, y0, x1 - x0, y1 - y0, 0, 0, target.width, target.height);
+  target.inkThreshold = canvas.inkThreshold;
+  return {
+    target,
+    grid: { xs: grid.xs.map((x) => Math.round((x - x0) * f)), ys: grid.ys.map((y) => Math.round((y - y0) * f)) },
+  };
+};
 
 // อ่านทีละช่องของตาราง: แถวแรก = หัวคาบ, คอลัมน์แรก = วัน
 const readByGrid = async (worker, canvas, grid, onProgress) => {
@@ -344,26 +490,53 @@ const readByGrid = async (worker, canvas, grid, onProgress) => {
     }
   }
 
+  // หัวตาราง = แถวที่ช่องส่วนใหญ่เป็นเลขคาบ/เวลา (บางโรงเรียนมี 2 แถว: เลขคาบ + เวลา)
+  // แถวถัดจากหัวตารางทั้งหมดคือแถววัน (แม้ OCR อ่านชื่อวันไม่ออก)
+  const isHeaderRow = (row) => {
+    const cells = row.slice(1).filter(Boolean);
+    return cells.length >= 2 && cells.filter((t) => detectPeriod(t.split(" ")[0]) != null || detectPeriod(t) != null).length >= cells.length * 0.5;
+  };
+  let lastHeaderRow = -1;
+  texts.forEach((row, r) => {
+    if (r < nRows - 1 && isHeaderRow(row)) lastHeaderRow = r;
+  });
+  const rowDaysRaw = texts.map((row) => detectDay(row[0], true));
+  let firstDayRow = lastHeaderRow + 1;
+  // ข้ามแถวว่าง (เช่น เส้นคู่ใต้หัวตาราง)
+  while (firstDayRow < nRows - 1 && texts[firstDayRow].every((t) => !t)) firstDayRow++;
+  if (firstDayRow < 1) firstDayRow = rowDaysRaw.findIndex((d, i) => i > 0 && d != null);
+  if (firstDayRow < 1) firstDayRow = 1;
+
   // หัวคอลัมน์ → เลขคาบ (คอลัมน์ "พัก" ข้าม); อ่านเลขคาบไม่ออกให้เรียงต่อจากคอลัมน์ก่อนหน้า
   const colPeriod = [];
   let next = 1;
   for (let c = 1; c < nCols; c++) {
-    const head = texts[0][c];
+    const heads = texts.slice(0, firstDayRow).map((row) => row[c]).filter(Boolean);
+    const head = heads.join(" ");
+    if (heads.length === 0) {
+      colPeriod[c] = next <= PERIOD_COUNT ? next : null;
+      if (colPeriod[c]) next = colPeriod[c] + 1;
+      continue;
+    }
     if (IGNORE_CELL.test(head)) {
       colPeriod[c] = null;
       continue;
     }
-    const firstToken = head.split(" ")[0];
-    const p = detectPeriod(firstToken) ?? detectPeriod(head);
+    // ลองทีละช่องหัว (เลขคาบก่อน แล้วค่อยเวลา)
+    const p = heads.map((h) => detectPeriod(h.split(" ")[0]) ?? detectPeriod(h)).find((x) => x != null) ?? null;
     colPeriod[c] = p ?? (next <= PERIOD_COUNT ? next : null);
     if (colPeriod[c]) next = colPeriod[c] + 1;
   }
 
   const entries = [];
-  const rowDays = fillMissingDays(texts.slice(1).map((row) => detectDay(row[0], true)));
-  const daysFound = rowDays.filter((d) => d != null).length;
-  for (let r = 1; r < nRows; r++) {
-    const day = rowDays[r - 1];
+  const dataRows = [];
+  for (let r = firstDayRow; r < nRows; r++) if (texts[r].some(Boolean)) dataRows.push(r);
+  const filled = fillMissingDays(dataRows.map((r) => rowDaysRaw[r]));
+  const rowDays = {};
+  dataRows.forEach((r, i) => (rowDays[r] = filled[i]));
+  const daysFound = filled.filter((d) => d != null).length;
+  for (const r of dataRows) {
+    const day = rowDays[r];
     if (day == null) continue;
     for (let c = 1; c < nCols; c++) {
       const raw = texts[r][c];
@@ -392,13 +565,20 @@ export const readScheduleFromImage = async (file, onProgress) => {
   });
   try {
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const grid = detectGrid(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, canvas.inkThreshold);
-    if (grid) {
+    const grids = detectGrids(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, canvas.inkThreshold);
+    if (grids.length) {
       gridMode = true;
       await worker.setParameters({ tessedit_pageseg_mode: "6" });
-      const res = await readByGrid(worker, canvas, grid, onProgress);
-      res.info.skew = canvas.skew;
-      if (res.entries.length > 0) return res;
+      // หลายตารางในรูปเดียว → ใช้ตารางที่อ่านคาบได้มากที่สุด
+      let best = null;
+      for (let g = 0; g < grids.length; g++) {
+        const { target, grid } = zoomGrid(canvas, grids[g]);
+        const res = await readByGrid(worker, target, grid, (p) => onProgress?.((g + p) / grids.length));
+        if (!best || res.entries.length > best.entries.length) best = res;
+      }
+      best.info.skew = canvas.skew;
+      best.info.tables = grids.length;
+      if (best.entries.length > 0) return best;
       gridMode = false;
       await worker.setParameters({ tessedit_pageseg_mode: "3" });
     }
@@ -410,9 +590,95 @@ export const readScheduleFromImage = async (file, onProgress) => {
     );
     const res = parseScheduleFromWords(words, canvas.width);
     res.info.skew = canvas.skew;
-    res.info.grid = grid ? `${grid.ys.length}x${grid.xs.length} (no entries)` : "none";
+    res.info.grid = grids.length ? `${grids.length} grid(s), no entries` : "none";
     return res;
   } finally {
     await worker.terminate();
   }
+};
+
+// ---------- PDF ----------
+// PDF ที่สร้างจาก Excel/Word มีตัวหนังสือจริงฝังอยู่ → ดึงข้อความ+ตำแหน่งได้ตรงๆ ไม่ต้อง OCR
+// 1 หน้ามีได้หลายตาราง (หลายครู) แบ่งตามบรรทัด "ครู..." แล้วให้ครูเลือกตารางของตัวเอง
+const pdfWordsOfPage = async (page) => {
+  const vp = page.getViewport({ scale: 1 });
+  const tc = await page.getTextContent();
+  const pieces = tc.items
+    .filter((i) => i.str && i.str.replaceAll("\u0000", "").trim())
+    .map((i) => {
+      const x = i.transform[4];
+      const y = i.transform[5];
+      const h = Math.abs(i.transform[3]) || i.height || 10;
+      return { text: i.str.replaceAll("\u0000", ""), h, bbox: { x0: x, x1: x + (i.width || h * i.str.length * 0.5), y0: vp.height - y - h, y1: vp.height - y } };
+    })
+    .sort((a, b) => a.bbox.y1 - b.bbox.y1 || a.bbox.x0 - b.bbox.x0);
+
+  // ภาษาไทยใน PDF มักถูกเก็บเป็นชิ้นเล็กๆ (เช่น "ลู" "กเ" "สื" "อ") → ต่อชิ้นที่อยู่บรรทัดเดียวกันและชิดกันกลับเป็นคำ
+  const words = [];
+  for (const pc of pieces) {
+    const last = words[words.length - 1];
+    const sameLine = last && Math.abs(last.bbox.y1 - pc.bbox.y1) < pc.h * 0.3;
+    const gap = last ? pc.bbox.x0 - last.bbox.x1 : Infinity;
+    if (sameLine && gap > -pc.h * 0.3 && gap < pc.h * 0.25) {
+      last.text += pc.text;
+      last.bbox.x1 = Math.max(last.bbox.x1, pc.bbox.x1);
+      last.bbox.y0 = Math.min(last.bbox.y0, pc.bbox.y0);
+    } else {
+      words.push({ ...pc, bbox: { ...pc.bbox } });
+    }
+  }
+  // ช่องว่างในข้อความ = คำแยก (เช่น "แนะแนว 3/5" ในชิ้นเดียว) — คงไว้เป็นคำเดียว ตัดช่องว่างหัวท้าย
+  words.forEach((w) => (w.text = w.text.replace(/\s+/g, " ").trim()));
+  return { words: words.filter((w) => w.text), width: vp.width, height: vp.height };
+};
+
+const TEACHER_ANCHOR = /^ครู(?!ที่ปรึกษา)/;
+
+const splitTablesByTeacher = (words) => {
+  const anchors = words.filter((w) => TEACHER_ANCHOR.test(w.text)).sort((a, b) => a.bbox.y0 - b.bbox.y0);
+  if (anchors.length === 0) return [{ name: "", words }];
+  return anchors.map((a, i) => {
+    const top = a.bbox.y0 - 4;
+    const bottom = i + 1 < anchors.length ? anchors[i + 1].bbox.y0 - (anchors[i + 1].bbox.y1 - anchors[i + 1].bbox.y0) * 3 : Infinity;
+    // ชื่อครูอาจแยกเป็นหลายชิ้นในบรรทัดเดียวกัน
+    const nameParts = words
+      .filter((w) => Math.abs(w.bbox.y0 - a.bbox.y0) < 3 && w.bbox.x0 >= a.bbox.x0 - 1 && w.bbox.x0 < a.bbox.x0 + 250 && !/กลุ่มสาระ|รวม|คาบ/.test(w.text))
+      .sort((x, y) => x.bbox.x0 - y.bbox.x0);
+    return { name: nameParts.map((w) => w.text).join(" ").replace(/\s+/g, " "), words: words.filter((w) => w.bbox.y0 >= top && w.bbox.y0 < bottom) };
+  });
+};
+
+export const readSchedulesFromPdf = async (file, onProgress) => {
+  const pdfjsLib = await import("pdfjs-dist");
+  const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+
+  const tables = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const { words, width } = await pdfWordsOfPage(page);
+    splitTablesByTeacher(words).forEach((t, k) => {
+      const res = parseScheduleFromWords(t.words, width);
+      if (res.entries.length) tables.push({ name: t.name || `หน้า ${n} ตารางที่ ${k + 1}`, page: n, entries: res.entries, info: { ...res.info, source: "pdf-text" } });
+    });
+    if (onProgress) onProgress(n / pdf.numPages);
+  }
+  if (tables.length) return tables;
+
+  // ไม่มีตัวหนังสือในไฟล์ (PDF สแกน) → แปลงแต่ละหน้าเป็นรูปแล้ว OCR
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const vp = page.getViewport({ scale: 3000 / page.getViewport({ scale: 1 }).width });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(vp.width);
+    canvas.height = Math.round(vp.height);
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport: vp }).promise;
+    const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+    const res = await readScheduleFromImage(new File([blob], `page-${n}.png`, { type: "image/png" }), (p) =>
+      onProgress?.((n - 1 + p) / pdf.numPages)
+    );
+    if (res.entries.length) tables.push({ name: `หน้า ${n}`, page: n, entries: res.entries, info: { ...res.info, source: "pdf-ocr" } });
+  }
+  return tables;
 };

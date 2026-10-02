@@ -10,13 +10,15 @@ export const WEEKDAY_OPTIONS = [
   { value: 4, label: "วันศุกร์" },
 ];
 
+// คาบเรียนตามตารางจริงของโรงเรียนขอนแก่นวิทยายน (9 คาบ)
 export const PERIOD_OPTIONS = [
-  { period: 1, time: "08:30-09:20" },
-  { period: 2, time: "09:20-10:10" },
-  { period: 3, time: "10:10-11:00" },
-  { period: 4, time: "11:00-11:50" },
-  { period: 5, time: "12:40-13:30" },
-  { period: 6, time: "13:30-14:20" },
-  { period: 7, time: "14:20-15:10" },
-  { period: 8, time: "15:10-16:00" },
+  { period: 1, time: "08:30-09:25" },
+  { period: 2, time: "09:25-10:20" },
+  { period: 3, time: "10:20-11:15" },
+  { period: 4, time: "11:15-12:10" },
+  { period: 5, time: "12:10-13:05" },
+  { period: 6, time: "13:05-14:00" },
+  { period: 7, time: "14:00-14:55" },
+  { period: 8, time: "14:55-15:50" },
+  { period: 9, time: "16:00-17:00" },
 ];

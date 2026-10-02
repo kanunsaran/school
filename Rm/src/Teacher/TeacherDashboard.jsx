@@ -471,7 +471,7 @@ export default function TeacherDashboard() {
                           onClick={() => setShowImportModal(true)}
                           className="mt-2 h-9 px-3.5 rounded-full border border-gray-200 bg-white text-gray-700 text-[14px] font-medium hover:bg-gray-50 flex items-center gap-1.5"
                         >
-                          <FaImage size={12} className="text-pink-500" /> นำเข้าจากรูปตารางสอน
+                          <FaImage size={12} className="text-pink-500" /> นำเข้าตารางสอน (รูป/PDF)
                         </button>
                       </div>
                     )}
@@ -511,7 +511,7 @@ export default function TeacherDashboard() {
                         onClick={() => setShowImportModal(true)}
                         className="mt-1.5 text-[14px] text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1.5"
                       >
-                        <FaImage size={11} /> นำเข้าจากรูปตารางสอน
+                        <FaImage size={11} /> นำเข้าตารางสอน (รูป/PDF)
                       </button>
                     )}
                     <button
