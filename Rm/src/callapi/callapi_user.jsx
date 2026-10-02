@@ -1,8 +1,17 @@
 import axios from "axios";
-import { getCurrentUser } from "../utils/auth.js";
+import { getCurrentUser, isInvalidTokenResponse, handleExpiredSession } from "../utils/auth.js";
 import { API_BASE_URL } from "../config/api.js";
 
 let api = API_BASE_URL;
+
+// token ใช้ไม่ได้ (401 Invalid token) ที่ไหนก็ตาม → แจ้งให้เข้าสู่ระบบใหม่แทนการล้มเงียบๆ ทีละคำขอ
+axios.interceptors.response.use(
+  (res) => res,
+  (error) => {
+    if (isInvalidTokenResponse(error.response?.status, error.response?.data)) handleExpiredSession();
+    return Promise.reject(error);
+  }
+);
 
 // import DatatableStrig from "../component/strig";
 export async function GetLogin(email, password) {

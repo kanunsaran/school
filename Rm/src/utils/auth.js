@@ -20,3 +20,24 @@ export const isLoggedIn = () => !!getCurrentUser();
 export const logout = () => {
   localStorage.removeItem(SESSION_KEY);
 };
+
+// backend ตอบว่า token ใช้ไม่ได้ (หมดอายุ / ถูกลบหลังย้ายฐานข้อมูล) → ต้องเข้าสู่ระบบใหม่
+export const isInvalidTokenResponse = (status, data) =>
+  status === 401 && /invalid token|no token provided/i.test(String(data?.message || ""));
+
+let redirecting = false;
+export const handleExpiredSession = async () => {
+  if (redirecting) return;
+  redirecting = true;
+  logout();
+  const { default: Swal } = await import("sweetalert2");
+  await Swal.fire({
+    icon: "info",
+    title: "กรุณาเข้าสู่ระบบใหม่",
+    text: "เซสชันของคุณหมดอายุแล้ว",
+    confirmButtonText: "ไปหน้าเข้าสู่ระบบ",
+    confirmButtonColor: "#ec4899",
+    allowOutsideClick: false,
+  });
+  window.location.assign("/login");
+};

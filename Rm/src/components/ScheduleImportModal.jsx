@@ -3,7 +3,7 @@ import Swal from "sweetalert2";
 import { FaTimes, FaImage, FaTrash, FaPlus, FaMagic, FaFilePdf } from "react-icons/fa";
 import { WEEKDAY_OPTIONS, PERIOD_OPTIONS } from "../utils/teachingScheduleStore.js";
 import { readScheduleFromImage, readSchedulesFromPdf } from "../utils/scheduleOcr.js";
-import { getCurrentUser } from "../utils/auth.js";
+import { getCurrentUser, isInvalidTokenResponse } from "../utils/auth.js";
 import { addTeachingPeriod, removeTeachingPeriod } from "../callapi/callapi_user.jsx";
 
 // นำเข้าตารางสอนจากรูป: เลือกรูป → OCR อ่านเป็นรายการคาบ → ครูตรวจ/แก้ → บันทึก
@@ -107,12 +107,22 @@ export default function ScheduleImportModal({ teacherId, existing, onClose, onSa
     let ok = 0;
     const failed = [];
     try {
-      if (replaceAll) for (const s of existing) await removeTeachingPeriod(s.id);
+      if (replaceAll) {
+        try {
+          for (const s of existing) await removeTeachingPeriod(s.id);
+        } catch (err) {
+          if (isInvalidTokenResponse(err.response?.status, err.response?.data)) return;
+          Swal.fire({ icon: "error", title: "ลบตารางสอนเดิมไม่สำเร็จ", text: err.response?.data?.message || "ลองใหม่อีกครั้ง" });
+          return;
+        }
+      }
       for (const r of toSave) {
         try {
           await addTeachingPeriod({ teacher_user_id: teacherId, weekday: r.day, period: r.period, classroom: r.classroom.trim() || null, subject: r.subject.trim() || "แนะแนว" });
           ok++;
         } catch (err) {
+          // token ใช้ไม่ได้ → หยุดทันที (ระบบจะพาไปเข้าสู่ระบบใหม่)
+          if (isInvalidTokenResponse(err.response?.status, err.response?.data)) return;
           failed.push(`${WEEKDAY_OPTIONS[r.day]?.label} คาบ ${r.period}: ${err.response?.data?.message || "บันทึกไม่สำเร็จ"}`);
         }
       }
