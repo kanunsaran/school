@@ -1,6 +1,6 @@
 // ส่งออก "ข้อมูลส่วนตัวของนักเรียน" เป็น PDF หน้า-หลัง ตามแบบฟอร์มกระดาษของโรงเรียนขอนแก่นวิทยายน
 // ข้อมูลมาจาก student_general_info.form_data (ที่นักเรียนกรอกในหน้า /studentinfo) ช่องไหนไม่กรอกใส่ "-"
-// วาดหน้าเป็นภาพด้วย html2canvas แล้วใส่ jsPDF (สระ/วรรณยุกต์ไทยถูกต้องเสมอ) — หลายคนแยกไฟล์รายคนแล้วรวมเป็น ZIP
+// วาดหน้าเป็นภาพด้วย html-to-image แล้วใส่ jsPDF (สระ/วรรณยุกต์ไทยถูกต้องเสมอ) — หลายคนแยกไฟล์รายคนแล้วรวมเป็น ZIP
 
 const THAI_MONTHS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -40,7 +40,7 @@ const parseThaiDate = (s) => {
 const stripGradePrefix = (v) => (isEmpty(v) ? "" : String(v).replace(/^ม\.?\s*/, ""));
 
 // fd = form_data, fallback = ข้อมูลจากรายชื่อนักเรียน (ใช้ตอนนักเรียนยังไม่กรอกฟอร์ม)
-export const buildStudentFormHtml = (fd = {}, fallback = {}) => {
+const buildPages = (fd = {}, fallback = {}) => {
   const meta = fd.meta || {};
   const p = fd.personal || {};
   const ct = fd.contact || {};
@@ -171,69 +171,86 @@ export const buildStudentFormHtml = (fd = {}, fallback = {}) => {
     <div class="pageno">(2)</div>
   </div>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8">
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=block" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #fff; }
-    .page { width: 794px; height: 1123px; padding: 40px 48px 36px 56px; position: relative; overflow: hidden; background: #fff;
-            font-family: 'Sarabun', 'Tahoma', sans-serif; font-size: 13.6px; line-height: 1.62; color: #111; }
-    .title-wrap { position: relative; text-align: center; }
-    .title { font-weight: 700; font-size: 17px; }
-    .roll { position: absolute; right: 0; top: -2px; border: 1.3px solid #111; padding: 0 10px; font-weight: 700; font-size: 14px; }
-    .subtitle { text-align: center; font-weight: 700; font-size: 16px; margin-bottom: 4px; }
-    .para { text-indent: 0; margin: 2px 0 2px; }
-    .h { font-weight: 700; margin-top: 6px; }
-    .q { padding-left: 28px; text-indent: -20px; margin-left: 12px; }
-    .q .n { display: inline-block; width: 20px; text-indent: 0; }
-    .l { padding-left: 40px; }
-    .f { display: inline-block; border-bottom: 1.2px dotted #333; text-align: center; padding: 0 4px 3px; margin: 0 2px;
-         color: #1e3a8a; font-weight: 600; line-height: 1.5; text-indent: 0; vertical-align: baseline; }
-    .c { margin-right: 11px; white-space: nowrap; }
-    .c .box { font-weight: 400; }
-    .tick { color: #1e3a8a; font-weight: 700; }
-    .tbl { border-collapse: collapse; width: calc(100% - 40px); margin: 4px 0 6px 40px; }
-    .tbl th, .tbl td { border: 1.2px solid #111; padding: 3px 10px; text-align: left; }
-    .tbl th { text-align: center; font-weight: 400; }
-    .tbl td.v { color: #1e3a8a; font-weight: 600; }
-    .tbl td.center { text-align: center; }
-    .sign { margin-top: 26px; margin-left: auto; width: 360px; text-align: right; }
-    .pageno { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; font-size: 12px; color: #555; }
-    u { text-underline-offset: 3px; }
-  </style></head><body>${page1}${page2}</body></html>`;
+  return { page1, page2 };
 };
 
-// HTML → PDF (A4 2 หน้า) ผ่าน iframe ที่ไม่มี CSS ของแอป (html2canvas อ่านสี oklch ของ Tailwind ไม่ได้)
-const renderPdf = async (html) => {
-  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;visibility:hidden";
-  document.body.appendChild(iframe);
+// @font-face ของ TH Sarabun New (ไฟล์อยู่ใน public/fonts) + CSS ของแบบฟอร์ม (ทุกตัวขึ้นต้นด้วย .sif ไม่ชนกับ CSS ของแอป)
+const fontFaceCss = (base) => `
+@font-face { font-family: 'TH Sarabun New'; src: url('${base}/THSarabunNew.ttf') format('truetype'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'TH Sarabun New'; src: url('${base}/THSarabunNew-Bold.ttf') format('truetype'); font-weight: 700; font-display: block; }`;
+
+const FORM_CSS = `
+    .sif, .sif * { box-sizing: border-box; }
+    .sif { margin: 0; background: #fff; }
+    .sif .page { width: 794px; height: 1123px; padding: 40px 48px 36px 56px; position: relative; overflow: hidden; background: #fff;
+            font-family: 'TH Sarabun New', 'Tahoma', sans-serif; font-size: 20px; line-height: 1.16; color: #000; }
+    .sif .title-wrap { position: relative; text-align: center; }
+    .sif .title { font-weight: 700; font-size: 23px; }
+    .sif .roll { position: absolute; right: 0; top: 0; border: 1.3px solid #111; padding: 0 10px; font-weight: 700; font-size: 20px; }
+    .sif .subtitle { text-align: center; font-weight: 700; font-size: 22px; margin-bottom: 4px; }
+    .sif .para { text-indent: 0; margin: 2px 0 2px; }
+    .sif .h { font-weight: 700; margin-top: 6px; }
+    .sif .q { padding-left: 28px; text-indent: -20px; margin-left: 12px; }
+    .sif .q .n { display: inline-block; width: 20px; text-indent: 0; }
+    .sif .l { padding-left: 40px; }
+    .sif .f { display: inline-block; border-bottom: 1.2px dotted #333; text-align: center; padding: 0 4px; margin: 0 2px;
+         color: #1e3a8a; font-weight: 700; line-height: 0.95; text-indent: 0; vertical-align: baseline; }
+    .sif .c { margin-right: 11px; white-space: nowrap; }
+    .sif .c .box { font-weight: 400; }
+    .sif .tick { color: #1e3a8a; font-weight: 700; }
+    .sif .tbl { border-collapse: collapse; width: calc(100% - 40px); margin: 4px 0 6px 40px; }
+    .sif .tbl th, .sif .tbl td { border: 1.2px solid #111; padding: 3px 10px; text-align: left; }
+    .sif .tbl th { text-align: center; font-weight: 400; }
+    .sif .tbl td.v { color: #1e3a8a; font-weight: 600; }
+    .sif .tbl td.center { text-align: center; }
+    .sif .sign { margin-top: 26px; margin-left: auto; width: 360px; text-align: right; }
+    .sif .pageno { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; font-size: 17px; color: #555; }
+    .sif u { text-underline-offset: 3px; }
+`;
+
+// HTML ทั้งหน้า (ใช้ดูตัวอย่าง/ทดสอบ)
+export const buildStudentFormHtml = (fd = {}, fallback = {}, fontBase = "/fonts") => {
+  const { page1, page2 } = buildPages(fd, fallback);
+  return `<!doctype html><html><head><meta charset="utf-8"><style>${fontFaceCss(fontBase)}${FORM_CSS}</style></head><body style="margin:0"><div class="sif">${page1}${page2}</div></body></html>`;
+};
+
+// แบบฟอร์ม → PDF (A4 2 หน้า): ให้เบราว์เซอร์วาดเองผ่าน html-to-image (ตรงกับที่เห็นบนจอ ฟอนต์ไทยถูกตำแหน่ง)
+const ensureFormStyles = () => {
+  if (document.getElementById("sif-style")) return;
+  const style = document.createElement("style");
+  style.id = "sif-style";
+  style.textContent = fontFaceCss(`${window.location.origin}/fonts`) + FORM_CSS;
+  document.head.appendChild(style);
+};
+
+const renderPdf = async (fd, fallback) => {
+  const [{ toJpeg }, { jsPDF }] = await Promise.all([import("html-to-image"), import("jspdf")]);
+  ensureFormStyles();
+  const { page1, page2 } = buildPages(fd, fallback);
+  const host = document.createElement("div");
+  host.className = "sif";
+  host.style.cssText = "position:fixed;left:-10000px;top:0;width:794px;pointer-events:none";
+  host.innerHTML = page1 + page2;
+  document.body.appendChild(host);
   try {
-    const doc = iframe.contentDocument;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    await new Promise((r) => (doc.readyState === "complete" ? r() : iframe.addEventListener("load", r, { once: true })));
     try {
       await Promise.race([
-        Promise.all([doc.fonts.load("400 16px Sarabun", "ก"), doc.fonts.load("700 16px Sarabun", "ก")]).then(() => doc.fonts.ready),
-        new Promise((r) => setTimeout(r, 4000)), // ออฟไลน์/โหลดฟอนต์ไม่ได้ → ใช้ Tahoma แทน
+        Promise.all([document.fonts.load("400 20px 'TH Sarabun New'", "ก"), document.fonts.load("700 20px 'TH Sarabun New'", "ก")]),
+        new Promise((r) => setTimeout(r, 5000)),
       ]);
     } catch {
       /* ใช้ฟอนต์สำรอง */
     }
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
-    const pages = [...doc.querySelectorAll(".page")];
+    const pages = [...host.querySelectorAll(".page")];
     for (let i = 0; i < pages.length; i++) {
-      const canvas = await html2canvas(pages[i], { scale: 2, backgroundColor: "#ffffff", logging: false, windowWidth: 794, windowHeight: 1123 });
+      const img = await toJpeg(pages[i], { quality: 0.9, pixelRatio: 2, backgroundColor: "#ffffff", width: 794, height: 1123 });
       if (i > 0) pdf.addPage();
-      pdf.addImage(canvas.toDataURL("image/jpeg", 0.9), "JPEG", 0, 0, 210, 297);
+      pdf.addImage(img, "JPEG", 0, 0, 210, 297);
     }
     return pdf.output("blob");
   } finally {
-    iframe.remove();
+    host.remove();
   }
 };
 
@@ -256,7 +273,7 @@ export const exportStudentInfoForms = async (items, onProgress) => {
   const files = [];
   for (let i = 0; i < items.length; i++) {
     const { formData, fallback } = items[i];
-    const blob = await renderPdf(buildStudentFormHtml(formData || {}, fallback || {}));
+    const blob = await renderPdf(formData || {}, fallback || {});
     const fd = formData || {};
     const grade = stripGradePrefix(fd.meta?.classroom) || fallback?.grade || "";
     const room = fd.meta?.room ?? fallback?.room ?? "";
