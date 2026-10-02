@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import ExportMenu from "../components/ExportMenu.jsx";
+import { exportReportPdf, safeFileName, todayStamp } from "../utils/reportPdf.js";
+import { exportReportExcel } from "../utils/reportExcel.js";
 import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
 import { isBelowXl } from "../utils/breakpoints.js";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import {
-  FaSearch, FaDownload, FaTimes, FaUser, FaFolderOpen, FaCommentDots, FaCheck,
+  FaSearch, FaTimes, FaUser, FaFolderOpen, FaCommentDots, FaCheck,
   FaFileAlt, FaFilePdf, FaLink, FaVideo, FaPaperPlane, FaTrash,
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
@@ -41,7 +44,6 @@ const STATUS_META = {
 
 const formatDateTime = (d) => (d ? new Date(d).toLocaleString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-");
-const csvEscape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 export default function AssessmentResultsPage() {
   const navigate = useNavigate();
@@ -247,31 +249,67 @@ export default function AssessmentResultsPage() {
     }
   };
 
-  const downloadReport = () => {
-    const header = ["รหัสนักเรียน", "ชื่อ-นามสกุล", "ห้อง", "แบบประเมิน", "วันที่ทำ", "สถานะ", "กลุ่มบุคลิกภาพ", "คณะแนะนำ"];
-    const csvRows = exportTargets.map((r) => {
-      const c = classesList.find((c) => String(c.id) === String(r.gradeId));
+  // ---------- ส่งออกรายงานผลการประเมิน (PDF อ่านง่าย / Excel) ----------
+  const resultsReport = () => {
+    const assessmentTitle = assessmentOptions.find((a) => a.id === assessmentFilter)?.title || "แบบประเมิน";
+    const room = roomFilter ? classesList.find((c) => String(c.id) === String(roomFilter)) : null;
+    const list = exportTargets.map((r, i) => {
+      const c = classesList.find((cc) => String(cc.id) === String(r.gradeId));
       const t = r.result ? types.find((tt) => String(tt.type_id) === String(r.result.type_type_id)) : null;
       const f = r.result ? faculties.find((ff) => String(ff.faculty_id) === String(r.result.recommended_faculty_id)) : null;
-      return [
-        r.student.student_code || "",
-        r.student.fullname || "",
-        c ? gradeLabel(c) : "",
-        assessmentOptions.find((a) => a.id === assessmentFilter)?.title || "",
-        r.result ? formatDateTime(r.result.test_date) : "",
-        STATUS_META[r.status].label,
-        t?.type_name || "",
-        f ? `${f.faculty_name} (${f.university_name})` : "",
-      ].map(csvEscape).join(",");
+      return {
+        no: i + 1,
+        code: r.student.student_code,
+        name: r.student.fullname,
+        room: c ? gradeLabel(c) : null,
+        seat: r.seatNo,
+        date: r.result ? formatDateTime(r.result.test_date) : null,
+        status: STATUS_META[r.status].label,
+        type: t?.type_name,
+        faculty: f ? `${f.faculty_name} (${f.university_name})` : null,
+      };
     });
-    const csv = "﻿" + [header.map(csvEscape).join(","), ...csvRows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ผลการประเมิน_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const done = exportTargets.filter((r) => r.status === "completed").length;
+    const total = exportTargets.length;
+    const columns = [
+      { label: "ลำดับ", key: "no", width: "5%", align: "center" },
+      { label: "รหัส", key: "code", width: "8%" },
+      { label: "ชื่อ-นามสกุล", key: "name", width: "20%" },
+      { label: "ห้อง", key: "room", width: "10%" },
+      { label: "เลขที่", key: "seat", width: "5%", align: "center" },
+      { label: "สถานะ", key: "status", width: "9%", align: "center" },
+      { label: "วันที่ทำ", key: "date", width: "13%" },
+      { label: "กลุ่มบุคลิกภาพ", key: "type", width: "12%" },
+      { label: "คณะที่แนะนำ", key: "faculty", width: "18%" },
+    ];
+    return {
+      title: `รายงานผล ${assessmentTitle}`,
+      subtitle: room ? `ห้อง ${gradeLabel(room)}` : "ทุกห้องที่สอน",
+      info: [
+        ["แบบประเมิน", assessmentTitle],
+        ["ห้อง", room ? gradeLabel(room) : "ทุกห้อง"],
+        ["สถานะ", statusFilter ? STATUS_META[statusFilter]?.label : null],
+        ["ขอบเขต", checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : null],
+      ],
+      summary: [
+        { label: "นักเรียนทั้งหมด", value: `${total} คน`, tone: "gray" },
+        { label: "ทำแล้ว", value: done, tone: "green" },
+        { label: "ยังไม่ได้ทำ", value: total - done, tone: "red" },
+        { label: "ทำแล้ว (%)", value: total ? `${Math.round((done / total) * 100)}%` : "-", tone: "blue" },
+      ],
+      table: { columns, rows: list },
+      emptyText: "ไม่มีนักเรียนตามเงื่อนไขที่เลือก",
+      orientation: "landscape",
+      fileBase: `ผลการประเมิน_${safeFileName(room ? gradeLabel(room) : "ทุกห้อง")}_${todayStamp()}`,
+    };
+  };
+  const exportResultsPdf = async () => {
+    const r = resultsReport();
+    await exportReportPdf({ ...r, filename: `${r.fileBase}.pdf` });
+  };
+  const exportResultsExcel = async () => {
+    const r = resultsReport();
+    await exportReportExcel({ title: r.title, info: r.info, columns: r.table.columns, rows: r.table.rows, sheetName: "ผลการประเมิน", filename: `${r.fileBase}.xlsx` });
   };
 
   return (
@@ -315,9 +353,7 @@ export default function AssessmentResultsPage() {
             options={STATUS_FILTER_OPTIONS}
             isSearchable={false}
           />
-          <button type="button" onClick={downloadReport} className="h-11 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[14.5px] font-semibold flex items-center gap-2">
-            <FaDownload size={12} /> ดาวน์โหลด{checkedIds.size > 0 ? ` (${checkedIds.size})` : ""}
-          </button>
+          <ExportMenu label={`ดาวน์โหลด${checkedIds.size > 0 ? ` (${checkedIds.size})` : ""}`} onPdf={exportResultsPdf} onExcel={exportResultsExcel} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_640px] gap-6 items-stretch">

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ExportMenu from "../components/ExportMenu.jsx";
+import { exportReportPdf, thaiDate, safeFileName } from "../utils/reportPdf.js";
+import { exportReportExcel } from "../utils/reportExcel.js";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import SidebarNav from "../nav.jsx";
@@ -6,9 +9,6 @@ import Header from "../Header";
 import {
   FaSearch,
   FaSyncAlt,
-  FaFileExcel,
-  FaFilePdf,
-  FaPrint,
   FaFilter,
   FaEdit,
   FaTimes,
@@ -152,8 +152,6 @@ const normalizeRow = (r) => ({
   note: r.note || "",
 });
 
-const notAvailableYet = (label) =>
-  Swal.fire({ icon: "info", title: label, text: "ฟีเจอร์นี้ยังไม่เปิดใช้งาน", confirmButtonText: "รับทราบ" });
 
 export default function AttendancePage({ embedded = false, gradeId: propGradeId } = {}) {
   const [classesList, setClassesList] = useState([]);
@@ -283,6 +281,46 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
       isCheckInComplete: total > 0 && notCheckedIn === 0,
     };
   }, [rows]);
+
+  // ---------- ส่งออกรายงานการเข้าเรียน (ตามห้อง/วันที่/ตัวกรองที่เลือกอยู่) ----------
+  const attendanceReport = () => {
+    const dateText = thaiDate(selectedDate);
+    const statusText = statusFilter !== "all" ? STATUS_META[statusFilter]?.label : null;
+    const columns = [
+      { label: "ลำดับ", get: (r) => r.__no, width: "6%", align: "center" },
+      { label: "เลขที่", get: (r) => r.seatNo, width: "7%", align: "center" },
+      { label: "รหัส", key: "code", width: "10%" },
+      { label: "ชื่อ-นามสกุล", key: "fullname", width: "29%" },
+      { label: "เวลาเช็กชื่อ", get: (r) => (r.checkinTime === "-" ? "-" : `${r.checkinTime} น.`), width: "11%", align: "center" },
+      { label: "วิธีเช็กชื่อ", get: (r) => METHOD_META[r.method]?.label, width: "12%" },
+      { label: "สถานะ", get: (r) => STATUS_META[r.status]?.label, width: "10%", align: "center" },
+      { label: "หมายเหตุ", key: "note", width: "15%" },
+    ];
+    return {
+      title: "รายงานการเข้าเรียน",
+      subtitle: `ห้อง ${selectedRoomLabel || "-"} • ${dateText}`,
+      info: [["ห้อง", selectedRoomLabel], ["วันที่", dateText], ["แสดงเฉพาะ", statusText], ["ค้นหา", search.trim() || null]],
+      summary: [
+        { label: "นักเรียนทั้งหมด", value: `${summary.total} คน`, tone: "gray" },
+        { label: `มาเรียน (${summary.presentPercent}%)`, value: summary.present, tone: "green" },
+        { label: "สาย", value: summary.late, tone: "amber" },
+        { label: "ลา", value: summary.leave, tone: "blue" },
+        { label: "ขาด", value: summary.absent, tone: "red" },
+        { label: "ยังไม่เช็กชื่อ", value: summary.notCheckedIn, tone: "gray" },
+      ],
+      table: { columns, rows: filteredRows.map((r, i) => ({ ...r, __no: i + 1 })) },
+      emptyText: "ไม่มีข้อมูลการเข้าเรียนในห้อง/วันที่นี้",
+      fileBase: `รายงานการเข้าเรียน_${safeFileName(selectedRoomLabel || "")}_${selectedDate}`,
+    };
+  };
+  const exportAttendancePdf = async () => {
+    const r = attendanceReport();
+    await exportReportPdf({ ...r, filename: `${r.fileBase}.pdf` });
+  };
+  const exportAttendanceExcel = async () => {
+    const r = attendanceReport();
+    await exportReportExcel({ title: `${r.title} ${r.subtitle}`, info: r.info, columns: r.table.columns, rows: r.table.rows, sheetName: "การเข้าเรียน", filename: `${r.fileBase}.xlsx` });
+  };
 
   const filteredRows = useMemo(() => {
     let list = rows;
@@ -709,9 +747,7 @@ export default function AttendancePage({ embedded = false, gradeId: propGradeId 
               <FaCheckCircle /> เช็กชื่อทั้งห้อง
             </button>
             <ActionButton icon={<FaSyncAlt />} label="รีเฟรชข้อมูล" onClick={refreshData} />
-            <ActionButton icon={<FaFileExcel />} label="Export Excel" onClick={() => notAvailableYet("Export Excel")} />
-            <ActionButton icon={<FaFilePdf />} label="Export PDF" onClick={() => notAvailableYet("Export PDF")} />
-            <ActionButton icon={<FaPrint />} label="พิมพ์รายงาน" onClick={() => notAvailableYet("พิมพ์รายงาน")} />
+            <ExportMenu label="ส่งออกรายงาน" variant="secondary" onPdf={exportAttendancePdf} onExcel={exportAttendanceExcel} disabled={!roomFilter} />
           </div>
 
           {selectedIds.length > 0 && (

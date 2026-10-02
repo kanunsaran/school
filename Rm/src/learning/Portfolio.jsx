@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import ExportMenu from "../components/ExportMenu.jsx";
+import { exportReportPdf, thaiDate, safeFileName, todayStamp } from "../utils/reportPdf.js";
+import { exportReportExcel } from "../utils/reportExcel.js";
 import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
 import { isBelowXl } from "../utils/breakpoints.js";
 import Swal from "sweetalert2";
@@ -17,7 +20,7 @@ import {
   getClasses, getStudent, getEnrollments,
   getPortfolioWorks, getPortfolioWorkFiles, reviewPortfolioWork,
 } from "../callapi/callapi_user.jsx";
-import { formatThaiDateTime, notAvailableYet, API_BASE, CURRENT_USER_ID } from "../utils/feedShared.js";
+import { formatThaiDateTime, API_BASE, CURRENT_USER_ID } from "../utils/feedShared.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import { resolveFileUrl } from "../utils/media.js";
 import PortfolioCard from "../components/PortfolioCard.jsx";
@@ -159,6 +162,84 @@ export default function PortfolioTeacherPage() {
     setFileIndex(0);
   }, [selectedWork]);
 
+  // ---------- รายงานแฟ้มสะสมผลงาน: จัดกลุ่มตามนักเรียน (เรียงห้อง → ชื่อ) ตามตัวกรอง/แท็บที่เลือกอยู่ ----------
+  const portfolioReport = () => {
+    const tabLabel = TABS.find((t) => t.key === viewTab)?.label;
+    const room = gradeFilter ? classById[String(gradeFilter)] : null;
+    const sorted = [...scopedWorks].sort((a, b) => {
+      const ga = gradeTextOf(a);
+      const gb = gradeTextOf(b);
+      if (ga !== gb) return ga.localeCompare(gb, "th", { numeric: true });
+      const na = studentMap[a.student_user_id]?.fullname || "";
+      const nb = studentMap[b.student_user_id]?.fullname || "";
+      return na.localeCompare(nb, "th") || new Date(b.created_at) - new Date(a.created_at);
+    });
+    const rows = [];
+    let lastStudent = null;
+    let n = 0;
+    sorted.forEach((w) => {
+      if (w.student_user_id !== lastStudent) {
+        lastStudent = w.student_user_id;
+        const count = sorted.filter((x) => x.student_user_id === w.student_user_id).length;
+        rows.push({ __group: `${studentMap[w.student_user_id]?.fullname || "นักเรียน"}${gradeTextOf(w) ? ` • ม.${gradeTextOf(w)}` : ""} • ${count} ผลงาน` });
+      }
+      n += 1;
+      rows.push({
+        no: n,
+        student: studentMap[w.student_user_id]?.fullname,
+        room: gradeTextOf(w),
+        title: w.title,
+        category: w.category,
+        date: thaiDate(w.created_at),
+        visibility: w.visibility === "public" ? "สาธารณะ" : "ส่วนตัว",
+        status: w.status,
+        comment: w.teacher_comment,
+      });
+    });
+    return {
+      title: "รายงานแฟ้มสะสมผลงานนักเรียน",
+      subtitle: room ? `ห้อง ${gradeLabel(room)}` : "ทุกห้อง",
+      info: [
+        ["ห้อง", room ? gradeLabel(room) : "ทุกห้อง"],
+        ["หมวดหมู่", categoryFilter || "ทั้งหมด"],
+        ["แสดง", tabLabel],
+        ["ค้นหา", q.trim() || null],
+      ],
+      summary: [
+        { label: "ผลงานทั้งหมด", value: counts.total },
+        { label: "รอคำแนะนำ", value: counts.pending, tone: "amber" },
+        { label: "ให้คำแนะนำแล้ว", value: counts.reviewed, tone: "green" },
+        { label: "สาธารณะ", value: counts.public, tone: "blue" },
+      ],
+      columns: [
+        { label: "ลำดับ", key: "no", width: "5%", align: "center" },
+        { label: "ชื่อผลงาน", key: "title", width: "22%" },
+        { label: "หมวดหมู่", key: "category", width: "10%" },
+        { label: "วันที่ส่ง", key: "date", width: "10%" },
+        { label: "การมองเห็น", key: "visibility", width: "9%", align: "center" },
+        { label: "สถานะ", key: "status", width: "11%", align: "center" },
+        { label: "คำแนะนำจากครู", key: "comment", width: "33%" },
+      ],
+      rows,
+      fileBase: `แฟ้มสะสมผลงาน_${safeFileName(room ? gradeLabel(room) : "ทุกห้อง")}_${todayStamp()}`,
+    };
+  };
+  const exportPortfolioPdf = async () => {
+    const r = portfolioReport();
+    await exportReportPdf({ ...r, table: { columns: r.columns, rows: r.rows }, orientation: "landscape", emptyText: "ไม่มีผลงานตามเงื่อนไขที่เลือก", filename: `${r.fileBase}.pdf` });
+  };
+  const exportPortfolioExcel = async () => {
+    const r = portfolioReport();
+    // Excel: แถวละผลงาน มีชื่อนักเรียน/ห้องทุกแถว (กรอง/เรียงต่อได้) ไม่ใช้แถวหัวกลุ่ม
+    const columns = [
+      { label: "ลำดับ", key: "no" },
+      { label: "ชื่อ-นามสกุล", key: "student" },
+      { label: "ห้อง", key: "room" },
+      ...r.columns.slice(1),
+    ];
+    await exportReportExcel({ title: r.title, info: r.info, columns, rows: r.rows.filter((x) => !x.__group), sheetName: "แฟ้มสะสมผลงาน", filename: `${r.fileBase}.xlsx` });
+  };
+
   const saveReview = async () => {
     if (!selectedWork) return;
     setSaving(true);
@@ -184,13 +265,7 @@ export default function PortfolioTeacherPage() {
               <h1 className="page-title">แฟ้มสะสมผลงานนักเรียน</h1>
               <p className="page-subtitle mt-0.5">ติดตามผลงานและให้คำแนะนำแก่นักเรียน</p>
             </div>
-            <button
-              type="button"
-              onClick={() => notAvailableYet("ดาวน์โหลดรายงาน")}
-              className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-700 text-[14.5px] font-medium flex items-center gap-2 hover:bg-gray-50"
-            >
-              <FaDownload size={13} /> ดาวน์โหลดรายงาน
-            </button>
+            <ExportMenu label="ดาวน์โหลดรายงาน" variant="secondary" onPdf={exportPortfolioPdf} onExcel={exportPortfolioExcel} />
           </div>
 
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">

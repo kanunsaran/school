@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { exportReportPdf, safeFileName, todayStamp } from "../utils/reportPdf.js";
+import { exportReportExcel } from "../utils/reportExcel.js";
 import { exportStudentInfoForms } from "../utils/studentInfoPdf.js";
 import { useSearchParams } from "react-router-dom";
 import Select from "react-select";
@@ -65,7 +67,6 @@ const ageFromDob = (dob) => {
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "-");
 
-const csvEscape = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
 
 // ดึงจริงจาก getStudentGeneralInfo() — โครงสร้างข้อมูลจริงจาก backend เป็น personal/contact/address/family/health/education/interests
 // (ยืนยันจาก GET /studentinfo/1 จริง) ขยายให้ครบทุกฟิลด์ของฟอร์ม /studentinfo แล้ว (คอลัมน์ form_data เป็น JSON ขยาย shape ได้โดยไม่ต้อง
@@ -607,9 +608,6 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
   const [exportStep, setExportStep] = useState(0); // 0 = ปิด, 1-3 = ขั้นตอน
   const [exportCategoryKeys, setExportCategoryKeys] = useState(() => new Set(["personal", "goal", "academic"]));
   const [exportFormat, setExportFormat] = useState("form"); // form (แบบฟอร์มโรงเรียน) | pdf | excel | csv
-  const [exportMethod, setExportMethod] = useState("single"); // single | zip (zip ยังไม่เปิดใช้งาน)
-  const [exportIncludeToc, setExportIncludeToc] = useState(true);
-  const [exportIncludePhoto, setExportIncludePhoto] = useState(true);
   const [exportProgress, setExportProgress] = useState(null);
 
   const openExportWizard = () => setExportStep(1);
@@ -624,91 +622,46 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
   const selectedCategories = EXPORT_CATEGORIES.filter((c) => exportCategoryKeys.has(c.key) && c.available);
 
-  const runCsvExport = () => {
-    const header = ["รหัสนักเรียน", "ชื่อ-นามสกุล", ...selectedCategories.flatMap((c) => CATEGORY_HEADERS[c.key])];
-    const rows = exportTargets.map((s) => [
-      s.student_code || "",
-      s.fullname || "",
-      ...selectedCategories.flatMap((c) => CATEGORY_VALUES[c.key](s)),
-    ]);
-    const csv = "﻿" + [header.map(csvEscape).join(","), ...rows.map((r) => r.map(csvEscape).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `นักเรียน_รวมข้อมูล_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // ---------- รายงานสรุปรายบุคคล (PDF: การ์ดรายคนแยกหมวด / Excel: แถวละคน) ----------
+  const summaryReportBase = () => {
+    const room = roomFilter ? classesList.find((c) => String(c.id) === String(roomFilter)) : null;
+    const roomText = room ? gradeLabel(room) : "ทุกห้อง";
+    return {
+      roomText,
+      title: "รายงานสรุปข้อมูลนักเรียน",
+      info: [
+        ["ห้อง", roomText],
+        ["จำนวน", `${exportTargets.length} คน`],
+        ["หมวดข้อมูล", selectedCategories.map((c) => c.label).join(", ")],
+      ],
+      fileBase: `รายงานสรุปนักเรียน_${safeFileName(roomText)}_${todayStamp()}`,
+    };
   };
-
-  // PDF จริง — เปิดหน้าต่างใหม่ จัดเป็นการ์ดโปรไฟล์ต่อคน (มีสารบัญ/รูปได้ตามที่ติ๊กไว้) รวมเป็นเอกสารเดียว แล้วเรียก print() ให้กด "บันทึกเป็น PDF" ได้เลย ไม่ต้องใช้ library เพิ่ม
-  const runPdfExport = () => {
-    const win = window.open("", "_blank", "width=900,height=700");
-    if (!win) {
-      notAvailableYet("เปิดหน้าต่างพิมพ์ไม่สำเร็จ (ตรวจสอบตัวบล็อกป๊อปอัพ)");
-      return;
-    }
-    const scopeLabel = checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : `ทั้งหมด ${exportTargets.length} คน`;
-    const genDate = new Date().toLocaleString("th-TH", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
-
-    const toc = exportIncludeToc
-      ? `<div class="toc"><h2>สารบัญ</h2><ol>${exportTargets.map((s) => `<li><a href="#stu-${s.user_id}">${s.fullname}</a></li>`).join("")}</ol></div>`
-      : "";
-
-    const cards = exportTargets
-      .map((s) => {
-        const c = classesList.find((cc) => String(cc.id) === String(s.gradeId));
-        const photo = exportIncludePhoto ? `<img class="avatar" src="https://i.pravatar.cc/160?u=student-${s.user_id}" />` : "";
-        const sections = selectedCategories
-          .map((cat) => {
-            const values = CATEGORY_VALUES[cat.key](s);
-            const rows = CATEGORY_HEADERS[cat.key].map((h, i) => `<tr><td class="k">${h}</td><td>${values[i] ?? "-"}</td></tr>`).join("");
-            return `<div class="section"><div class="section-title">${cat.label}</div><table>${rows}</table></div>`;
-          })
-          .join("");
-        return `<section class="card" id="stu-${s.user_id}">
-          <div class="card-head">
-            ${photo}
-            <div>
-              <div class="name">${s.fullname}</div>
-              <div class="sub">รหัส ${s.student_code || "-"} ${c ? `· ${gradeLabel(c)}` : ""}</div>
-            </div>
-          </div>
-          ${sections}
-        </section>`;
-      })
-      .join("");
-
-    win.document.write(`<!doctype html>
-      <html lang="th"><head><meta charset="utf-8"><title>รายงานนักเรียน</title>
-      <style>
-        body { font-family: "Sarabun", "Noto Sans Thai", sans-serif; padding: 28px; color: #1f2937; }
-        h1 { font-size: 19px; margin: 0 0 2px; color: #ec4899; }
-        p.meta { font-size: 12.5px; color: #6b7280; margin: 0 0 18px; }
-        .toc { page-break-after: always; }
-        .toc ol { font-size: 13px; line-height: 1.9; }
-        .toc a { color: #1f2937; text-decoration: none; }
-        .card { page-break-inside: avoid; page-break-after: always; padding-top: 6px; }
-        .card:last-child { page-break-after: auto; }
-        .card-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-        .avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; }
-        .name { font-size: 16px; font-weight: 700; }
-        .sub { font-size: 12px; color: #6b7280; }
-        .section { margin-bottom: 12px; }
-        .section-title { font-size: 12.5px; font-weight: 700; color: #9d174d; background: #fce7f3; padding: 4px 10px; border-radius: 6px; display: inline-block; margin-bottom: 6px; }
-        table { width: 100%; border-collapse: collapse; }
-        td { border: 1px solid #e5e7eb; padding: 6px 10px; font-size: 12.5px; }
-        td.k { width: 160px; color: #6b7280; background: #fafafa; }
-      </style></head>
-      <body>
-        <h1>รายงานข้อมูลนักเรียน</h1>
-        <p class="meta">${scopeLabel} · หมวด: ${selectedCategories.map((c) => c.label).join(", ")} · ออกรายงานเมื่อ ${genDate}</p>
-        ${toc}
-        ${cards}
-      </body></html>`);
-    win.document.close();
-    win.focus();
-    win.onload = () => win.print();
+  const studentSub = (s) => {
+    const c = classesList.find((cc) => String(cc.id) === String(s.gradeId));
+    return [c ? `ม.${gradeLabel(c)}` : null, s.seatNo != null ? `เลขที่ ${s.seatNo}` : null, s.student_code ? `รหัส ${s.student_code}` : null].filter(Boolean).join(" • ");
+  };
+  const runExcelExport = async () => {
+    const base = summaryReportBase();
+    const columns = [
+      { label: "ลำดับ", key: "__no" },
+      { label: "รหัสนักเรียน", key: "student_code" },
+      { label: "ชื่อ-นามสกุล", key: "fullname" },
+      ...selectedCategories.flatMap((c) => CATEGORY_HEADERS[c.key].map((h, i) => ({ label: h, get: (s) => CATEGORY_VALUES[c.key](s)[i] }))),
+    ];
+    await exportReportExcel({ title: base.title, info: base.info, columns, rows: exportTargets.map((s, i) => ({ ...s, __no: i + 1 })), sheetName: "สรุปข้อมูลนักเรียน", filename: `${base.fileBase}.xlsx` });
+  };
+  const runPdfExport = async () => {
+    const base = summaryReportBase();
+    const blocks = exportTargets.map((s, i) => ({
+      heading: `${i + 1}. ${s.fullname}`,
+      sub: studentSub(s),
+      rows: selectedCategories.flatMap((c) => [{ section: c.label }, ...CATEGORY_HEADERS[c.key].map((h, j) => [h, CATEGORY_VALUES[c.key](s)[j]])]),
+    }));
+    await exportReportPdf(
+      { title: base.title, subtitle: `${base.roomText} • ${exportTargets.length} คน`, info: base.info, blocks, filename: `${base.fileBase}.pdf` },
+      (p) => setExportProgress(Math.round(p * 100))
+    );
   };
 
   const runFormExport = async () => {
@@ -742,9 +695,23 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
     }
   };
 
-  const confirmExport = () => {
+  const confirmExport = async () => {
     if (exportFormat === "form") {
       runFormExport();
+      return;
+    }
+    if (exportFormat === "pdf" || exportFormat === "excel") {
+      setExportProgress(0);
+      try {
+        if (exportFormat === "pdf") await runPdfExport();
+        else await runExcelExport();
+        setExportProgress(100);
+        setTimeout(closeExportWizard, 300);
+      } catch (err) {
+        console.error("ส่งออกไม่สำเร็จ:", err);
+        setExportProgress(null);
+        notAvailableYet("สร้างไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง");
+      }
       return;
     }
     setExportProgress(0);
@@ -752,7 +719,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
       setExportProgress((p) => {
         if (p >= 100) {
           clearInterval(timer);
-          if (exportFormat === "csv") runCsvExport();
+          if (exportFormat === "excel") runExcelExport();
           else if (exportFormat === "pdf") runPdfExport();
           setTimeout(closeExportWizard, 250);
           return 100;
@@ -874,7 +841,10 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
         <button
           type="button"
-          onClick={() => window.print()}
+          onClick={() => {
+            setExportFormat("pdf");
+            setExportStep(1);
+          }}
           className="h-10 sm:mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
         >
           <FaPrint size={12} /> พิมพ์รายงาน
@@ -1216,13 +1186,10 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                     </span>
                   </label>
                   <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="fmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} className="accent-pink-600" /> รายงานสรุป PDF
-                  </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-300">
-                    <input type="radio" name="fmt" disabled className="accent-pink-600" /> Excel (.xlsx) <span className="text-[13px]">(เร็วๆ นี้)</span>
+                    <input type="radio" name="fmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} className="accent-pink-600" /> รายงานสรุปรายบุคคล (PDF)
                   </label>
                   <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="fmt" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-pink-600" /> CSV (.csv)
+                    <input type="radio" name="fmt" checked={exportFormat === "excel"} onChange={() => setExportFormat("excel")} className="accent-pink-600" /> ตารางสรุป (Excel .xlsx)
                   </label>
                 </div>
 
@@ -1260,47 +1227,11 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   <button
                     type="button"
                     disabled={exportFormat !== "form" && selectedCategories.length === 0}
-                    onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 3)}
+                    onClick={() => setExportStep(3)}
                     className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold disabled:opacity-40"
                   >
                     ถัดไป
                   </button>
-                </div>
-              </>
-            )}
-
-            {exportStep === 2 && (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[18px] font-semibold text-gray-900">ตั้งค่าการส่งออก PDF</h2>
-                  <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
-                </div>
-
-                <div className="text-[14.5px] text-gray-500 mb-2">วิธีจัดไฟล์</div>
-                <div className="flex flex-col gap-1 mb-4">
-                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="method" checked={exportMethod === "single"} onChange={() => setExportMethod("single")} className="accent-pink-600 mt-0.5" />
-                    <span>รวมเป็นไฟล์เดียว<br /><span className="text-[13.5px] text-gray-400">รวมข้อมูลนักเรียนทั้งหมดในไฟล์ PDF เดียว</span></span>
-                  </label>
-                  <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-300">
-                    <input type="radio" name="method" disabled className="accent-pink-600 mt-0.5" />
-                    <span>แยกเป็นไฟล์คนละไฟล์ (ZIP) <span className="text-[13px]">(เร็วๆ นี้)</span><br /><span className="text-[13.5px] text-gray-300">แยกไฟล์ PDF รายบุคคล แล้วบีบอัดเป็นไฟล์ ZIP</span></span>
-                  </label>
-                </div>
-
-                <div className="text-[14.5px] text-gray-500 mb-2">ตัวเลือกเพิ่มเติม</div>
-                <div className="flex flex-col gap-1 mb-5">
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="checkbox" checked={exportIncludeToc} onChange={(e) => setExportIncludeToc(e.target.checked)} className="accent-pink-600" /> ใส่สารบัญ (สารบัญรายชื่อ)
-                  </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="checkbox" checked={exportIncludePhoto} onChange={(e) => setExportIncludePhoto(e.target.checked)} className="accent-pink-600" /> แสดงรูปนักเรียน
-                  </label>
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setExportStep(1)} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
-                  <button type="button" onClick={() => setExportStep(3)} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold">ถัดไป</button>
                 </div>
               </>
             )}
@@ -1332,10 +1263,9 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                           : "PDF"
                         : exportFormat === "pdf"
                         ? "PDF"
-                        : "CSV"}
+                        : "Excel (.xlsx)"}
                     </span>
                   </div>
-                  {exportFormat === "pdf" && <div>วิธีจัดไฟล์: <span className="font-medium">{exportMethod === "single" ? "รวมเป็นไฟล์เดียว" : "แยกเป็นไฟล์ (ZIP)"}</span></div>}
                   <div>จำนวน: <span className="font-medium">{exportTargets.length} คน</span></div>
                 </div>
 
@@ -1348,7 +1278,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   </div>
                 ) : (
                   <div className="flex justify-end gap-2">
-                    <button type="button" onClick={() => setExportStep(exportFormat === "pdf" ? 2 : 1)} disabled={exportProgress != null} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
+                    <button type="button" onClick={() => setExportStep(1)} disabled={exportProgress != null} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ย้อนกลับ</button>
                     <button type="button" onClick={confirmExport} className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold">ยืนยันการส่งออก</button>
                   </div>
                 )}
