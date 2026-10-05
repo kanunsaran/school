@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header";
 import { FaChevronRight, FaChevronLeft } from "react-icons/fa";
+import { getTypes, createTypeResult } from "../../callapi/callapi_user.jsx";
+import { getCurrentUser } from "../../utils/auth.js";
 
 // RIASEC question bank — 10 statements per dimension (60 total).
 // The dimension code is only used for scoring; it is never shown to the test-taker.
@@ -131,11 +133,27 @@ export default function AptitudeTestPage() {
     if (invalidId === qId) setInvalidId(null);
   };
 
-  const submitResult = () => {
+  const [saving, setSaving] = useState(false);
+
+  // คำนวณคะแนนรายด้าน แล้วบันทึกผลจริงลงระบบ (ครูเห็นในผลการประเมิน + กราฟ RIASEC ในรายงาน)
+  const submitResult = async () => {
     const scores = CODES.reduce((acc, c) => ({ ...acc, [c]: 0 }), {});
     questions.forEach((q) => { scores[q.code] += answers[q.id] || 0; });
-    console.log("คะแนนแต่ละด้าน:", scores);
-    navigate("/result");
+    const topCode = CODES.reduce((best, c) => (scores[c] > scores[best] ? c : best), CODES[0]);
+    const me = getCurrentUser();
+    setSaving(true);
+    try {
+      const types = await getTypes();
+      const type = (types || []).find((t) => t.type_code === topCode);
+      if (me?.user_id && type) {
+        await createTypeResult({ user_user_id: me.user_id, type_type_id: type.type_id, result_code: topCode, scores });
+      }
+    } catch (err) {
+      console.error("บันทึกผลแบบทดสอบไม่สำเร็จ:", err);
+    } finally {
+      setSaving(false);
+    }
+    navigate("/result", { state: { scores, topCode } });
   };
 
   const handleNext = () => {
@@ -261,12 +279,13 @@ export default function AptitudeTestPage() {
             <button
               type="button"
               onClick={handleNext}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border text-[15.5px] font-semibold
+              disabled={saving}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-full border text-[15.5px] font-semibold disabled:opacity-60
                 bg-white/70 border-gray-200 text-gray-800 shadow-md
                 hover:bg-pink-50 hover:border-pink-100 hover:text-pink-600
                 transition-all duration-200"
             >
-              {isLastPage ? "ส่งคำตอบ" : "ถัดไป"}
+              {isLastPage ? (saving ? "กำลังบันทึก..." : "ส่งคำตอบ") : "ถัดไป"}
               {!isLastPage && <FaChevronRight className="text-[12.5px]" />}
             </button>
           </div>

@@ -1068,6 +1068,16 @@ export async function getTypeResults() {
 }
 
 // รายชื่อ-คำอธิบายกลุ่มบุคลิกภาพ (Holland types) — [{type_id, type_code, type_name, description}]
+// บันทึกผลแบบทดสอบความถนัด (Holland) พร้อมคะแนนรายด้าน { R, I, A, S, E, C }
+export async function createTypeResult({ user_user_id, type_type_id, result_code, scores }) {
+  const response = await axios.post(
+    `${api}/user_type_result`,
+    { user_user_id, type_type_id, result_code, scores, test_date: new Date() },
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return response.data;
+}
+
 export async function getTypes() {
   try {
     // ใช้ /types (พหูพจน์) เพราะมีชุดข้อมูล RIASEC ครบ 6 กลุ่มจริง ส่วน /type (เอกพจน์) เป็นชุดเก่าที่ไม่ครบ
@@ -1534,6 +1544,12 @@ export async function getAttendanceLog(gradeId, date) {
     console.error("Error getAttendanceLog:", error);
     throw error;
   }
+}
+
+// ประวัติการเข้าเรียนรายวันของนักเรียนคนเดียว (ทุกห้อง หรือเฉพาะ gradeId)
+export async function getStudentAttendanceRecords(userId, gradeId) {
+  const response = await axios.get(`${api}/attendance/student/${userId}/records`, { params: gradeId ? { grade_id: gradeId } : {} });
+  return response.data;
 }
 
 export async function getStudentAttendanceSummary(userId, gradeId) {

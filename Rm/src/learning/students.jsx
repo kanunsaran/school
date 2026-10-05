@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { exportReportPdf, safeFileName, todayStamp } from "../utils/reportPdf.js";
-import { exportReportExcel } from "../utils/reportExcel.js";
+import ReportWizard from "../components/ReportWizard.jsx";
+import { REPORT_TYPES } from "../utils/studentReportData.js";
 import { exportStudentInfoForms } from "../utils/studentInfoPdf.js";
 import { useSearchParams } from "react-router-dom";
 import Select from "react-select";
@@ -53,16 +53,6 @@ const statusFromAttendance = (pct) => {
   if (pct >= 90) return "normal";
   if (pct >= 70) return "watch";
   return "risk";
-};
-
-const ageFromDob = (dob) => {
-  if (!dob) return null;
-  const d = new Date(dob);
-  const now = new Date();
-  let age = now.getFullYear() - d.getFullYear();
-  const notYetBirthday = now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate());
-  if (notYetBirthday) age -= 1;
-  return age;
 };
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "-");
@@ -557,111 +547,16 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
   const exportTargets = checkedIds.size > 0 ? students.filter((s) => checkedIds.has(s.user_id)) : students;
 
-  const getGoalFor = (userId) =>
-    goals.filter((g) => String(g.user_user_id) === String(userId)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-  const getTypeResultFor = (userId) =>
-    typeResults.filter((r) => String(r.user_user_id) === String(userId)).sort((a, b) => new Date(b.test_date) - new Date(a.test_date))[0];
-
-  // หัวคอลัมน์ + ค่าต่อคนของแต่ละหมวด ใช้ร่วมกันทั้ง CSV (ตาราง) และ PDF (การ์ดโปรไฟล์ต่อคน)
-  const CATEGORY_HEADERS = {
-    personal: ["ห้อง", "เลขที่", "อีเมล", "วันเกิด", "อายุ"],
-    goal: ["เป้าหมาย", "สายอาชีพที่สนใจ", "คณะที่อยากเข้า"],
-    academic: ["คะแนนเฉลี่ย(%)"],
-    attendance: ["การมาเรียน(%)", "สถานะ"],
-    holland: ["กลุ่มบุคลิกภาพ", "คณะแนะนำ"],
-  };
-  const CATEGORY_VALUES = {
-    personal: (s) => {
-      const c = classesList.find((cc) => String(cc.id) === String(s.gradeId));
-      return [c ? gradeLabel(c) : "-", s.seatNo ?? "-", s.email || "-", s.dob ? formatDate(s.dob) : "-", s.dob ? `${ageFromDob(s.dob)} ปี` : "-"];
-    },
-    goal: (s) => {
-      const goal = getGoalFor(s.user_id);
-      return [goal?.goal_text || "-", goal?.career_field || "-", goal?.faculty_name || "-"];
-    },
-    academic: (s) => {
-      const pct = computeScorePct(s.user_id);
-      return [pct != null ? pct : "-"];
-    },
-    attendance: (s) => {
-      const att = attendanceByUser[s.user_id];
-      const attPct = att && Number(att.totalDays) > 0 ? Math.round((Number(att.presentDays) / Number(att.totalDays)) * 100) : null;
-      return [attPct != null ? attPct : "-", STATUS_META[statusFromAttendance(attPct)].label];
-    },
-    holland: (s) => {
-      const tr = getTypeResultFor(s.user_id);
-      const type = tr ? types.find((t) => String(t.type_id) === String(tr.type_type_id)) : null;
-      const fac = tr ? faculties.find((f) => String(f.faculty_id) === String(tr.recommended_faculty_id)) : null;
-      return [type?.type_name || "ยังไม่ได้ทำ", fac ? `${fac.faculty_name} (${fac.university_name})` : "-"];
-    },
-  };
-
-  const EXPORT_CATEGORIES = [
-    { key: "personal", label: "ข้อมูลทั่วไป", available: true },
-    { key: "goal", label: "เป้าหมายการศึกษาต่อ", available: true },
-    { key: "academic", label: "ผลการเรียน", available: true },
-    { key: "attendance", label: "การมาเรียน / เช็คชื่อ", available: true },
-    { key: "holland", label: "แบบประเมิน Holland", available: true },
-    { key: "counseling", label: "บันทึกการให้คำปรึกษา", available: false },
-  ];
-
   const [exportStep, setExportStep] = useState(0); // 0 = ปิด, 1-3 = ขั้นตอน
-  const [exportCategoryKeys, setExportCategoryKeys] = useState(() => new Set(["personal", "goal", "academic"]));
-  const [exportFormat, setExportFormat] = useState("form"); // form (แบบฟอร์มโรงเรียน) | pdf | excel | csv
+  const [exportFormat, setExportFormat] = useState("form"); // form = แบบฟอร์มโรงเรียน (รายงานอื่นไปที่ ReportWizard)
+  const [reportWizard, setReportWizard] = useState(null); // null = ปิด, { type } = เปิดระบบสร้างรายงาน
   const [exportProgress, setExportProgress] = useState(null);
 
   const openExportWizard = () => setExportStep(1);
   const closeExportWizard = () => { setExportStep(0); setExportProgress(null); };
-  const toggleExportCategory = (key) => {
-    setExportCategoryKeys((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
-
-  const selectedCategories = EXPORT_CATEGORIES.filter((c) => exportCategoryKeys.has(c.key) && c.available);
-
-  // ---------- รายงานสรุปรายบุคคล (PDF: การ์ดรายคนแยกหมวด / Excel: แถวละคน) ----------
-  const summaryReportBase = () => {
-    const room = roomFilter ? classesList.find((c) => String(c.id) === String(roomFilter)) : null;
-    const roomText = room ? gradeLabel(room) : "ทุกห้อง";
-    return {
-      roomText,
-      title: "รายงานสรุปข้อมูลนักเรียน",
-      info: [
-        ["ห้อง", roomText],
-        ["จำนวน", `${exportTargets.length} คน`],
-        ["หมวดข้อมูล", selectedCategories.map((c) => c.label).join(", ")],
-      ],
-      fileBase: `รายงานสรุปนักเรียน_${safeFileName(roomText)}_${todayStamp()}`,
-    };
-  };
-  const studentSub = (s) => {
-    const c = classesList.find((cc) => String(cc.id) === String(s.gradeId));
-    return [c ? `ม.${gradeLabel(c)}` : null, s.seatNo != null ? `เลขที่ ${s.seatNo}` : null, s.student_code ? `รหัส ${s.student_code}` : null].filter(Boolean).join(" • ");
-  };
-  const runExcelExport = async () => {
-    const base = summaryReportBase();
-    const columns = [
-      { label: "ลำดับ", key: "__no" },
-      { label: "รหัสนักเรียน", key: "student_code" },
-      { label: "ชื่อ-นามสกุล", key: "fullname" },
-      ...selectedCategories.flatMap((c) => CATEGORY_HEADERS[c.key].map((h, i) => ({ label: h, get: (s) => CATEGORY_VALUES[c.key](s)[i] }))),
-    ];
-    await exportReportExcel({ title: base.title, info: base.info, columns, rows: exportTargets.map((s, i) => ({ ...s, __no: i + 1 })), sheetName: "สรุปข้อมูลนักเรียน", filename: `${base.fileBase}.xlsx` });
-  };
-  const runPdfExport = async () => {
-    const base = summaryReportBase();
-    const blocks = exportTargets.map((s, i) => ({
-      heading: `${i + 1}. ${s.fullname}`,
-      sub: studentSub(s),
-      rows: selectedCategories.flatMap((c) => [{ section: c.label }, ...CATEGORY_HEADERS[c.key].map((h, j) => [h, CATEGORY_VALUES[c.key](s)[j]])]),
-    }));
-    await exportReportPdf(
-      { title: base.title, subtitle: `${base.roomText} • ${exportTargets.length} คน`, info: base.info, blocks, filename: `${base.fileBase}.pdf` },
-      (p) => setExportProgress(Math.round(p * 100))
-    );
+  const openReportWizard = (type = null) => {
+    setExportStep(0);
+    setReportWizard({ type });
   };
 
   const runFormExport = async () => {
@@ -695,39 +590,17 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
     }
   };
 
-  const confirmExport = async () => {
-    if (exportFormat === "form") {
-      runFormExport();
-      return;
-    }
-    if (exportFormat === "pdf" || exportFormat === "excel") {
-      setExportProgress(0);
-      try {
-        if (exportFormat === "pdf") await runPdfExport();
-        else await runExcelExport();
-        setExportProgress(100);
-        setTimeout(closeExportWizard, 300);
-      } catch (err) {
-        console.error("ส่งออกไม่สำเร็จ:", err);
-        setExportProgress(null);
-        notAvailableYet("สร้างไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง");
-      }
-      return;
-    }
-    setExportProgress(0);
-    const timer = setInterval(() => {
-      setExportProgress((p) => {
-        if (p >= 100) {
-          clearInterval(timer);
-          if (exportFormat === "excel") runExcelExport();
-          else if (exportFormat === "pdf") runPdfExport();
-          setTimeout(closeExportWizard, 250);
-          return 100;
-        }
-        return p + 20;
-      });
-    }, 70);
-  };
+  const confirmExport = () => runFormExport();
+
+  // นักเรียนทุกคนที่ครูดูแล (ไม่ขึ้นกับตัวกรอง) สำหรับเลือกในระบบสร้างรายงาน
+  const reportStudents = useMemo(
+    () =>
+      allStudents.map((s) => {
+        const enroll = gradeByUserId.get(String(s.user_id));
+        return { user_id: s.user_id, fullname: s.fullname, student_code: s.student_code, gradeId: enroll?.gradeId ?? null, seatNo: enroll?.seatNo ?? null };
+      }),
+    [allStudents, gradeByUserId]
+  );
 
   const content = (
     <div className="w-full">
@@ -841,10 +714,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
         <button
           type="button"
-          onClick={() => {
-            setExportFormat("pdf");
-            setExportStep(1);
-          }}
+          onClick={() => openReportWizard()}
           className="h-10 sm:mt-5 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50 flex items-center gap-2"
         >
           <FaPrint size={12} /> พิมพ์รายงาน
@@ -1176,7 +1046,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
                 </div>
 
-                <div className="text-[14.5px] text-gray-500 mb-2">รูปแบบไฟล์</div>
+                <div className="text-[14.5px] text-gray-500 mb-2">แบบฟอร์มโรงเรียน</div>
                 <div className="flex flex-col gap-1 mb-4">
                   <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="radio" name="fmt" checked={exportFormat === "form"} onChange={() => setExportFormat("form")} className="accent-pink-600 mt-1" />
@@ -1185,48 +1055,34 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                       <span className="block text-[13.5px] text-gray-400">ข้อมูลทั่วไปที่นักเรียนกรอก จัดหน้า-หลังตามแบบฟอร์มกระดาษ • 1 คน = PDF, หลายคน = แยกไฟล์รายคนรวมเป็น ZIP</span>
                     </span>
                   </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="fmt" checked={exportFormat === "pdf"} onChange={() => setExportFormat("pdf")} className="accent-pink-600" /> รายงานสรุปรายบุคคล (PDF)
-                  </label>
-                  <label className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
-                    <input type="radio" name="fmt" checked={exportFormat === "excel"} onChange={() => setExportFormat("excel")} className="accent-pink-600" /> ตารางสรุป (Excel .xlsx)
-                  </label>
                 </div>
 
-                {exportFormat !== "form" && (
-                <>
-                <div className="text-[14.5px] text-gray-500 mb-2">
-                  เลือกข้อมูลที่ต้องการส่งออก ({checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : `ทั้งหมด ${exportTargets.length} คน`})
-                </div>
-                <div className="flex flex-col gap-1 mb-4">
-                  {EXPORT_CATEGORIES.map((c) => (
-                    <label key={c.key} className={`flex items-center gap-2.5 px-2 py-2 rounded-lg text-[15.5px] ${c.available ? "text-gray-800" : "text-gray-300"}`}>
-                      <input
-                        type="checkbox"
-                        disabled={!c.available}
-                        checked={exportCategoryKeys.has(c.key)}
-                        onChange={() => toggleExportCategory(c.key)}
-                        className="accent-pink-600"
-                      />
-                      {c.label}
-                      {!c.available && <span className="text-[13px] text-gray-300">(ยังไม่มีข้อมูล)</span>}
-                    </label>
-                  ))}
-                </div>
-
-                </>
-                )}
                 {exportFormat === "form" && (
                   <div className="mb-5 rounded-xl bg-pink-50/60 border border-pink-100 px-3 py-2.5 text-[14px] text-gray-600">
                     ส่งออก {checkedIds.size > 0 ? `นักเรียนที่เลือก ${checkedIds.size} คน` : `ทั้งหมด ${exportTargets.length} คน`} — ช่องที่นักเรียนยังไม่กรอกจะแสดงเป็น "-"
                   </div>
                 )}
 
+                <div className="text-[14.5px] text-gray-500 mb-2">รายงาน PDF (เลือกนักเรียน/หัวข้อ และดูตัวอย่างก่อนส่งออก)</div>
+                <div className="grid grid-cols-1 gap-2 mb-5">
+                  {Object.entries(REPORT_TYPES).map(([k, v]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => openReportWizard(k)}
+                      className="w-full flex items-center gap-3 rounded-xl border border-gray-200 bg-white hover:border-pink-300 hover:bg-pink-50/50 px-3 py-2.5 text-left"
+                    >
+                      <span className="text-[22px] leading-none">{v.icon}</span>
+                      <span className="flex-1 text-[15.5px] text-gray-800">{v.label}</span>
+                      <FaChevronDown size={11} className="-rotate-90 text-gray-400" />
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={closeExportWizard} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ยกเลิก</button>
                   <button
                     type="button"
-                    disabled={exportFormat !== "form" && selectedCategories.length === 0}
                     onClick={() => setExportStep(3)}
                     className="h-10 px-4 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-[15px] font-semibold disabled:opacity-40"
                   >
@@ -1245,25 +1101,13 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
 
                 <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-5 text-[15px] text-gray-700">
                   <div className="font-medium text-emerald-800 mb-1.5">ข้อมูลที่ส่งออก</div>
-                  {exportFormat === "form" ? (
-                    <ul className="list-disc pl-5 space-y-0.5 mb-3">
-                      <li>แบบฟอร์มข้อมูลส่วนตัวของนักเรียน (หน้า-หลัง)</li>
-                    </ul>
-                  ) : (
-                    <ul className="list-disc pl-5 space-y-0.5 mb-3">
-                      {selectedCategories.map((c) => <li key={c.key}>{c.label}</li>)}
-                    </ul>
-                  )}
+                  <ul className="list-disc pl-5 space-y-0.5 mb-3">
+                    <li>แบบฟอร์มข้อมูลส่วนตัวของนักเรียน (หน้า-หลัง)</li>
+                  </ul>
                   <div>
                     รูปแบบไฟล์:{" "}
                     <span className="font-medium">
-                      {exportFormat === "form"
-                        ? exportTargets.length > 1
-                          ? `ZIP (PDF แยกรายคน ${exportTargets.length} ไฟล์)`
-                          : "PDF"
-                        : exportFormat === "pdf"
-                        ? "PDF"
-                        : "Excel (.xlsx)"}
+                      {exportTargets.length > 1 ? `ZIP (PDF แยกรายคน ${exportTargets.length} ไฟล์)` : "PDF"}
                     </span>
                   </div>
                   <div>จำนวน: <span className="font-medium">{exportTargets.length} คน</span></div>
@@ -1286,6 +1130,17 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
             )}
           </div>
         </div>
+      )}
+
+      {reportWizard && (
+        <ReportWizard
+          students={reportStudents}
+          classes={classesList}
+          initialType={reportWizard.type}
+          preselectedIds={[...checkedIds]}
+          defaultRoom={roomFilter || ""}
+          onClose={() => setReportWizard(null)}
+        />
       )}
     </div>
   );

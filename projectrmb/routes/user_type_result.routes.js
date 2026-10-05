@@ -2,10 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 
+// คะแนนรายด้าน R/I/A/S/E/C (JSON) — ใช้วาดกราฟ RIASEC ในรายงาน; เพิ่มคอลัมน์ให้อัตโนมัติถ้ายังไม่มี
+pool
+  .query('ALTER TABLE user_type_result ADD COLUMN IF NOT EXISTS scores_json TEXT NULL')
+  .catch((e) => console.error('add user_type_result.scores_json failed:', e.message));
+
 const SELECT_JOINED = `
   SELECT r.result_id, r.user_user_id, u.fullname,
          r.type_type_id, t.type_code, t.type_name,
-         r.result_code, r.test_date,
+         r.result_code, r.test_date, r.scores_json,
          r.recommended_faculty_id, f.faculty_name, f.university_name
   FROM user_type_result r
   JOIN users u ON u.user_id = r.user_user_id
@@ -49,17 +54,24 @@ router.get('/user/:user_id', async (req, res) => {
 // ---------------------- POST ----------------------
 router.post('/', async (req, res) => {
   try {
-    const { user_user_id, type_type_id, result_code, test_date, recommended_faculty_id } = req.body;
+    const { user_user_id, type_type_id, result_code, test_date, scores } = req.body;
+    let { recommended_faculty_id } = req.body;
 
     if (!user_user_id || !type_type_id) {
       return res.status(400).json({ message: 'user_user_id และ type_type_id จำเป็น' });
     }
 
+    // ไม่ระบุคณะ → ใช้คณะที่ผูกกับกลุ่มบุคลิกภาพนี้ (ตาราง faculty.Type_type_id)
+    if (!recommended_faculty_id) {
+      const [fac] = await pool.query('SELECT faculty_id FROM faculty WHERE Type_type_id = ? AND deleted_at IS NULL ORDER BY faculty_id LIMIT 1', [type_type_id]);
+      recommended_faculty_id = fac[0]?.faculty_id || null;
+    }
+
     const [result] = await pool.query(`
       INSERT INTO user_type_result
-      (user_user_id, type_type_id, result_code, test_date, recommended_faculty_id)
-      VALUES (?, ?, ?, ?, ?)
-    `, [user_user_id, type_type_id, result_code || null, test_date || new Date(), recommended_faculty_id || null]);
+      (user_user_id, type_type_id, result_code, test_date, recommended_faculty_id, scores_json)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [user_user_id, type_type_id, result_code || null, test_date || new Date(), recommended_faculty_id || null, scores ? JSON.stringify(scores) : null]);
 
     res.status(201).json({
       result_id: result.insertId,
@@ -67,7 +79,8 @@ router.post('/', async (req, res) => {
       type_type_id,
       result_code,
       test_date,
-      recommended_faculty_id
+      recommended_faculty_id,
+      scores: scores || null,
     });
   } catch (e) {
     console.error(e);

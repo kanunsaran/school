@@ -15,6 +15,7 @@ import SidebarNav from "../nav.jsx";
 import Header from "../Header";
 import PromptModal from "../components/PromptModal.jsx";
 import Avatar from "../components/Avatar.jsx";
+import useStudentAvatars from "../hooks/useStudentAvatars.js";
 import {
   getStudent, getEnrollments, getClasses, getTypeResults, getTypes, getFaculties,
   getGoals, getPortfolioWorks, getPortfolioWorkFiles, getConsultationRequests,
@@ -154,6 +155,7 @@ export default function AssessmentResultsPage() {
   }, [students, gradeByUserId, latestResultByUserId, roomFilter, statusFilter, search, isHolland]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const avatarByUser = useStudentAvatars(rows.map((r) => r.student.user_id));
   const paged = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => { setPage(1); }, [roomFilter, statusFilter, search, assessmentFilter]);
@@ -409,7 +411,7 @@ export default function AssessmentResultsPage() {
                           >
                             {isChecked && <FaCheck size={9} />}
                           </span>
-                          <Avatar name={r.student.fullname} size={40} />
+                          <Avatar src={avatarByUser[String(r.student.user_id)]} name={r.student.fullname} size={40} />
                           <div className="flex-1 min-w-0 text-[15px] font-medium text-gray-900 truncate">{r.student.fullname}</div>
                           <span className={`text-[12.5px] font-medium px-2 py-1 rounded-full shrink-0 ${STATUS_META[r.status].cls}`}>{STATUS_META[r.status].label}</span>
                         </button>
@@ -450,7 +452,7 @@ export default function AssessmentResultsPage() {
 
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-start gap-3 min-w-0 max-w-70">
-                    <Avatar name={selected.student.fullname} size={56} />
+                    <Avatar src={avatarByUser[String(selected.student.user_id)]} name={selected.student.fullname} size={56} />
                     <div className="min-w-0">
                       <div className="text-[16.5px] font-bold text-gray-900 truncate">{selected.student.fullname}</div>
                       <div className="text-[13.5px] text-gray-500 truncate">

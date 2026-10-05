@@ -224,6 +224,28 @@ router.get('/log', async (req, res) => {
 });
 
 // ---------------------- GET สรุปรายคน (สำหรับ Drawer รายละเอียดนักเรียน) ----------------------
+// ---------------------- ประวัติรายวันของนักเรียนคนเดียว (ใช้ในรายงานการเข้าเรียนรายบุคคล) ----------------------
+router.get('/student/:user_id/records', async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    const { grade_id } = req.query;
+    const conditions = ['user_user_id = ?'];
+    const params = [user_id];
+    if (grade_id) { conditions.push('grade_idgrade = ?'); params.push(grade_id); }
+    const [rows] = await pool.query(
+      `SELECT attendance_id, attendance_date, status, checkin_time, method, note
+       FROM attendance
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY attendance_date ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 router.get('/student/:user_id', async (req, res) => {
   try {
     const { user_id } = req.params;

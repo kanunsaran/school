@@ -224,7 +224,7 @@ export const safeFileName = (s) => String(s || "").replace(/[\\/:*?"<>|]+/g, "-"
 
 // o: { title, subtitle, info:[[k,v]], summary:[{label,value,tone}], table:{columns,rows} | blocks:[{heading,sub,rows}],
 //      orientation: "portrait"|"landscape", filename, note, emptyText }
-// onProgress(0..1); คืน Blob ถ้า o.returnBlob ไม่งั้นดาวน์โหลดเลย
+// onProgress(0..1); คืน Blob ถ้า o.returnBlob, { blob, images } ถ้า o.returnImages (ใช้ดูตัวอย่าง) ไม่งั้นดาวน์โหลดเลย
 export const exportReportPdf = async (o, onProgress) => {
   const [{ toJpeg }, { jsPDF }] = await Promise.all([import("html-to-image"), import("jspdf")]);
   ensureStyles();
@@ -247,13 +247,16 @@ export const exportReportPdf = async (o, onProgress) => {
     await Promise.all([...host.querySelectorAll("img")].map((img) => (img.complete ? null : img.decode().catch(() => null))));
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation, compress: true });
     const [pw, ph] = orientation === "portrait" ? [210, 297] : [297, 210];
+    const images = [];
     for (let i = 0; i < pages.length; i++) {
       const img = await toJpeg(pages[i], { quality: 0.88, pixelRatio: 2, backgroundColor: "#ffffff", width: size.w, height: size.h });
+      images.push(img);
       if (i > 0) pdf.addPage("a4", orientation);
       pdf.addImage(img, "JPEG", 0, 0, pw, ph);
       onProgress?.((i + 1) / pages.length);
     }
     const blob = pdf.output("blob");
+    if (o.returnImages) return { blob, images };
     if (o.returnBlob) return blob;
     downloadBlob(blob, o.filename || `${safeFileName(o.title)}_${todayStamp()}.pdf`);
     return blob;
