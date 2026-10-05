@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import ReportWizard from "../components/ReportWizard.jsx";
 import { REPORT_TYPES } from "../utils/studentReportData.js";
+
+// ระบบสร้างรายงาน (เป้าหมาย/ส่งงาน/เข้าเรียน) ปิดไว้ก่อน — ตอนนี้ส่งออกได้แค่แบบฟอร์มข้อมูลส่วนตัว เปลี่ยนเป็น true เพื่อเปิดใช้
+const REPORT_WIZARD_ENABLED = false;
 import { exportStudentInfoForms } from "../utils/studentInfoPdf.js";
 import { useSearchParams } from "react-router-dom";
 import Select from "react-select";
@@ -712,6 +715,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
           <FaDownload size={12} /> ส่งออก{checkedIds.size > 0 ? ` (${checkedIds.size})` : "ทั้งหมด"}
         </button>
 
+        {REPORT_WIZARD_ENABLED && (
         <button
           type="button"
           onClick={() => openReportWizard()}
@@ -719,6 +723,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         >
           <FaPrint size={12} /> พิมพ์รายงาน
         </button>
+        )}
       </div>
 
       <div className="mb-3 text-[15px] text-gray-500">พบนักเรียน {students.length} คน</div>
@@ -1046,7 +1051,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   <button type="button" onClick={closeExportWizard} className="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 flex items-center justify-center bg-transparent"><FaTimes size={13} /></button>
                 </div>
 
-                <div className="text-[14.5px] text-gray-500 mb-2">แบบฟอร์มโรงเรียน</div>
+                <div className="text-[14.5px] text-gray-500 mb-2">{REPORT_WIZARD_ENABLED ? "แบบฟอร์มโรงเรียน" : "รูปแบบไฟล์"}</div>
                 <div className="flex flex-col gap-1 mb-4">
                   <label className="flex items-start gap-2.5 px-2 py-2 rounded-lg text-[15.5px] text-gray-800">
                     <input type="radio" name="fmt" checked={exportFormat === "form"} onChange={() => setExportFormat("form")} className="accent-pink-600 mt-1" />
@@ -1063,6 +1068,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   </div>
                 )}
 
+                {REPORT_WIZARD_ENABLED && (
+                <>
                 <div className="text-[14.5px] text-gray-500 mb-2">รายงาน PDF (เลือกนักเรียน/หัวข้อ และดูตัวอย่างก่อนส่งออก)</div>
                 <div className="grid grid-cols-1 gap-2 mb-5">
                   {Object.entries(REPORT_TYPES).map(([k, v]) => (
@@ -1078,6 +1085,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                     </button>
                   ))}
                 </div>
+                </>
+                )}
 
                 <div className="flex justify-end gap-2">
                   <button type="button" onClick={closeExportWizard} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[15px] text-gray-600 hover:bg-gray-50">ยกเลิก</button>
@@ -1132,7 +1141,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         </div>
       )}
 
-      {reportWizard && (
+      {REPORT_WIZARD_ENABLED && reportWizard && (
         <ReportWizard
           students={reportStudents}
           classes={classesList}
