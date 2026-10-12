@@ -19,7 +19,7 @@ import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
 import { facultiesForCode, goalTargets, analyzeTarget, matchGoalFaculties } from "../utils/riasecScoring.js";
 import {
-  goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor, GRADE_TERMS, GRADE_SUBJECTS, gradeForSubject,
+  goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor, MYTCAS_HOME, GRADE_TERMS, GRADE_SUBJECTS, gradeForSubject,
 } from "../utils/goals.js";
 import uniData from "../data/universities.json";
 import { GRADE_OPTIONS, readGradeReport, termGpa, groupOf } from "../utils/gradeOcr.js";
@@ -168,12 +168,14 @@ function GoalCard({ goal, rank, total, analysis, grades, onEdit, onDelete, onMak
                 <a href={uniProgram.link} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
                   {uniProgram.program} — ตรวจเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
                 </a>
+              ) : f.links?.[0] ? (
+                <a href={f.links[0]} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
+                  ตรวจหลักสูตรและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
+                </a>
               ) : (
-                f.links?.[0] && (
-                  <a href={f.links[0]} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
-                    ตรวจหลักสูตรและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
-                  </a>
-                )
+                <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
+                  ค้นหาหลักสูตร “{f.name}” ใน myTCAS ↗ <span className="text-gray-400">(ยังไม่พบหลักสูตรของมหาวิทยาลัยตัวอย่างในประกาศปีนี้)</span>
+                </a>
               )}
             </dl>
           )}

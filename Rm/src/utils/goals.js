@@ -26,6 +26,9 @@ export const programLinkFor = (facultyRow, uni) => {
   return i >= 0 && facultyRow.links?.[i] ? { program: facultyRow.programs[i].split(":").slice(1).join(":").trim(), link: facultyRow.links[i] } : null;
 };
 
+// สาขาที่ยังไม่มีลิงก์หลักสูตร (myTCAS ยังไม่ประกาศหลักสูตรของมหาวิทยาลัยตัวอย่าง) → หน้าค้นหาหลักสูตรของ myTCAS
+export const MYTCAS_HOME = "https://course.mytcas.com/";
+
 // เรียง: priority น้อยก่อน (ข้อมูลเก่าที่ไม่มี priority ไว้ท้าย เรียงจากใหม่ไปเก่า)
 export const sortGoals = (goals) =>
   [...(goals || [])].sort(

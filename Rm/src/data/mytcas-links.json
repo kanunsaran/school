@@ -1,0 +1,452 @@
+{
+ "source": "myTCAS courses.json",
+ "fetchedAt": "2026-10-12",
+ "faculties": {
+  "วิศวกรรมโยธา": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมโยธา",
+    "มหาวิทยาลัยเกษตรศาสตร์: วศ.บ. สาขาวิชาวิศวกรรมโยธา",
+    "มหาวิทยาลัยขอนแก่น: วิศวกรรมศาสตรบัณฑิต (วิศวกรรมโยธา)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_21",
+    "https://course.mytcas.com/universities/002/faculties/05/fields/30_21",
+    "https://course.mytcas.com/universities/003/faculties/04/fields/30_21"
+   ]
+  },
+  "วิศวกรรมเครื่องกล": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมเครื่องกล",
+    "มจธ.: วิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมเครื่องกล ปริญญาตรี 4 ปี",
+    "มหาวิทยาลัยขอนแก่น: วิศวกรรมศาสตรบัณฑิต (วิศวกรรมเครื่องกล)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_07",
+    "https://course.mytcas.com/universities/014/faculties/07/fields/30_07",
+    "https://course.mytcas.com/universities/003/faculties/04/fields/30_07"
+   ]
+  },
+  "วิศวกรรมไฟฟ้า": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมไฟฟ้า",
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมไฟฟ้า",
+    "ลาดกระบัง: วศ.บ. วิศวกรรมไฟฟ้า"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_16",
+    "https://course.mytcas.com/universities/006/faculties/12/fields/30_16",
+    "https://course.mytcas.com/universities/016/faculties/01/fields/30_16"
+   ]
+  },
+  "วิศวกรรมอุตสาหการ": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมอุตสาหการ",
+    "ลาดกระบัง: วศ.บ. วิศวกรรมอุตสาหการ",
+    "มหาวิทยาลัยขอนแก่น: วิศวกรรมศาสตรบัณฑิต (วิศวกรรมอุตสาหการ)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_35",
+    "https://course.mytcas.com/universities/016/faculties/01/fields/30_35",
+    "https://course.mytcas.com/universities/003/faculties/04/fields/30_35"
+   ]
+  },
+  "เกษตรศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาเกษตรศาสตร์",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเกษตรศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/002/faculties/19/fields/50_02",
+    "https://course.mytcas.com/universities/004/faculties/08/fields/50_02"
+   ]
+  },
+  "สัตวแพทยศาสตร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรสัตวแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยเกษตรศาสตร์: สัตวแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: สัตวแพทยศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/31/fields/14_01",
+    "https://course.mytcas.com/universities/002/faculties/09/fields/14_01",
+    "https://course.mytcas.com/universities/003/faculties/18/fields/14_01"
+   ]
+  },
+  "ประมง": {
+   "programs": [
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาประมง",
+    "มหาวิทยาลัยสงขลานครินทร์: วท.บ. เกษตรศาสตร์และประมง"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/002/faculties/02/fields/50_06",
+    "https://course.mytcas.com/universities/010/faculties/19/fields/50_02"
+   ]
+  },
+  "วนศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาวนศาสตร์",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเกษตรที่สูงและทรัพยากรป่าไม้"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/002/faculties/03/fields/50_10",
+    "https://course.mytcas.com/universities/004/faculties/08/fields/50_10"
+   ]
+  },
+  "วิทยาศาสตร์การกีฬา": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาศาสตร์การกีฬาและการออกกำลังกาย",
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาศาสตร์การกีฬา",
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาวิทยาศาสตร์การกีฬาและการออกกำลังกาย"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/39/fields/11_20",
+    "https://course.mytcas.com/universities/006/faculties/17/fields/11_20",
+    "https://course.mytcas.com/universities/002/faculties/23/fields/11_20"
+   ]
+  },
+  "แพทยศาสตร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยมหิดล: หลักสูตรแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: แพทยศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/30/fields/10_01",
+    "https://course.mytcas.com/universities/006/faculties/01/fields/10_01",
+    "https://course.mytcas.com/universities/003/faculties/07/fields/10_01"
+   ]
+  },
+  "ทันตแพทยศาสตร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรทันตแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยมหิดล: หลักสูตรทันตแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: ทันตแพทยศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/32/fields/12_01",
+    "https://course.mytcas.com/universities/006/faculties/04/fields/12_01",
+    "https://course.mytcas.com/universities/003/faculties/13/fields/12_01"
+   ]
+  },
+  "เภสัชศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรเภสัชศาสตรบัณฑิต",
+    "จุฬาฯ: หลักสูตรเภสัชศาสตรบัณฑิต สาขาวิชาเภสัชกรรมอุตสาหการ",
+    "มหาวิทยาลัยขอนแก่น: เภสัชศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/03/fields/13_01",
+    "https://course.mytcas.com/universities/001/faculties/33/fields/13_02",
+    "https://course.mytcas.com/universities/003/faculties/15/fields/13_01"
+   ]
+  },
+  "วิทยาศาสตร์ (เคมี)": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเคมี",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเคมี"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/05/fields/21_04",
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_04"
+   ]
+  },
+  "วิทยาศาสตร์ (ชีววิทยา)": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาชีววิทยา",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาชีววิทยา",
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาชีววิทยา"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/05/fields/21_07",
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_07",
+    "https://course.mytcas.com/universities/002/faculties/04/fields/21_07"
+   ]
+  },
+  "วิทยาการคอมพิวเตอร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการคอมพิวเตอร์",
+    "มหาวิทยาลัยธรรมศาสตร์: วท.บ.สาขาวิชาวิทยาการคอมพิวเตอร์",
+    "ลาดกระบัง: วท.บ. วิทยาการคอมพิวเตอร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_35",
+    "https://course.mytcas.com/universities/005/faculties/09/fields/22_02",
+    "https://course.mytcas.com/universities/016/faculties/05/fields/22_02"
+   ]
+  },
+  "เทคนิคการแพทย์": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรเทคนิคการแพทยบัณฑิต",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเทคนิคการแพทย์",
+    "มหาวิทยาลัยขอนแก่น: เทคนิคการแพทยบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/06/fields/11_13",
+    "https://course.mytcas.com/universities/001/faculties/37/fields/11_13",
+    "https://course.mytcas.com/universities/003/faculties/09/fields/11_13"
+   ]
+  },
+  "สาธารณสุขศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาสาธารณสุขศาสตร์",
+    "มหาวิทยาลัยขอนแก่น: สาธารณสุขศาสตรบัณฑิต สาธารณสุขศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/07/fields/11_27",
+    "https://course.mytcas.com/universities/003/faculties/11/fields/11_27"
+   ]
+  },
+  "คณิตศาสตร์/สถิติ": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาคณิตศาสตร์",
+    "มหาวิทยาลัยธรรมศาสตร์: วท.บ.สาขาวิชาคณิตศาสตร์",
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาคณิตศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_03",
+    "https://course.mytcas.com/universities/005/faculties/09/fields/21_03",
+    "https://course.mytcas.com/universities/006/faculties/05/fields/21_03"
+   ]
+  },
+  "ศิลปกรรมศาสตร์ (ทัศนศิลป์)": {
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาทัศนศิลป์",
+    "มหาวิทยาลัยขอนแก่น: ศิลปกรรมศาสตรบัณฑิต (ทัศนศิลป์)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/01/fields/80_03",
+    "https://course.mytcas.com/universities/003/faculties/22/fields/80_01"
+   ]
+  },
+  "สถาปัตยกรรมศาสตร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรสถาปัตยกรรมศาสตรบัณฑิต สาขาวิชาสถาปัตยกรรม",
+    "มหาวิทยาลัยศิลปากร: หลักสูตรสถาปัตยกรรมศาสตรบัณฑิต",
+    "ลาดกระบัง: สถ.บ. สถาปัตยกรรมหลัก"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/25/fields/40_05",
+    "https://course.mytcas.com/universities/008/faculties/02/fields/40_05",
+    "https://course.mytcas.com/universities/016/faculties/02/fields/40_05"
+   ]
+  },
+  "นิเทศศาสตร์ (โฆษณา/ภาพยนตร์)": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรนิเทศศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/28/fields/90_11"
+   ]
+  },
+  "การออกแบบแฟชั่น": {
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาการออกแบบแฟชั่น"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/04/fields/80_01"
+   ]
+  },
+  "การออกแบบผลิตภัณฑ์": {
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาการออกแบบผลิตภัณฑ์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/04/fields/80_01"
+   ]
+  },
+  "อักษรศาสตร์/มนุษยศาสตร์ (วรรณกรรม)": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรอักษรศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/22/fields/90_43"
+   ]
+  },
+  "ครุศาสตร์/ศึกษาศาสตร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรครุศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: ศึกษาศาสตรบัณฑิต (วิทยาศาสตร์ศึกษา)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/27/fields/70_37",
+    "https://course.mytcas.com/universities/003/faculties/05/fields/70_37"
+   ]
+  },
+  "พยาบาลศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรพยาบาลศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: พยาบาลศาสตรบัณฑิต",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรพยาบาลศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/02/fields/11_17",
+    "https://course.mytcas.com/universities/003/faculties/06/fields/11_17",
+    "https://course.mytcas.com/universities/004/faculties/12/fields/11_17"
+   ]
+  },
+  "จิตวิทยา": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาจิตวิทยา",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาจิตวิทยา"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/38/fields/11_31",
+    "https://course.mytcas.com/universities/004/faculties/01/fields/90_07"
+   ]
+  },
+  "สังคมสงเคราะห์ศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยธรรมศาสตร์: สังคมสงเคราะห์ศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/005/faculties/05/fields/90_37"
+   ]
+  },
+  "กายภาพบำบัด": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากายภาพบำบัด",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากายภาพบำบัด",
+    "มหาวิทยาลัยขอนแก่น: วิทยาศาสตรบัณฑิต (กายภาพบำบัด)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/09/fields/11_01",
+    "https://course.mytcas.com/universities/001/faculties/37/fields/11_01",
+    "https://course.mytcas.com/universities/003/faculties/09/fields/11_01"
+   ]
+  },
+  "สาธารณสุขศาสตร์ (สายชุมชน)": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาสาธารณสุขศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/07/fields/11_27"
+   ]
+  },
+  "กิจกรรมบำบัด": {
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากิจกรรมบำบัด",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากิจกรรมบำบัด"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/09/fields/11_09",
+    "https://course.mytcas.com/universities/004/faculties/11/fields/11_09"
+   ]
+  },
+  "บริหารธุรกิจ (การตลาด)": {
+   "programs": [
+    "มหาวิทยาลัยขอนแก่น: บริหารธุรกิจบัณฑิต (เทคโนโลยีการตลาด)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/003/faculties/21/fields/61_06"
+   ]
+  },
+  "นิติศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยธรรมศาสตร์: นิติศาสตรบัณฑิต",
+    "จุฬาฯ: หลักสูตรนิติศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: นิติศาสตรบัณฑิต (นิติศาสตร์)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/005/faculties/01/fields/90_10",
+    "https://course.mytcas.com/universities/001/faculties/34/fields/90_10",
+    "https://course.mytcas.com/universities/003/faculties/27/fields/90_10"
+   ]
+  },
+  "รัฐศาสตร์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรรัฐศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/24/fields/90_32"
+   ]
+  },
+  "เศรษฐศาสตร์ (นโยบาย)": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรเศรษฐศาสตรบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: เศรษฐศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/29/fields/61_11",
+    "https://course.mytcas.com/universities/005/faculties/04/fields/61_11"
+   ]
+  },
+  "นิเทศศาสตร์ (PR/โฆษณา)": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรนิเทศศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/28/fields/90_11"
+   ]
+  },
+  "ธุรกิจระหว่างประเทศ": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรบริหารธุรกิจบัณฑิต สาขาวิชาการจัดการธุรกิจระหว่างประเทศ (หลักสูตรนานาชาติ)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_03"
+   ]
+  },
+  "บัญชี": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรบัญชีบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: บัญชีบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: บัญชีบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_05",
+    "https://course.mytcas.com/universities/005/faculties/02/fields/61_05",
+    "https://course.mytcas.com/universities/003/faculties/21/fields/61_05"
+   ]
+  },
+  "เศรษฐศาสตร์ (วิเคราะห์)": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรเศรษฐศาสตรบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: เศรษฐศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/29/fields/61_11",
+    "https://course.mytcas.com/universities/005/faculties/04/fields/61_11"
+   ]
+  },
+  "สถิติประยุกต์": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรสถิติศาสตรบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: วท.บ.สาขาวิชาสถิติ"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_09",
+    "https://course.mytcas.com/universities/005/faculties/09/fields/21_33"
+   ]
+  },
+  "รัฐประศาสนศาสตร์": {
+   "programs": [
+    "มหาวิทยาลัยขอนแก่น: รัฐประศาสนศาสตรบัณฑิต (รัฐประศาสนศาสตร์)",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรรัฐประศาสนศาสตรบัณฑิต",
+    "มหาวิทยาลัยเกษตรศาสตร์: ศศ.บ. สาขาวิชารัฐประศาสนศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/003/faculties/08/fields/90_31",
+    "https://course.mytcas.com/universities/004/faculties/19/fields/90_31",
+    "https://course.mytcas.com/universities/002/faculties/08/fields/90_31"
+   ]
+  },
+  "ระบบสารสนเทศทางธุรกิจ": {
+   "programs": [
+    "จุฬาฯ: หลักสูตรสถิติศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_09"
+   ]
+  },
+  "การจัดการโลจิสติกส์": {
+   "programs": [
+    "มหาวิทยาลัยธรรมศาสตร์: วศ.บ.สาขาวิชาวิศวกรรมไฟฟ้า วิศวกรรมโยธา วิศวกรรมเครื่องกล วิศวกรรมเคมี วิศวกรรมอุตสาหการ และโลจิสติกส์อัจฉริยะ (หลักสูตรนานาชาติ) (SIIT)",
+    "มหาวิทยาลัยขอนแก่น: บริหารธุรกิจบัณฑิต (การจัดการ ผู้ประกอบการและโลจิสติกส์)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/005/faculties/22/fields/30_00",
+    "https://course.mytcas.com/universities/003/faculties/21/fields/61_02"
+   ]
+  }
+ }
+}

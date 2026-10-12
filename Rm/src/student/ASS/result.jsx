@@ -5,7 +5,7 @@ import Header from "../../Header";
 import { getGoals } from "../../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
-import { goalsOf, GOAL_RANK_LABEL } from "../../utils/goals.js";
+import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME } from "../../utils/goals.js";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
   denseRank, tiedWith, riasecAdvice, careersForResult, careersForGoal, interestLinks,
@@ -390,9 +390,9 @@ export default function ResultPage() {
   const code = viewCode || latest?.code;
   // เป้าหมาย (คณะ/อาชีพ/ข้อความ) ที่หาเจอในฐานข้อมูล → วิเคราะห์ความสอดคล้องทีละรายการ
   const ready = data && latest && !latest.legacy && myGoal !== undefined;
-  // ใช้คณะ/สาขาและข้อความเป้าหมาย (ไม่ใช้ช่องอาชีพแล้ว)
+  // ใช้สาขาเดียวต่อเป้าหมาย ให้ตรงกับหน้าเป้าหมาย: คณะที่เลือกก่อน ถ้าหาไม่เจอจึงใช้ข้อความเป้าหมาย (ข้อความคือเหตุผล ไม่ใช่สาขาที่สอง)
   const analyses = useMemo(
-    () => (ready && myGoal ? goalTargets(data, { faculty_name: myGoal.faculty_name, goal_text: myGoal.goal_text }).map((t) => analyzeTarget(data, latest, t)) : []),
+    () => (ready && myGoal ? goalTargets(data, { faculty_name: myGoal.faculty_name, goal_text: myGoal.goal_text }).slice(0, 1).map((t) => analyzeTarget(data, latest, t)) : []),
     [ready, data, latest, myGoal]
   );
   const advice = useMemo(() => (ready ? personalAdvice(data, latest, analyses) : null), [ready, data, latest, analyses]);
@@ -676,11 +676,9 @@ export default function ResultPage() {
                           กลุ่ม {dimLabel(data, row.dim)} • ด้านนี้ของคุณ{rank <= 3 ? `อยู่${rankText(row.dim)}` : ` ${scores[row.dim]}/${MAX_SCORE}`}
                         </div>
                         {row.universities.length > 0 && <div className="text-[12.5px] text-gray-600 mt-0.5">🏫 {row.universities.join(", ")}</div>}
-                        {row.links[0] && (
-                          <a href={row.links[0]} target="_blank" rel="noreferrer" className="text-[12.5px] text-sky-600 hover:underline">
-                            ดูหลักสูตรใน myTCAS ↗
-                          </a>
-                        )}
+                        <a href={row.links[0] || MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-[12.5px] text-sky-600 hover:underline">
+                          {row.links[0] ? "ดูหลักสูตรใน myTCAS ↗" : "ค้นหาหลักสูตรใน myTCAS ↗"}
+                        </a>
                       </div>
                     );
                   })}
@@ -798,11 +796,9 @@ export default function ResultPage() {
                   )}
                   {f.universities.length > 0 && <div className="text-gray-600">มหาวิทยาลัยตัวอย่าง: {f.universities.join(", ")}</div>}
                   {f.programs.length > 0 && <div className="text-[12.5px] text-gray-500">หลักสูตรที่เปิดจริง: {f.programs.slice(0, 2).join(" • ")}</div>}
-                  {f.link && (
-                    <a href={f.link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline text-[13px]">
-                      ตรวจคุณสมบัติและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
-                    </a>
-                  )}
+                  <a href={f.link || MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline text-[13px]">
+                    {f.link ? "ตรวจคุณสมบัติและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗" : `ค้นหาหลักสูตร “${f.name}” ใน myTCAS ↗`}
+                  </a>
                 </FacultyItem>
               ))}
             </AdviceBox>

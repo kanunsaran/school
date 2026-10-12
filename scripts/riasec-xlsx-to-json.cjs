@@ -38,6 +38,17 @@ const faculties = sheet('คณะ-อาชีพ-คำแนะนำ').map((
   links: lines(r['ลิงก์อ้างอิง']).filter((x) => /^https?:\/\//.test(x)),
 }));
 
+// สาขาที่ไฟล์ Excel ยังไม่มีลิงก์อ้างอิง → ใช้หลักสูตรที่ค้นได้จาก myTCAS (สร้างด้วย scripts/mytcas-links.mjs)
+const autoLinksPath = path.join(__dirname, '../Rm/src/data/mytcas-links.json');
+const autoLinks = fs.existsSync(autoLinksPath) ? JSON.parse(fs.readFileSync(autoLinksPath, 'utf8')).faculties : {};
+faculties.forEach((f) => {
+  const a = autoLinks[f.name];
+  if (f.links.length || !a) return;
+  f.programs = a.programs;
+  f.links = a.links;
+  f.linkSource = 'mytcas-auto';
+});
+
 const codes = {};
 sheet('รหัสผสม 3 ตัวอักษร').forEach((r) => {
   codes[r['รหัส']] = { meaning: r['ความหมายโดยสรุป'], faculties: list(r['คณะที่แนะนำ']), careers: list(r['อาชีพตัวอย่าง']) };

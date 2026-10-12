@@ -1585,8 +1585,17 @@
     "ฟิสิกส์"
    ],
    "exam": "ทบทวนคณิตศาสตร์และฟิสิกส์ ฝึกโจทย์และตรวจเกณฑ์ของหลักสูตรเป้าหมาย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมโยธา",
+    "มหาวิทยาลัยเกษตรศาสตร์: วศ.บ. สาขาวิชาวิศวกรรมโยธา",
+    "มหาวิทยาลัยขอนแก่น: วิศวกรรมศาสตรบัณฑิต (วิศวกรรมโยธา)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_21",
+    "https://course.mytcas.com/universities/002/faculties/05/fields/30_21",
+    "https://course.mytcas.com/universities/003/faculties/04/fields/30_21"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วิศวกรรมเครื่องกล",
@@ -1610,8 +1619,17 @@
     "ฟิสิกส์"
    ],
    "exam": "เน้นกลศาสตร์ ไฟฟ้าพื้นฐาน และคณิตศาสตร์ ฝึกโจทย์ต่อเนื่อง",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมเครื่องกล",
+    "มจธ.: วิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมเครื่องกล ปริญญาตรี 4 ปี",
+    "มหาวิทยาลัยขอนแก่น: วิศวกรรมศาสตรบัณฑิต (วิศวกรรมเครื่องกล)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_07",
+    "https://course.mytcas.com/universities/014/faculties/07/fields/30_07",
+    "https://course.mytcas.com/universities/003/faculties/04/fields/30_07"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วิศวกรรมไฟฟ้า",
@@ -1635,8 +1653,17 @@
     "ฟิสิกส์"
    ],
    "exam": "ทบทวนคณิตศาสตร์และฟิสิกส์ โดยเฉพาะไฟฟ้า ฝึกทำข้อสอบตามเกณฑ์หลักสูตร",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมไฟฟ้า",
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมไฟฟ้า",
+    "ลาดกระบัง: วศ.บ. วิศวกรรมไฟฟ้า"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_16",
+    "https://course.mytcas.com/universities/006/faculties/12/fields/30_16",
+    "https://course.mytcas.com/universities/016/faculties/01/fields/30_16"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วิศวกรรมอุตสาหการ",
@@ -1661,8 +1688,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ฝึกคณิตศาสตร์ ฟิสิกส์ และการวิเคราะห์ข้อมูล ตรวจเกณฑ์รายมหาวิทยาลัย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิศวกรรมศาสตรบัณฑิต สาขาวิชาวิศวกรรมอุตสาหการ",
+    "ลาดกระบัง: วศ.บ. วิศวกรรมอุตสาหการ",
+    "มหาวิทยาลัยขอนแก่น: วิศวกรรมศาสตรบัณฑิต (วิศวกรรมอุตสาหการ)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/21/fields/30_35",
+    "https://course.mytcas.com/universities/016/faculties/01/fields/30_35",
+    "https://course.mytcas.com/universities/003/faculties/04/fields/30_35"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "เกษตรศาสตร์",
@@ -1687,8 +1723,15 @@
     "คณิตศาสตร์"
    ],
    "exam": "ทบทวนวิทยาศาสตร์พื้นฐานและเลือกวิชาสอบตามสาขา/มหาวิทยาลัย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาเกษตรศาสตร์",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเกษตรศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/002/faculties/19/fields/50_02",
+    "https://course.mytcas.com/universities/004/faculties/08/fields/50_02"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "สัตวแพทยศาสตร์",
@@ -1713,8 +1756,17 @@
     "ฟิสิกส์"
    ],
    "exam": "เน้นวิทยาศาสตร์และตรวจเกณฑ์ กสพท./มหาวิทยาลัยที่สมัคร",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรสัตวแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยเกษตรศาสตร์: สัตวแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: สัตวแพทยศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/31/fields/14_01",
+    "https://course.mytcas.com/universities/002/faculties/09/fields/14_01",
+    "https://course.mytcas.com/universities/003/faculties/18/fields/14_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ประมง",
@@ -1737,8 +1789,15 @@
     "เคมี"
    ],
    "exam": "ทบทวนชีววิทยาและเคมี ศึกษาเกณฑ์ของสาขาเป้าหมาย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาประมง",
+    "มหาวิทยาลัยสงขลานครินทร์: วท.บ. เกษตรศาสตร์และประมง"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/002/faculties/02/fields/50_06",
+    "https://course.mytcas.com/universities/010/faculties/19/fields/50_02"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วนศาสตร์",
@@ -1762,8 +1821,15 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ทบทวนชีววิทยาและคณิตศาสตร์ พร้อมตรวจเกณฑ์สาขา",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาวนศาสตร์",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเกษตรที่สูงและทรัพยากรป่าไม้"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/002/faculties/03/fields/50_10",
+    "https://course.mytcas.com/universities/004/faculties/08/fields/50_10"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "เทคโนโลยีการบิน",
@@ -1813,8 +1879,17 @@
     "คณิตศาสตร์"
    ],
    "exam": "ทบทวนชีววิทยาและพื้นฐานสรีรวิทยา ตรวจเกณฑ์ของมหาวิทยาลัย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาศาสตร์การกีฬาและการออกกำลังกาย",
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาศาสตร์การกีฬา",
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาวิทยาศาสตร์การกีฬาและการออกกำลังกาย"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/39/fields/11_20",
+    "https://course.mytcas.com/universities/006/faculties/17/fields/11_20",
+    "https://course.mytcas.com/universities/002/faculties/23/fields/11_20"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "แพทยศาสตร์",
@@ -1841,8 +1916,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "เตรียมวิทยาศาสตร์หลายวิชา ฝึกโจทย์ และตรวจเกณฑ์รับเข้าปีล่าสุด",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยมหิดล: หลักสูตรแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: แพทยศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/30/fields/10_01",
+    "https://course.mytcas.com/universities/006/faculties/01/fields/10_01",
+    "https://course.mytcas.com/universities/003/faculties/07/fields/10_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ทันตแพทยศาสตร์",
@@ -1867,8 +1951,17 @@
     "คณิตศาสตร์"
    ],
    "exam": "เน้นวิทยาศาสตร์และฝึกทำโจทย์ ตรวจเกณฑ์รับเข้าของสถาบันเป้าหมาย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรทันตแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยมหิดล: หลักสูตรทันตแพทยศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: ทันตแพทยศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/32/fields/12_01",
+    "https://course.mytcas.com/universities/006/faculties/04/fields/12_01",
+    "https://course.mytcas.com/universities/003/faculties/13/fields/12_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "เภสัชศาสตร์",
@@ -1893,8 +1986,17 @@
     "คณิตศาสตร์"
    ],
    "exam": "เน้นเคมีและชีววิทยา ฝึกโจทย์และตรวจเกณฑ์รายมหาวิทยาลัย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรเภสัชศาสตรบัณฑิต",
+    "จุฬาฯ: หลักสูตรเภสัชศาสตรบัณฑิต สาขาวิชาเภสัชกรรมอุตสาหการ",
+    "มหาวิทยาลัยขอนแก่น: เภสัชศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/03/fields/13_01",
+    "https://course.mytcas.com/universities/001/faculties/33/fields/13_02",
+    "https://course.mytcas.com/universities/003/faculties/15/fields/13_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วิทยาศาสตร์ (เคมี)",
@@ -1919,8 +2021,15 @@
     "ฟิสิกส์"
    ],
    "exam": "ฝึกโจทย์เคมีและการคำนวณ พร้อมทำข้อสอบย้อนหลัง",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเคมี",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเคมี"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/05/fields/21_04",
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_04"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วิทยาศาสตร์ (ชีววิทยา)",
@@ -1944,8 +2053,17 @@
     "เคมี"
    ],
    "exam": "เน้นชีววิทยาเชิงระบบและเคมี ฝึกวิเคราะห์โจทย์",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาชีววิทยา",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาชีววิทยา",
+    "มหาวิทยาลัยเกษตรศาสตร์: วท.บ. สาขาวิชาชีววิทยา"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/05/fields/21_07",
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_07",
+    "https://course.mytcas.com/universities/002/faculties/04/fields/21_07"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "วิทยาการคอมพิวเตอร์",
@@ -1970,8 +2088,17 @@
     "วิทยาศาสตร์"
    ],
    "exam": "ทบทวนคณิตศาสตร์และตรรกะ ฝึกโจทย์และภาษาอังกฤษด้านเทคโนโลยี",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาวิทยาการคอมพิวเตอร์",
+    "มหาวิทยาลัยธรรมศาสตร์: วท.บ.สาขาวิชาวิทยาการคอมพิวเตอร์",
+    "ลาดกระบัง: วท.บ. วิทยาการคอมพิวเตอร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_35",
+    "https://course.mytcas.com/universities/005/faculties/09/fields/22_02",
+    "https://course.mytcas.com/universities/016/faculties/05/fields/22_02"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "เทคนิคการแพทย์",
@@ -1995,8 +2122,17 @@
     "ฟิสิกส์"
    ],
    "exam": "เน้นชีววิทยาและเคมี ฝึกโจทย์วิทยาศาสตร์และตรวจเกณฑ์สาขา",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรเทคนิคการแพทยบัณฑิต",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาเทคนิคการแพทย์",
+    "มหาวิทยาลัยขอนแก่น: เทคนิคการแพทยบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/06/fields/11_13",
+    "https://course.mytcas.com/universities/001/faculties/37/fields/11_13",
+    "https://course.mytcas.com/universities/003/faculties/09/fields/11_13"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "สาธารณสุขศาสตร์",
@@ -2021,8 +2157,15 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ทบทวนชีววิทยาและสถิติพื้นฐาน พร้อมตรวจเกณฑ์หลักสูตร",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาสาธารณสุขศาสตร์",
+    "มหาวิทยาลัยขอนแก่น: สาธารณสุขศาสตรบัณฑิต สาธารณสุขศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/07/fields/11_27",
+    "https://course.mytcas.com/universities/003/faculties/11/fields/11_27"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "คณิตศาสตร์/สถิติ",
@@ -2046,8 +2189,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ฝึกคณิตศาสตร์อย่างสม่ำเสมอ เน้นโจทย์ประยุกต์และการวิเคราะห์ข้อมูล",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาคณิตศาสตร์",
+    "มหาวิทยาลัยธรรมศาสตร์: วท.บ.สาขาวิชาคณิตศาสตร์",
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาคณิตศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/23/fields/21_03",
+    "https://course.mytcas.com/universities/005/faculties/09/fields/21_03",
+    "https://course.mytcas.com/universities/006/faculties/05/fields/21_03"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ศิลปกรรมศาสตร์ (ทัศนศิลป์)",
@@ -2071,8 +2223,15 @@
     "ภาษาไทย"
    ],
    "exam": "เตรียม Portfolio และฝึกทักษะวาดเส้น/สร้างสรรค์ตามเกณฑ์สาขา",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาทัศนศิลป์",
+    "มหาวิทยาลัยขอนแก่น: ศิลปกรรมศาสตรบัณฑิต (ทัศนศิลป์)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/01/fields/80_03",
+    "https://course.mytcas.com/universities/003/faculties/22/fields/80_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "สถาปัตยกรรมศาสตร์",
@@ -2097,8 +2256,17 @@
     "ศิลปะ"
    ],
    "exam": "ฝึกวาด/ออกแบบและทำโจทย์ TPAT4 พร้อมทบทวนคณิตศาสตร์ ฟิสิกส์ อังกฤษ",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรสถาปัตยกรรมศาสตรบัณฑิต สาขาวิชาสถาปัตยกรรม",
+    "มหาวิทยาลัยศิลปากร: หลักสูตรสถาปัตยกรรมศาสตรบัณฑิต",
+    "ลาดกระบัง: สถ.บ. สถาปัตยกรรมหลัก"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/25/fields/40_05",
+    "https://course.mytcas.com/universities/008/faculties/02/fields/40_05",
+    "https://course.mytcas.com/universities/016/faculties/02/fields/40_05"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "มัณฑนศิลป์",
@@ -2148,8 +2316,13 @@
     "สังคมศึกษา"
    ],
    "exam": "ฝึกภาษา การเขียน การเล่าเรื่อง และเตรียม Portfolio หากรอบสมัครกำหนด",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรนิเทศศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/28/fields/90_11"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ดุริยางคศาสตร์",
@@ -2198,8 +2371,13 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ทำ Portfolio ฝึกสเก็ตช์ ออกแบบ และพื้นฐานการสร้างต้นแบบ",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาการออกแบบแฟชั่น"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/04/fields/80_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "การออกแบบผลิตภัณฑ์",
@@ -2222,8 +2400,13 @@
     "ฟิสิกส์"
    ],
    "exam": "ฝึกวาดแบบ ออกแบบ 3 มิติ และเตรียม Portfolio ตามเกณฑ์",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาการออกแบบผลิตภัณฑ์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/04/fields/80_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "อักษรศาสตร์/มนุษยศาสตร์ (วรรณกรรม)",
@@ -2247,8 +2430,13 @@
     "ภาษาต่างประเทศ"
    ],
    "exam": "อ่านและเขียนอย่างสม่ำเสมอ ฝึกวิเคราะห์บทความและภาษา",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรอักษรศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/22/fields/90_43"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ภาพยนตร์และสื่อดิจิทัล",
@@ -2299,8 +2487,15 @@
     "วิชาเอกที่จะสอน"
    ],
    "exam": "ทบทวนวิชาเอกและฝึกการสื่อสาร ตรวจองค์ประกอบ TPAT5/เกณฑ์หลักสูตร",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรครุศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: ศึกษาศาสตรบัณฑิต (วิทยาศาสตร์ศึกษา)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/27/fields/70_37",
+    "https://course.mytcas.com/universities/003/faculties/05/fields/70_37"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "พยาบาลศาสตร์",
@@ -2325,8 +2520,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "เน้นชีววิทยาและเคมี ฝึกภาษาอังกฤษ และตรวจคุณสมบัติเฉพาะของหลักสูตร",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรพยาบาลศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: พยาบาลศาสตรบัณฑิต",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรพยาบาลศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/02/fields/11_17",
+    "https://course.mytcas.com/universities/003/faculties/06/fields/11_17",
+    "https://course.mytcas.com/universities/004/faculties/12/fields/11_17"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "จิตวิทยา",
@@ -2352,8 +2556,15 @@
     "คณิตศาสตร์"
    ],
    "exam": "ฝึกอ่าน วิเคราะห์ และสื่อสาร พร้อมตรวจวิชาที่หลักสูตรเป้าหมายใช้",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาจิตวิทยา",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาจิตวิทยา"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/38/fields/11_31",
+    "https://course.mytcas.com/universities/004/faculties/01/fields/90_07"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "สังคมสงเคราะห์ศาสตร์",
@@ -2377,8 +2588,13 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "อ่านประเด็นสังคม ฝึกเขียนวิเคราะห์และตรวจเกณฑ์ของสถาบัน",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยธรรมศาสตร์: สังคมสงเคราะห์ศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/005/faculties/05/fields/90_37"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "กายภาพบำบัด",
@@ -2402,8 +2618,17 @@
     "เคมี"
    ],
    "exam": "เน้นชีววิทยาและฟิสิกส์ ฝึกโจทย์และตรวจเกณฑ์รับเข้าของมหาวิทยาลัย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากายภาพบำบัด",
+    "จุฬาฯ: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากายภาพบำบัด",
+    "มหาวิทยาลัยขอนแก่น: วิทยาศาสตรบัณฑิต (กายภาพบำบัด)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/09/fields/11_01",
+    "https://course.mytcas.com/universities/001/faculties/37/fields/11_01",
+    "https://course.mytcas.com/universities/003/faculties/09/fields/11_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "สาธารณสุขศาสตร์ (สายชุมชน)",
@@ -2426,8 +2651,13 @@
     "คณิตศาสตร์"
    ],
    "exam": "ทบทวนชีววิทยาและสถิติพื้นฐาน พร้อมศึกษาประเด็นสุขภาพชุมชน",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชาสาธารณสุขศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/07/fields/11_27"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "การศึกษาปฐมวัย",
@@ -2474,8 +2704,15 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "เน้นวิทยาศาสตร์และภาษาอังกฤษ ตรวจเกณฑ์ของสถาบันเป้าหมาย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยมหิดล: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากิจกรรมบำบัด",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรวิทยาศาสตรบัณฑิต สาขาวิชากิจกรรมบำบัด"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/006/faculties/09/fields/11_09",
+    "https://course.mytcas.com/universities/004/faculties/11/fields/11_09"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "บริหารธุรกิจ (การตลาด)",
@@ -2500,8 +2737,13 @@
     "สังคมศึกษา"
    ],
    "exam": "ฝึกคณิตศาสตร์และอังกฤษ พร้อมวิเคราะห์โจทย์ธุรกิจและตรวจเกณฑ์",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยขอนแก่น: บริหารธุรกิจบัณฑิต (เทคโนโลยีการตลาด)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/003/faculties/21/fields/61_06"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "บริหารธุรกิจ (การจัดการ)",
@@ -2551,8 +2793,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "อ่านบทความและข่าวกฎหมาย ฝึกจับประเด็นและเขียนวิเคราะห์",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยธรรมศาสตร์: นิติศาสตรบัณฑิต",
+    "จุฬาฯ: หลักสูตรนิติศาสตรบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: นิติศาสตรบัณฑิต (นิติศาสตร์)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/005/faculties/01/fields/90_10",
+    "https://course.mytcas.com/universities/001/faculties/34/fields/90_10",
+    "https://course.mytcas.com/universities/003/faculties/27/fields/90_10"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "รัฐศาสตร์",
@@ -2576,8 +2827,13 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ติดตามข่าวสาร ฝึกวิเคราะห์ประเด็นสังคมและภาษา",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรรัฐศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/24/fields/90_32"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "เศรษฐศาสตร์ (นโยบาย)",
@@ -2600,8 +2856,15 @@
     "สังคมศึกษา"
    ],
    "exam": "เน้นคณิตศาสตร์และอ่านข่าวเศรษฐกิจ ฝึกวิเคราะห์กราฟ/ข้อมูล",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรเศรษฐศาสตรบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: เศรษฐศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/29/fields/61_11",
+    "https://course.mytcas.com/universities/005/faculties/04/fields/61_11"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "การจัดการโรงแรม/การท่องเที่ยว",
@@ -2650,8 +2913,13 @@
     "สังคมศึกษา"
    ],
    "exam": "ฝึกเขียนและนำเสนอ ทำผลงานประชาสัมพันธ์เก็บ Portfolio หากจำเป็น",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรนิเทศศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/28/fields/90_11"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ธุรกิจระหว่างประเทศ",
@@ -2674,8 +2942,13 @@
     "สังคมศึกษา"
    ],
    "exam": "เน้นอังกฤษและคณิตศาสตร์ ติดตามเศรษฐกิจโลกและฝึกวิเคราะห์ธุรกิจ",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรบริหารธุรกิจบัณฑิต สาขาวิชาการจัดการธุรกิจระหว่างประเทศ (หลักสูตรนานาชาติ)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_03"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "บัญชี",
@@ -2699,8 +2972,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ฝึกคณิตศาสตร์และโจทย์เชิงตัวเลข ตรวจเกณฑ์รายมหาวิทยาลัย",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรบัญชีบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: บัญชีบัณฑิต",
+    "มหาวิทยาลัยขอนแก่น: บัญชีบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_05",
+    "https://course.mytcas.com/universities/005/faculties/02/fields/61_05",
+    "https://course.mytcas.com/universities/003/faculties/21/fields/61_05"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "การเงิน/การธนาคาร",
@@ -2747,8 +3029,15 @@
     "สังคมศึกษา"
    ],
    "exam": "ฝึกคณิตศาสตร์และวิเคราะห์กราฟเศรษฐกิจ พร้อมตรวจเกณฑ์",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรเศรษฐศาสตรบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: เศรษฐศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/29/fields/61_11",
+    "https://course.mytcas.com/universities/005/faculties/04/fields/61_11"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "สถิติประยุกต์",
@@ -2772,8 +3061,15 @@
     "คอมพิวเตอร์"
    ],
    "exam": "ฝึกคณิตศาสตร์ สถิติ และเครื่องมือวิเคราะห์ข้อมูล เช่น Excel/Python",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรสถิติศาสตรบัณฑิต",
+    "มหาวิทยาลัยธรรมศาสตร์: วท.บ.สาขาวิชาสถิติ"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_09",
+    "https://course.mytcas.com/universities/005/faculties/09/fields/21_33"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "รัฐประศาสนศาสตร์",
@@ -2797,8 +3093,17 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "อ่านข่าวนโยบายและฝึกวิเคราะห์ข้อมูล/เอกสารราชการ",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยขอนแก่น: รัฐประศาสนศาสตรบัณฑิต (รัฐประศาสนศาสตร์)",
+    "มหาวิทยาลัยเชียงใหม่: หลักสูตรรัฐประศาสนศาสตรบัณฑิต",
+    "มหาวิทยาลัยเกษตรศาสตร์: ศศ.บ. สาขาวิชารัฐประศาสนศาสตร์"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/003/faculties/08/fields/90_31",
+    "https://course.mytcas.com/universities/004/faculties/19/fields/90_31",
+    "https://course.mytcas.com/universities/002/faculties/08/fields/90_31"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "ระบบสารสนเทศทางธุรกิจ",
@@ -2821,8 +3126,13 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "ฝึกตรรกะ คณิตศาสตร์ และพื้นฐานฐานข้อมูล/การเขียนโปรแกรม",
-   "programs": [],
-   "links": []
+   "programs": [
+    "จุฬาฯ: หลักสูตรสถิติศาสตรบัณฑิต"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/001/faculties/26/fields/61_09"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "การจัดการโลจิสติกส์",
@@ -2846,8 +3156,15 @@
     "สังคมศึกษา"
    ],
    "exam": "ฝึกคณิตศาสตร์และวิเคราะห์กระบวนการ/ข้อมูล พร้อมตรวจเกณฑ์",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยธรรมศาสตร์: วศ.บ.สาขาวิชาวิศวกรรมไฟฟ้า วิศวกรรมโยธา วิศวกรรมเครื่องกล วิศวกรรมเคมี วิศวกรรมอุตสาหการ และโลจิสติกส์อัจฉริยะ (หลักสูตรนานาชาติ) (SIIT)",
+    "มหาวิทยาลัยขอนแก่น: บริหารธุรกิจบัณฑิต (การจัดการ ผู้ประกอบการและโลจิสติกส์)"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/005/faculties/22/fields/30_00",
+    "https://course.mytcas.com/universities/003/faculties/21/fields/61_02"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "การออกแบบอุตสาหกรรม",
