@@ -4,10 +4,14 @@ const { pool } = require('../db');
 const { authRequired, requireRole } = require('../middlewares/auth');
 
 // นักเรียนตั้งเป้าหมายได้หลายข้อ เรียงลำดับด้วย priority (1 = เป้าหมายหลัก) — เพิ่มคอลัมน์ให้อัตโนมัติถ้ายังไม่มี
-const MAX_GOALS = 3;
+const MAX_GOALS = 5;
 pool
   .query('ALTER TABLE goal ADD COLUMN IF NOT EXISTS priority TINYINT NULL')
   .catch((e) => console.error('add goal.priority failed:', e.message));
+// มหาวิทยาลัยที่อยากเข้า (เป้าหมาย 1 ข้อ = คณะ/สาขา + มหาวิทยาลัย + อาชีพ)
+pool
+  .query('ALTER TABLE goal ADD COLUMN IF NOT EXISTS university_name VARCHAR(150) NULL')
+  .catch((e) => console.error('add goal.university_name failed:', e.message));
 
 // เรียงเป้าหมายของนักเรียนใหม่เป็น 1..n (ให้ goal ที่ระบุอยู่ตำแหน่ง moveToPos ถ้ามี)
 async function renumber(userId, moveId = null, moveToPos = null) {
@@ -41,7 +45,7 @@ async function ownGoal(req, res) {
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT goal_id, goal_text, faculty_name, career_field, user_user_id, priority, created_at, updated_at
+      `SELECT goal_id, goal_text, faculty_name, university_name, career_field, user_user_id, priority, created_at, updated_at
        FROM goal
        WHERE deleted_at IS NULL
        ORDER BY user_user_id, COALESCE(priority, 99), goal_id DESC`
@@ -57,7 +61,7 @@ router.get('/', async (_req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT goal_id, goal_text, faculty_name, career_field, user_user_id, priority, created_at, updated_at
+      `SELECT goal_id, goal_text, faculty_name, university_name, career_field, user_user_id, priority, created_at, updated_at
        FROM goal
        WHERE goal_id = ? AND deleted_at IS NULL`,
       [req.params.id]
@@ -78,6 +82,7 @@ router.post('/', authRequired, async (req, res) => {
     const goal_text = clean(req.body.goal_text);
     const faculty_name = clean(req.body.faculty_name);
     const career_field = clean(req.body.career_field);
+    const university_name = clean(req.body.university_name);
     const userId = req.user.id;
 
     // ต้องมีคณะหรืออาชีพอย่างน้อย 1 ช่อง (เหตุผล/แรงบันดาลใจไม่บังคับ)
@@ -91,9 +96,9 @@ router.post('/', authRequired, async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO goal (goal_text, faculty_name, career_field, user_user_id, priority)
-       VALUES (?, ?, ?, ?, ?)`,
-      [goal_text || null, faculty_name || null, career_field || null, userId, n + 1]
+      `INSERT INTO goal (goal_text, faculty_name, university_name, career_field, user_user_id, priority)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [goal_text || null, faculty_name || null, university_name || null, career_field || null, userId, n + 1]
     );
     await renumber(userId);
 
@@ -101,6 +106,7 @@ router.post('/', authRequired, async (req, res) => {
       goal_id: result.insertId,
       goal_text,
       faculty_name,
+      university_name,
       career_field,
       user_user_id: userId,
       priority: n + 1,
@@ -115,7 +121,7 @@ router.post('/', authRequired, async (req, res) => {
 // ---------------------- PUT แก้ไขเป้าหมาย ----------------------
 router.put('/:id', authRequired, async (req, res) => {
   try {
-    const { goal_text = null, faculty_name = null, career_field = null, priority = null } = req.body;
+    const { goal_text = null, faculty_name = null, university_name = null, career_field = null, priority = null } = req.body;
     const id = req.params.id;
 
     // นักเรียนแก้ได้เฉพาะเป้าหมายของตัวเอง (ครูแก้ได้)
@@ -124,16 +130,17 @@ router.put('/:id', authRequired, async (req, res) => {
     // เปลี่ยนลำดับ (เช่น ตั้งเป็นเป้าหมายหลัก = 1) แล้วเรียงข้ออื่นใหม่
     if (priority != null) {
       await renumber(own.user_user_id, id, Number(priority));
-      if (goal_text == null && faculty_name == null && career_field == null) return res.json({ message: 'Updated' });
+      if (goal_text == null && faculty_name == null && university_name == null && career_field == null) return res.json({ message: 'Updated' });
     }
 
     const [result] = await pool.query(
       `UPDATE goal
        SET goal_text = COALESCE(?, goal_text),
            faculty_name = COALESCE(?, faculty_name),
+           university_name = COALESCE(?, university_name),
            career_field = COALESCE(?, career_field)
        WHERE goal_id = ? AND deleted_at IS NULL`,
-      [goal_text, faculty_name, career_field, id]
+      [goal_text, faculty_name, university_name, career_field, id]
     );
 
     if (!result.affectedRows) {

@@ -942,6 +942,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                       <InfoRow label="เป้าหมาย" value={selectedGoal.goal_text} />
                       <InfoRow label="สายอาชีพที่สนใจ" value={selectedGoal.career_field || "-"} />
                       <InfoRow label="คณะที่อยากเข้า" value={selectedGoal.faculty_name || "-"} />
+                      {selectedGoal.university_name && <InfoRow label="มหาวิทยาลัย" value={selectedGoal.university_name} />}
                     </>
                   )}
                 </InfoCard>

@@ -184,10 +184,14 @@ function GoalHeader({ goal, focus, onEdit }) {
           แก้ไขเป้าหมาย →
         </button>
       </div>
-      <div className="mt-1.5 grid sm:grid-cols-3 gap-x-4 gap-y-1 text-[14px]">
+      <div className="mt-1.5 grid sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1 text-[14px]">
         <div>
           <span className="text-gray-500">คณะที่สนใจ: </span>
           <b>{goal.faculty_name || "-"}</b>
+        </div>
+        <div>
+          <span className="text-gray-500">มหาวิทยาลัย: </span>
+          <b>{goal.university_name || "-"}</b>
         </div>
         <div>
           <span className="text-gray-500">อาชีพเป้าหมาย: </span>
@@ -689,6 +693,7 @@ export default function ResultPage() {
               >
                 <span className="block text-[11.5px] opacity-80">{GOAL_RANK_LABEL[i]}</span>
                 <span className="font-semibold">{g.faculty_name || g.career_field}</span>
+                {g.university_name && <span className="block text-[12px] opacity-80">{g.university_name}</span>}
               </button>
             ))}
           </div>

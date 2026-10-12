@@ -430,7 +430,7 @@ export default function ConsultationsPage() {
                       <div className="flex items-center gap-2 text-[13px] font-semibold text-gray-700 mb-1"><FaBullseye className="text-pink-400" size={12} /> เป้าหมายการศึกษาต่อ</div>
                       {selectedGoal ? (
                         <>
-                          <div className="text-[14px] font-medium text-gray-900">{selectedGoal.faculty_name || "-"}</div>
+                          <div className="text-[14px] font-medium text-gray-900">{selectedGoal.faculty_name || "-"}{selectedGoal.university_name ? ` • ${selectedGoal.university_name}` : ""}</div>
                           {selectedGoal.career_field && <div className="text-[12.5px] text-gray-500 mt-0.5">{selectedGoal.career_field}</div>}
                         </>
                       ) : (

@@ -4,7 +4,7 @@ import SidebarNav from "../navstudent";
 import Header from "../Header";
 import {
   FaGraduationCap, FaCompass, FaCamera, FaPlus, FaPen, FaTrashAlt, FaStar, FaChevronDown, FaBriefcase,
-  FaQuoteLeft, FaComments, FaCheckCircle, FaExclamationCircle, FaTimes, FaArrowRight,
+  FaQuoteLeft, FaComments, FaCheckCircle, FaExclamationCircle, FaTimes, FaArrowRight, FaUniversity,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import {
@@ -16,17 +16,18 @@ import { resolveFileUrl } from "../utils/media.js";
 import Avatar from "../components/Avatar.jsx";
 import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
-import { facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
-import { goalsOf, MAX_GOALS, GOAL_RANK_LABEL } from "../utils/goals.js";
+import { facultiesForCode, goalTargets, analyzeTarget, matchGoalFaculties, matchCareerFaculties } from "../utils/riasecScoring.js";
+import { goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor } from "../utils/goals.js";
+import uniData from "../data/universities.json";
 
-// หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้สูงสุด 3 ข้อ (หลัก + สำรอง) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
+// หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้หลายข้อ (คณะ/สาขา + มหาวิทยาลัย + อาชีพ) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
 
 const LEVEL = {
   high: { label: "สอดคล้องสูง", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   medium: { label: "สอดคล้องปานกลาง", cls: "bg-amber-50 text-amber-700 border-amber-200" },
   low: { label: "สอดคล้องต่ำ", cls: "bg-rose-50 text-rose-700 border-rose-200" },
 };
-const EMPTY_FORM = { faculty_name: "", career_field: "", goal_text: "" };
+const EMPTY_FORM = { faculty_name: "", university_name: "", career_field: "", goal_text: "" };
 const CARD = "rounded-2xl border border-gray-200 bg-white";
 
 function SectionTitle({ icon, title, subtitle, action }) {
@@ -52,6 +53,8 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
   const [open, setOpen] = useState(rank === 0);
   const f = analysis?.faculty || analysis?.match?.rows?.[0] || null;
   const primary = rank === 0;
+  const uniProgram = programLinkFor(f, goal.university_name);
+  const uniListed = f && goal.university_name && f.universities.some((u) => sameUni(u, goal.university_name));
   return (
     <div className={`${CARD} overflow-hidden ${primary ? "border-pink-200 shadow-[0_6px_24px_-12px_rgba(236,72,153,0.35)]" : ""}`}>
       <div className={`px-5 pt-4 pb-3 ${primary ? "bg-gradient-to-r from-pink-50 via-white to-white" : ""}`}>
@@ -97,6 +100,11 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
           </div>
           <div className="min-w-0">
             <div className="text-[18px] font-semibold text-gray-900 leading-snug">{goal.faculty_name || goal.career_field}</div>
+            {goal.university_name && (
+              <div className="text-[14px] text-gray-700 flex items-center gap-1.5 mt-0.5">
+                <FaUniversity className="text-[11px] text-pink-400" /> {goal.university_name}
+              </div>
+            )}
             {goal.career_field && goal.faculty_name && (
               <div className="text-[14px] text-gray-600 flex items-center gap-1.5 mt-0.5">
                 <FaBriefcase className="text-[11px] text-pink-400" /> {goal.career_field}
@@ -116,6 +124,15 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
         <div className="px-5 pb-4">
           <div className="rounded-xl bg-gray-50 px-3.5 py-2.5">
             <div className="text-[12.5px] text-gray-500">ข้อมูลสาขาในระบบ: <span className="font-medium text-gray-700">{f.name}</span></div>
+            {goal.university_name && (
+              <div className={`text-[12.5px] mt-0.5 ${uniListed || uniProgram ? "text-emerald-700" : "text-gray-500"}`}>
+                {uniProgram
+                  ? `✓ พบหลักสูตรของ ${fullUniName(goal.university_name)} ใน myTCAS`
+                  : uniListed
+                  ? `✓ ${fullUniName(goal.university_name)} อยู่ในรายชื่อมหาวิทยาลัยตัวอย่างของสาขานี้`
+                  : "ยังไม่มีข้อมูลหลักสูตรของมหาวิทยาลัยนี้ในระบบ — ตรวจรายละเอียดในเว็บไซต์มหาวิทยาลัยหรือ myTCAS"}
+              </div>
+            )}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {f.subjects.map((s) => (
                 <span key={s} className="rounded-full bg-white border border-gray-200 px-2.5 py-0.5 text-[12.5px] text-gray-700">
@@ -144,10 +161,16 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
                     <dd className="text-gray-800">{v}</dd>
                   </div>
                 ))}
-              {f.links?.[0] && (
-                <a href={f.links[0]} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
-                  ตรวจหลักสูตรและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
+              {uniProgram ? (
+                <a href={uniProgram.link} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
+                  {uniProgram.program} — ตรวจเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
                 </a>
+              ) : (
+                f.links?.[0] && (
+                  <a href={f.links[0]} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
+                    ตรวจหลักสูตรและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
+                  </a>
+                )
               )}
             </dl>
           )}
@@ -166,10 +189,22 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
 }
 
 // หน้าต่างเพิ่ม/แก้ไขเป้าหมาย
-function GoalModal({ initial, title, data, saving, onCancel, onSave }) {
+function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
   const match = useMemo(() => (data ? goalTargets(data, form) : []), [data, form]);
+  // มหาวิทยาลัยที่เปิดสอนสาขาที่เลือก (จากไฟล์ข้อมูลคณะ) — กดเพื่อเลือกได้เลย
+  const facultyRows = useMemo(() => (data ? matchGoalFaculties(data, form.faculty_name)?.rows || [] : []), [data, form.faculty_name]);
+  const uniChips = useMemo(() => [...new Set(facultyRows.flatMap((r) => r.universities.map(fullUniName)))], [facultyRows]);
+  // ใส่ชื่อคณะไว้ในช่องอาชีพ (เช่น "เทคนิคการแพทย์") → เสนอย้ายไปช่องคณะ
+  const careerIsFaculty = useMemo(() => {
+    const c = form.career_field.trim();
+    if (!data || !c || matchCareerFaculties(data, c)) return false;
+    return Boolean(data.faculties.find((f) => f.name === c) || data.aliases[c]);
+  }, [data, form.career_field]);
+  const duplicate = otherGoals.some(
+    (g) => form.faculty_name.trim() && g.faculty_name === form.faculty_name.trim() && (g.university_name || "") === form.university_name.trim()
+  );
   const careers = useMemo(() => [...new Set((data?.faculties || []).flatMap((f) => f.careers))], [data]);
   const filled = form.faculty_name.trim() || form.career_field.trim();
   return (
@@ -199,6 +234,37 @@ function GoalModal({ initial, title, data, saving, onCancel, onSave }) {
             />
           </label>
           <label className="block">
+            <span className="text-[14px] font-medium text-gray-700">
+              มหาวิทยาลัย <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
+            </span>
+            <input
+              value={form.university_name}
+              onChange={set("university_name")}
+              list="goal-university-options"
+              placeholder="เลือกหรือพิมพ์ เช่น มหาวิทยาลัยขอนแก่น"
+              className="mt-1 w-full h-11 rounded-xl border border-gray-200 px-3.5 text-[15px] outline-none focus:border-pink-400"
+            />
+          </label>
+          {uniChips.length > 0 && (
+            <div className="-mt-2">
+              <div className="text-[12.5px] text-gray-500 mb-1">มหาวิทยาลัยที่เปิดสอนสาขานี้ (จากข้อมูลในระบบ)</div>
+              <div className="flex flex-wrap gap-1.5">
+                {uniChips.map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, university_name: u }))}
+                    className={`rounded-full border px-2.5 py-1 text-[12.5px] ${
+                      sameUni(form.university_name, u) ? "!bg-pink-500 border-pink-500 text-white" : "bg-white border-gray-200 text-gray-700 hover:border-pink-300"
+                    }`}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <label className="block">
             <span className="text-[14px] font-medium text-gray-700">อาชีพที่อยากเป็น</span>
             <input
               value={form.career_field}
@@ -221,6 +287,21 @@ function GoalModal({ initial, title, data, saving, onCancel, onSave }) {
             />
           </label>
 
+          {careerIsFaculty && (
+            <div className="rounded-xl bg-amber-50 text-amber-800 px-3.5 py-2.5 text-[13.5px] flex items-start justify-between gap-2">
+              <span>“{form.career_field}” เป็นชื่อคณะ/สาขา ไม่ใช่อาชีพ</span>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, faculty_name: p.faculty_name || p.career_field, career_field: "" }))}
+                className="shrink-0 text-[13px] font-semibold text-amber-900 underline bg-transparent !p-0"
+              >
+                {form.faculty_name ? "ล้างช่องอาชีพ" : "ย้ายไปช่องคณะ"}
+              </button>
+            </div>
+          )}
+          {duplicate && (
+            <div className="rounded-xl bg-amber-50 text-amber-800 px-3.5 py-2.5 text-[13.5px]">มีเป้าหมายคณะและมหาวิทยาลัยนี้อยู่แล้ว</div>
+          )}
           {filled && (
             <div className={`rounded-xl px-3.5 py-2.5 text-[13.5px] flex gap-2 ${match.length ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
               {match.length ? <FaCheckCircle className="mt-0.5 shrink-0" /> : <FaExclamationCircle className="mt-0.5 shrink-0" />}
@@ -236,6 +317,11 @@ function GoalModal({ initial, title, data, saving, onCancel, onSave }) {
               <option key={f.name} value={f.name} />
             ))}
           </datalist>
+          <datalist id="goal-university-options">
+            {uniData.universities.map((u) => (
+              <option key={u} value={u} />
+            ))}
+          </datalist>
           <datalist id="goal-career-options">
             {careers.map((c) => (
               <option key={c} value={c} />
@@ -246,7 +332,7 @@ function GoalModal({ initial, title, data, saving, onCancel, onSave }) {
           <button type="button" onClick={onCancel} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15px] hover:bg-gray-50">
             ยกเลิก
           </button>
-          <button type="submit" disabled={saving || !filled} className="h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:!bg-pink-200 text-white text-[15px] font-semibold">
+          <button type="submit" disabled={saving || !filled || duplicate} className="h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:!bg-pink-200 text-white text-[15px] font-semibold">
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>
         </div>
@@ -314,7 +400,12 @@ export default function StudentGoalPage() {
   }, [riasec.data, latestRiasec, analyses]);
 
   const saveGoal = async (form) => {
-    const payload = { goal_text: form.goal_text.trim(), faculty_name: form.faculty_name.trim(), career_field: form.career_field.trim() };
+    const payload = {
+      goal_text: form.goal_text.trim(),
+      faculty_name: form.faculty_name.trim(),
+      university_name: form.university_name.trim(),
+      career_field: form.career_field.trim(),
+    };
     if (!payload.faculty_name && !payload.career_field) return;
     setBusy(true);
     try {
@@ -580,10 +671,16 @@ export default function StudentGoalPage() {
           title={modal.mode === "edit" ? "แก้ไขเป้าหมาย" : `เพิ่ม${GOAL_RANK_LABEL[goals?.length || 0]}`}
           initial={
             modal.mode === "edit"
-              ? { faculty_name: modal.goal.faculty_name || "", career_field: modal.goal.career_field || "", goal_text: modal.goal.goal_text || "" }
+              ? {
+                  faculty_name: modal.goal.faculty_name || "",
+                  university_name: modal.goal.university_name || "",
+                  career_field: modal.goal.career_field || "",
+                  goal_text: modal.goal.goal_text || "",
+                }
               : modal.preset || EMPTY_FORM
           }
           data={riasec.data}
+          otherGoals={(goals || []).filter((g) => modal.mode !== "edit" || g.goal_id !== modal.goal.goal_id)}
           saving={busy}
           onCancel={() => setModal(null)}
           onSave={saveGoal}

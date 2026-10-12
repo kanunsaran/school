@@ -514,7 +514,7 @@ export default function AssessmentResultsPage() {
                       {selectedGoal && (
                         <div className="py-4">
                           <div className="text-[14px] text-gray-500 mb-1.5 flex items-center gap-1.5">🚩 เป้าหมายของนักเรียน</div>
-                          <div className="text-[15px] text-gray-900"><span className="text-gray-500">อยากเรียน:</span> <span className="font-medium">{selectedGoal.faculty_name}</span></div>
+                          <div className="text-[15px] text-gray-900"><span className="text-gray-500">อยากเรียน:</span> <span className="font-medium">{selectedGoal.faculty_name}{selectedGoal.university_name ? ` • ${selectedGoal.university_name}` : ""}</span></div>
                           {selectedGoal.career_field && <div className="text-[14.5px] text-gray-700 mt-0.5"><span className="text-gray-500">อาชีพที่สนใจ:</span> {selectedGoal.career_field}</div>}
                           {selectedGoal.goal_text && <div className="text-[14px] text-gray-600 mt-1.5">{selectedGoal.goal_text}</div>}
                         </div>

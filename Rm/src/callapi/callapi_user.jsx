@@ -1028,11 +1028,11 @@ export async function getGoals() {
 }
 
 // POST/PUT /goal ต้อง login จริงถึงจะใช้ได้ (ทดสอบแล้วได้ 401 โดยไม่มี token) ต้องแนบ Authorization: Bearer จาก session จริง
-export async function createGoal({ user_user_id, goal_text, faculty_name, career_field }) {
+export async function createGoal({ user_user_id, goal_text, faculty_name, university_name, career_field }) {
   try {
     const response = await axios.post(
       `${api}/goal`,
-      { user_user_id, goal_text, faculty_name, career_field },
+      { user_user_id, goal_text, faculty_name, university_name, career_field },
       { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
     );
     return response.data;
@@ -1050,11 +1050,11 @@ export async function deleteGoal(goalId) {
   return response.data;
 }
 
-export async function updateGoal(goalId, { goal_text, faculty_name, career_field, priority }) {
+export async function updateGoal(goalId, { goal_text, faculty_name, university_name, career_field, priority }) {
   try {
     const response = await axios.put(
       `${api}/goal/${goalId}`,
-      { goal_text, faculty_name, career_field, priority },
+      { goal_text, faculty_name, university_name, career_field, priority },
       { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
     );
     return response.data;

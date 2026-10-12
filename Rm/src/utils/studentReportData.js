@@ -250,6 +250,7 @@ export const goalRows = (d) => {
   return [
     ["เป้าหมาย", dash(d.goal?.goal_text)],
     ["คณะที่อยากเข้า", dash(d.goal?.faculty_name)],
+    ["มหาวิทยาลัยที่อยากเข้า", dash(d.goal?.university_name)],
     ["สายอาชีพที่สนใจ", dash(d.goal?.career_field)],
     ["อาชีพที่สนใจ (แบบฟอร์ม)", (it.interested_careers || []).filter(Boolean).join(", ") || "-"],
     ["ระดับการศึกษาที่ตั้งใจ", dash(it.student_edu_goal)],
