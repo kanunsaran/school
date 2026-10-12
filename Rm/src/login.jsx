@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, Spinner } from "flowbite-react";
 import { FcGoogle } from "react-icons/fc";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { saveSession } from "./utils/auth.js";
@@ -12,7 +12,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const navigate = useNavigate();
 
     // ฟังก์ชันสำหรับส่ง User ไปยังหน้าที่ถูกต้องตามสิทธิ์ (Role) — ครูไปหน้าหลักครู นักเรียนไปหน้าหลักนักเรียน
     // (หน้านักเรียนจะเช็คต่อเองว่ากรอกข้อมูลทั่วไป /studentinfo ครบหรือยัง ถ้ายังจะเด้งไปกรอกให้อัตโนมัติ)

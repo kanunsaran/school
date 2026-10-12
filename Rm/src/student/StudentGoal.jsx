@@ -110,7 +110,7 @@ export default function StudentGoalPage() {
       }
     };
     load();
-  }, []);
+  }, [CURRENT_STUDENT_ID]);
 
   const saveGoal = async () => {
     const payload = {
