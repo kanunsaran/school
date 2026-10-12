@@ -962,7 +962,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
               {activeTab === "grades" && (
                 <InfoCard title="ผลการเรียน">
                   <div className="mb-4 rounded-xl border border-pink-100 bg-pink-50/50 px-4 py-3">
-                    <div className="text-[13.5px] text-gray-500">เกรดเฉลี่ยที่นักเรียนกรอก (หน้าเป้าหมาย)</div>
+                    <div className="text-[13.5px] text-gray-500">เกรดที่นักเรียนบันทึก (หน้าเป้าหมาย)</div>
                     {selectedGrades === undefined ? (
                       <div className="text-[15px] text-gray-400">กำลังโหลด...</div>
                     ) : !selectedGrades || selectedGrades.gpax == null ? (
@@ -980,6 +980,33 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                                 {k} <b>{Number(v).toFixed(2)}</b>
                               </span>
                             ))}
+                          </div>
+                        )}
+                        {Object.keys(selectedGrades.terms || {}).length > 0 && (
+                          <div className="mt-3 space-y-1.5">
+                            {Object.entries(selectedGrades.terms)
+                              .sort(([a], [b]) => a.localeCompare(b))
+                              .map(([t, d]) => (
+                                <details key={t} className="rounded-lg bg-white border border-gray-100">
+                                  <summary className="cursor-pointer px-3 py-2 text-[14px] text-gray-700">
+                                    ม.{t} · GPA <b>{d.gpa == null ? "-" : Number(d.gpa).toFixed(2)}</b> <span className="text-gray-400">({d.courses.length} วิชา)</span>
+                                  </summary>
+                                  <div className="overflow-x-auto px-3 pb-2">
+                                    <table className="w-full text-[13.5px]">
+                                      <tbody className="divide-y divide-gray-50">
+                                        {d.courses.map((c, i) => (
+                                          <tr key={i}>
+                                            <td className="py-1 pr-2 font-mono text-gray-500">{c.code}</td>
+                                            <td className="py-1 pr-2">{c.name}</td>
+                                            <td className="py-1 pr-2 text-right text-gray-500">{c.credit}</td>
+                                            <td className="py-1 text-right font-semibold">{c.grade || "-"}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </details>
+                              ))}
                           </div>
                         )}
                       </>

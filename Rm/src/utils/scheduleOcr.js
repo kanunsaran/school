@@ -423,18 +423,18 @@ export const detectGrids = (gray, w, h, th) => {
 };
 
 // ช่องว่างจริงไหม (แทบไม่มีหมึก) — ข้าม OCR ช่องว่างให้เร็วขึ้น
-const inkRatio = (gray, w, r, th) => {
+export const inkRatio = (gray, w, r, th) => {
   let n = 0;
   for (let y = r.top; y < r.top + r.height; y += 2)
     for (let x = r.left; x < r.left + r.width; x += 2) if (gray[(y * w + x) * 4] < th) n++;
   return n / ((r.width / 2) * (r.height / 2));
 };
 
-const cleanText = (t) => (t || "").replace(/[|_~=]/g, " ").replace(/\s+/g, " ").trim();
+export const cleanText = (t) => (t || "").replace(/[|_~=]/g, " ").replace(/\s+/g, " ").trim();
 
 // ตารางในรูปเล็ก (เช่น แคปทั้งหน้าจอ) ตัวหนังสือในช่องเล็กเกินจะอ่านตัวเลขผิด (3 → จ)
 // → ตัดเฉพาะตารางมาขยายให้แถวสูงราว 200px ก่อนอ่าน
-const zoomGrid = (canvas, grid) => {
+export const zoomGrid = (canvas, grid) => {
   const gaps = grid.ys.slice(1).map((y, i) => y - grid.ys[i]).sort((a, b) => a - b);
   const rowH = gaps[Math.floor(gaps.length / 2)] || 200;
   const f = Math.min(3, 200 / rowH, 4500 / (grid.xs[grid.xs.length - 1] - grid.xs[0]));

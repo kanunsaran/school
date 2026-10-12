@@ -22,6 +22,7 @@ import {
   goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor, GRADE_TERMS, GRADE_SUBJECTS, gradeForSubject,
 } from "../utils/goals.js";
 import uniData from "../data/universities.json";
+import { GRADE_OPTIONS, readGradeReport, termGpa, groupOf } from "../utils/gradeOcr.js";
 
 // หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้หลายข้อ (คณะ/สาขา + มหาวิทยาลัย + อาชีพ) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
 
@@ -309,90 +310,304 @@ function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave 
   );
 }
 
-// หน้าต่างกรอกเกรด — GPAX ม.ปลาย (บังคับ) + เกรดเฉลี่ยรายวิชาหลัก (ไม่บังคับ)
+// หน้าต่างเกรด — อัปโหลดรูปใบผลการเรียนทีละภาคเรียน (อ่านอัตโนมัติ แล้วตรวจ/เลือกเกรดแก้ได้) → คำนวณ GPAX + เกรดรายวิชาหลักให้
+// ไม่มีใบเกรด → กรอก GPAX/เกรดรายวิชาเองได้เหมือนเดิม
+const termsGpax = (terms) => termGpa(Object.values(terms || {}).flatMap((t) => t.courses || []));
+const termsSubjects = (terms) => {
+  const all = Object.values(terms || {}).flatMap((t) => t.courses || []);
+  return Object.fromEntries(GRADE_SUBJECTS.map((k) => [k, termGpa(all.filter((c) => groupOf(c.code) === k))]).filter(([, v]) => v != null));
+};
+const fmtGpa = (v) => (v == null ? "-" : Number(v).toFixed(2));
+
+function CourseTable({ courses, onChange }) {
+  const set = (i, patch) => onChange(courses.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  const cell = "h-9 w-full min-w-0 rounded-lg border border-gray-200 px-1.5 sm:px-2 text-[13.5px] sm:text-[14px] outline-none focus:border-pink-400 bg-white";
+  return (
+    <div className="overflow-x-auto -mx-1 px-1">
+      <table className="w-full table-fixed text-[14px]">
+        <thead>
+          <tr className="text-left text-[12.5px] text-gray-500">
+            <th className="py-1.5 pr-1.5 sm:pr-2 font-medium w-[78px] sm:w-[96px]">รหัสวิชา</th>
+            <th className="py-1.5 pr-2 font-medium">ชื่อวิชา</th>
+            <th className="py-1.5 pr-1.5 sm:pr-2 font-medium w-[54px] sm:w-[72px]">หน่วยกิต</th>
+            <th className="py-1.5 pr-1.5 sm:pr-2 font-medium w-[64px] sm:w-[84px]">เกรด</th>
+            <th className="w-7 sm:w-8" />
+          </tr>
+        </thead>
+        <tbody>
+          {courses.map((c, i) => {
+            const missing = !c.code || !(Number(c.credit) > 0);
+            return (
+              <tr key={i} className={missing ? "bg-rose-50/60" : ""}>
+                <td className="py-1 pr-1.5 sm:pr-2">
+                  <input value={c.code} onChange={(e) => set(i, { code: e.target.value.trim() })} className={`${cell} font-mono`} placeholder="ท31101" />
+                </td>
+                <td className="py-1 pr-1.5 sm:pr-2">
+                  <input value={c.name} onChange={(e) => set(i, { name: e.target.value })} className={cell} placeholder={groupOf(c.code) || "ชื่อวิชา"} />
+                </td>
+                <td className="py-1 pr-1.5 sm:pr-2">
+                  <input type="number" inputMode="decimal" step="0.5" min="0" value={c.credit ?? ""} onChange={(e) => set(i, { credit: e.target.value === "" ? null : Number(e.target.value) })} className={cell} />
+                </td>
+                <td className="py-1 pr-1.5 sm:pr-2">
+                  <select value={c.grade} onChange={(e) => set(i, { grade: e.target.value })} className={`${cell} ${c.grade ? "" : "text-gray-400"}`}>
+                    <option value="">-</option>
+                    {GRADE_OPTIONS.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="py-1">
+                  <button type="button" onClick={() => onChange(courses.filter((_, j) => j !== i))} aria-label="ลบวิชา" className="h-8 w-8 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 bg-transparent !p-0 flex items-center justify-center">
+                    <FaTimes className="text-[12px]" />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <button type="button" onClick={() => onChange([...courses, { code: "", name: "", credit: null, grade: "" }])} className="mt-2 h-9 px-3 rounded-lg border border-dashed border-pink-300 text-pink-600 text-[14px] bg-white hover:bg-pink-50">
+        + เพิ่มวิชา
+      </button>
+    </div>
+  );
+}
+
 function GradeModal({ initial, saving, onCancel, onSave }) {
+  const [terms, setTerms] = useState(() => initial?.terms || {});
+  const [active, setActive] = useState(() => GRADE_TERMS.filter((t) => initial?.terms?.[t]).pop() || null);
+  const [ocr, setOcr] = useState(null); // { progress } ระหว่างอ่านรูป
+  const [preview, setPreview] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [manualOpen, setManualOpen] = useState(() => !Object.keys(initial?.terms || {}).length);
   const [gpax, setGpax] = useState(initial?.gpax != null ? String(initial.gpax) : "");
   const [term, setTerm] = useState(initial?.as_of_term || "");
   const [subjects, setSubjects] = useState(() =>
     Object.fromEntries(GRADE_SUBJECTS.map((k) => [k, initial?.subject_gpa?.[k] != null ? String(initial.subject_gpa[k]) : ""]))
   );
+  useEffect(() => () => preview && URL.revokeObjectURL(preview), [preview]);
+
+  const hasTerms = Object.keys(terms).length > 0;
+  const autoGpax = termsGpax(terms);
+  const autoSubjects = termsSubjects(terms);
   const bad = (v) => v !== "" && !(Number(v) >= 0 && Number(v) <= 4);
-  const invalid = gpax === "" || bad(gpax) || Object.values(subjects).some(bad);
+  const badCourse = Object.values(terms).some((t) => t.courses.some((c) => !c.code || !(Number(c.credit) > 0)));
+  const invalid = hasTerms ? badCourse || autoGpax == null : gpax === "" || bad(gpax) || Object.values(subjects).some(bad);
   const input = "h-11 w-full rounded-xl border px-3.5 text-[15px] outline-none focus:border-pink-400";
+
+  const upload = async (file) => {
+    if (!file) return;
+    setPreview((old) => {
+      if (old) URL.revokeObjectURL(old);
+      return URL.createObjectURL(file);
+    });
+    setOcr({ progress: 0 });
+    try {
+      const res = await readGradeReport(file, (p) => setOcr({ progress: p }));
+      if (!res.courses.length) throw new Error("ไม่พบรายวิชาในรูป");
+      const key = res.term || GRADE_TERMS.find((t) => !terms[t]) || GRADE_TERMS[0];
+      const courses = res.courses.map(({ code, name, credit, grade }) => ({ code, name: name || "", credit, grade: grade || "" }));
+      setTerms((p) => ({ ...p, [key]: { courses } }));
+      setActive(key);
+      setShowPreview(false);
+      Swal.fire({
+        icon: "success",
+        title: `อ่านได้ ${courses.length} วิชา`,
+        text: `จัดไว้ที่ ม.${key} — ตรวจรหัสวิชา หน่วยกิต และเกรดให้ตรงกับรูปก่อนบันทึก`,
+        timer: 2600,
+        showConfirmButton: false,
+      });
+    } catch (err) {
+      Swal.fire("อ่านรูปไม่สำเร็จ", `${err?.message || ""} — ลองใช้รูปที่ชัดขึ้น เห็นตารางครบ หรือเพิ่มวิชาเอง`, "warning");
+    } finally {
+      setOcr(null);
+    }
+  };
+
+  // เปลี่ยนภาคเรียนของชุดวิชาที่เปิดอยู่ (เช่น ระบบเดาภาคเรียนผิด)
+  const moveTerm = (to) => {
+    if (!active || to === active) return;
+    setTerms((p) => {
+      const { [active]: cur, ...rest } = p;
+      return { ...rest, [to]: cur };
+    });
+    setActive(to);
+  };
+  const removeTerm = (t) => {
+    setTerms((p) => {
+      const { [t]: _drop, ...rest } = p;
+      return rest;
+    });
+    if (active === t) setActive(null);
+  };
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (invalid) return;
+    if (hasTerms) {
+      onSave({ gpax: autoGpax, as_of_term: GRADE_TERMS.filter((t) => terms[t]).pop(), subject_gpa: autoSubjects, terms });
+    } else {
+      onSave({
+        gpax: Number(gpax),
+        as_of_term: term || null,
+        subject_gpa: Object.fromEntries(Object.entries(subjects).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])),
+        terms: {},
+      });
+    }
+  };
+
+  const activeCourses = active ? terms[active]?.courses || [] : [];
   return (
-    <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onCancel()}>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!invalid) onSave({ gpax: Number(gpax), as_of_term: term || null, subject_gpa: Object.fromEntries(Object.entries(subjects).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])) });
-        }}
-        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92dvh] overflow-y-auto"
-      >
+    <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => e.target === e.currentTarget && !ocr && onCancel()}>
+      <form onSubmit={submit} className="bg-white w-full sm:max-w-2xl rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92dvh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-          <h3 className="text-[18px] font-semibold text-gray-900">เกรดเฉลี่ยของฉัน</h3>
-          <button type="button" onClick={onCancel} aria-label="ปิด" className="h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 bg-transparent !p-0 flex items-center justify-center">
+          <h3 className="text-[18px] font-semibold text-gray-900">เกรดของฉัน</h3>
+          <button type="button" onClick={onCancel} disabled={!!ocr} aria-label="ปิด" className="h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 bg-transparent !p-0 flex items-center justify-center">
             <FaTimes className="text-[13px]" />
           </button>
         </div>
         <div className="px-5 py-4 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="text-[14px] font-medium text-gray-700">GPAX สะสม</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                max="4"
-                value={gpax}
-                onChange={(e) => setGpax(e.target.value)}
-                placeholder="เช่น 3.45"
-                className={`mt-1 ${input} ${bad(gpax) ? "border-rose-300" : "border-gray-200"}`}
-              />
-            </label>
-            <label className="block">
-              <span className="text-[14px] font-medium text-gray-700">นับถึงภาคเรียน</span>
-              <select value={term} onChange={(e) => setTerm(e.target.value)} className={`mt-1 ${input} border-gray-200 bg-white`}>
-                <option value="">ไม่ระบุ</option>
-                {GRADE_TERMS.map((t) => (
-                  <option key={t} value={t}>
-                    ม.{t}
-                  </option>
+          {/* สรุป */}
+          {hasTerms && (
+            <div className="rounded-2xl bg-pink-50/70 border border-pink-100 p-4">
+              <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+                <div>
+                  <div className="text-[12.5px] text-gray-500">GPAX สะสม (คำนวณจากใบเกรด)</div>
+                  <div className="text-[28px] leading-tight font-bold text-pink-600">{fmtGpa(autoGpax)}</div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {GRADE_SUBJECTS.filter((k) => autoSubjects[k] != null).map((k) => (
+                    <span key={k} className="px-2 py-0.5 rounded-full bg-white border border-pink-100 text-[12.5px] text-gray-700">
+                      {k} <b className="text-gray-900">{fmtGpa(autoSubjects[k])}</b>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {GRADE_TERMS.filter((t) => terms[t]).map((t) => (
+                  <span key={t} className={`inline-flex items-center rounded-xl border text-[13.5px] ${active === t ? "border-pink-400 bg-white" : "border-gray-200 bg-white/70"}`}>
+                    <button type="button" onClick={() => setActive(active === t ? null : t)} className="bg-transparent !px-3 !py-1.5 text-gray-700">
+                      ม.{t} · <b>{fmtGpa(termGpa(terms[t].courses))}</b> <span className="text-gray-400">({terms[t].courses.length} วิชา)</span>
+                    </button>
+                    <button type="button" onClick={() => removeTerm(t)} aria-label={`ลบภาคเรียน ${t}`} className="h-7 w-7 mr-1 rounded-lg text-gray-400 hover:text-rose-500 bg-transparent !p-0 flex items-center justify-center">
+                      <FaTimes className="text-[11px]" />
+                    </button>
+                  </span>
                 ))}
-              </select>
-            </label>
-          </div>
-          <div>
-            <div className="text-[14px] font-medium text-gray-700">
-              เกรดเฉลี่ยรายวิชา <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
+              </div>
             </div>
-            <div className="text-[12.5px] text-gray-500 mb-2">ใช้เทียบกับ “วิชาที่ควรเน้น” ของแต่ละเป้าหมาย</div>
-            <div className="grid grid-cols-2 gap-2.5">
-              {GRADE_SUBJECTS.map((k) => (
-                <label key={k} className="block">
-                  <span className="text-[13px] text-gray-600">{k}</span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    step="0.01"
-                    min="0"
-                    max="4"
-                    value={subjects[k]}
-                    onChange={(e) => setSubjects((p) => ({ ...p, [k]: e.target.value }))}
-                    placeholder="-"
-                    className={`mt-0.5 h-10 w-full rounded-xl border px-3 text-[15px] outline-none focus:border-pink-400 ${bad(subjects[k]) ? "border-rose-300" : "border-gray-200"}`}
-                  />
-                </label>
-              ))}
+          )}
+
+          {/* อัปโหลด */}
+          <label className={`block rounded-2xl border-2 border-dashed p-4 text-center cursor-pointer transition ${ocr ? "border-pink-300 bg-pink-50/50" : "border-gray-200 hover:border-pink-300 hover:bg-pink-50/40"}`}>
+            <input type="file" accept="image/*" className="hidden" disabled={!!ocr} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} />
+            {ocr ? (
+              <div>
+                <div className="text-[14.5px] font-medium text-pink-700">กำลังอ่านใบผลการเรียน… {Math.round(ocr.progress * 100)}%</div>
+                <div className="mt-2 h-2 rounded-full bg-pink-100 overflow-hidden">
+                  <div className="h-full bg-pink-500 transition-all" style={{ width: `${Math.max(4, ocr.progress * 100)}%` }} />
+                </div>
+                <div className="mt-1.5 text-[12.5px] text-gray-500">ใช้เวลาประมาณ 1 นาที อย่าปิดหน้าต่างนี้</div>
+              </div>
+            ) : (
+              <div>
+                <FaClipboardList className="mx-auto text-pink-400 text-[22px]" />
+                <div className="mt-1.5 text-[15px] font-medium text-gray-800">อัปโหลดรูปใบผลการเรียน (ทีละภาคเรียน)</div>
+                <div className="text-[12.5px] text-gray-500">แคปหน้าจอตาราง “ผลการเรียน” จากระบบของโรงเรียน ให้เห็นรหัสวิชา หน่วยกิต และเกรดครบ</div>
+              </div>
+            )}
+          </label>
+
+          {/* ตารางรายวิชาของภาคเรียนที่เลือก */}
+          {active && terms[active] && (
+            <div className="rounded-2xl border border-gray-100 p-3.5">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-[14.5px] font-semibold text-gray-800">ภาคเรียน</span>
+                <select value={active} onChange={(e) => moveTerm(e.target.value)} className="h-9 rounded-lg border border-gray-200 px-2 text-[14px] bg-white outline-none focus:border-pink-400">
+                  {GRADE_TERMS.filter((t) => t === active || !terms[t]).map((t) => (
+                    <option key={t} value={t}>
+                      ม.{t}
+                    </option>
+                  ))}
+                </select>
+                <span className="ml-auto text-[14px] text-gray-600">
+                  GPA ภาคนี้ <b className="text-pink-600">{fmtGpa(termGpa(activeCourses))}</b>
+                </span>
+                {preview && (
+                  <button type="button" onClick={() => setShowPreview((v) => !v)} className="h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-50">
+                    {showPreview ? "ซ่อนรูป" : "ดูรูปที่อัปโหลด"}
+                  </button>
+                )}
+              </div>
+              {showPreview && preview && <img src={preview} alt="ใบผลการเรียนที่อัปโหลด" className="mb-3 rounded-xl border border-gray-100 max-h-[50vh] w-full object-contain bg-gray-50" />}
+              <p className="text-[12.5px] text-gray-500 mb-2">ตรวจให้ตรงกับใบเกรด — เลือกเกรดใหม่ได้จากช่อง “เกรด” · วิชากิจกรรม (ก) และเกรด ร/มส/ผ/มผ ไม่นำมาคิด GPA</p>
+              <CourseTable courses={activeCourses} onChange={(courses) => setTerms((p) => ({ ...p, [active]: { courses } }))} />
+              {badCourse && <p className="mt-2 text-[13px] text-rose-600">แถวสีแดง: ใส่รหัสวิชาและหน่วยกิตให้ครบ</p>}
             </div>
-          </div>
-          {invalid && gpax !== "" && <p className="text-[13px] text-rose-600">เกรดต้องอยู่ระหว่าง 0.00 – 4.00</p>}
+          )}
+
+          {!hasTerms && (
+            <button type="button" onClick={() => {
+                setTerms({ [GRADE_TERMS[0]]: { courses: [{ code: "", name: "", credit: null, grade: "" }] } });
+                setActive(GRADE_TERMS[0]);
+              }} className="text-[13.5px] text-pink-600 underline underline-offset-2 bg-transparent !p-0">
+              หรือพิมพ์รายวิชาเอง
+            </button>
+          )}
+
+          {/* กรอก GPAX เอง (ไม่มีใบเกรด) */}
+          {!hasTerms && (
+            <div className="rounded-2xl border border-gray-100">
+              <button type="button" onClick={() => setManualOpen((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 bg-transparent text-[14.5px] font-medium text-gray-700">
+                กรอกเกรดเฉลี่ยเอง
+                <FaChevronDown className={`text-[12px] text-gray-400 transition ${manualOpen ? "rotate-180" : ""}`} />
+              </button>
+              {manualOpen && (
+                <div className="px-4 pb-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-[14px] font-medium text-gray-700">GPAX สะสม</span>
+                      <input type="number" inputMode="decimal" step="0.01" min="0" max="4" value={gpax} onChange={(e) => setGpax(e.target.value)} placeholder="เช่น 3.45" className={`mt-1 ${input} ${bad(gpax) ? "border-rose-300" : "border-gray-200"}`} />
+                    </label>
+                    <label className="block">
+                      <span className="text-[14px] font-medium text-gray-700">นับถึงภาคเรียน</span>
+                      <select value={term} onChange={(e) => setTerm(e.target.value)} className={`mt-1 ${input} border-gray-200 bg-white`}>
+                        <option value="">ไม่ระบุ</option>
+                        {GRADE_TERMS.map((t) => (
+                          <option key={t} value={t}>
+                            ม.{t}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div>
+                    <div className="text-[14px] font-medium text-gray-700">
+                      เกรดเฉลี่ยรายวิชา <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
+                    </div>
+                    <div className="text-[12.5px] text-gray-500 mb-2">ใช้เทียบกับ “วิชาที่ควรเน้น” ของแต่ละเป้าหมาย</div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {GRADE_SUBJECTS.map((k) => (
+                        <label key={k} className="block">
+                          <span className="text-[13px] text-gray-600">{k}</span>
+                          <input type="number" inputMode="decimal" step="0.01" min="0" max="4" value={subjects[k]} onChange={(e) => setSubjects((p) => ({ ...p, [k]: e.target.value }))} placeholder="-" className={`mt-0.5 h-10 w-full rounded-xl border px-3 text-[15px] outline-none focus:border-pink-400 ${bad(subjects[k]) ? "border-rose-300" : "border-gray-200"}`} />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {invalid && gpax !== "" && <p className="text-[13px] text-rose-600">เกรดต้องอยู่ระหว่าง 0.00 – 4.00</p>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <button type="button" onClick={onCancel} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15px] hover:bg-gray-50">
+          <button type="button" onClick={onCancel} disabled={!!ocr} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15px] hover:bg-gray-50">
             ยกเลิก
           </button>
-          <button type="submit" disabled={saving || invalid} className="h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:!bg-pink-200 text-white text-[15px] font-semibold">
+          <button type="submit" disabled={saving || invalid || !!ocr} className="h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:!bg-pink-200 text-white text-[15px] font-semibold">
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>
         </div>

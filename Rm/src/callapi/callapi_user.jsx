@@ -1050,10 +1050,11 @@ export async function getStudentGrades(userId) {
   return response.data;
 }
 
-export async function saveStudentGrades(userId, { gpax, as_of_term, subject_gpa }) {
+// terms = { "4/1": { courses: [{ code, name, credit, grade }] } } — มีแล้ว backend คำนวณ GPAX/เกรดรายวิชาจากรายวิชาให้
+export async function saveStudentGrades(userId, { gpax, as_of_term, subject_gpa, terms }) {
   const response = await axios.put(
     `${api}/student-grades/${userId}`,
-    { gpax, as_of_term, subject_gpa },
+    { gpax, as_of_term, subject_gpa, terms },
     { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
   );
   return response.data;
