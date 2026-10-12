@@ -389,17 +389,7 @@ export default function StudentGoalPage() {
         <Header />
         <main className="w-full px-4 sm:px-6 md:px-8 pt-24 pb-10 space-y-6">
           {/* หัวข้อ */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="page-title">เป้าหมายของฉัน</h1>
-              <p className="page-subtitle mt-0.5">ตั้งเป้าหมายการศึกษาต่อได้สูงสุด {MAX_GOALS} ข้อ แล้วดูว่าสอดคล้องกับความสนใจของคุณแค่ไหน</p>
-            </div>
-            {canAdd && (
-              <button type="button" onClick={openAdd} className="h-10 px-4 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[15px] font-semibold flex items-center gap-2">
-                <FaPlus className="text-[12px]" /> เพิ่มเป้าหมาย
-              </button>
-            )}
-          </div>
+          <h1 className="page-title">เป้าหมายของฉัน</h1>
 
           {/* โปรไฟล์ */}
           <div className="rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 via-white to-rose-50 p-5 sm:p-6">
