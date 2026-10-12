@@ -29,7 +29,6 @@ import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
 import { facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
 
-const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
 const API_BASE = API_BASE_URL;
 
 const GOAL_LEVEL = { high: { label: "สูง", cls: "text-emerald-600" }, medium: { label: "ปานกลาง", cls: "text-amber-600" }, low: { label: "ต่ำ", cls: "text-red-600" } };
@@ -54,13 +53,15 @@ function CardHeader({ icon, title, subtitle, action }) {
 
 export default function StudentGoalPage() {
   const navigate = useNavigate();
+  // อ่านผู้ใช้ตอนเปิดหน้า (ไม่ใช่ตอนโหลดแอป) — ไม่มีค่าสำรองเป็นนักเรียนคนอื่น
+  const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? null;
   const [isEditing, setIsEditing] = useState(false);
 
   const [student, setStudent] = useState({
     name: "",
     number: "",
     class: "",
-    goal: "ยังไม่ได้ตั้งเป้าหมาย",
+    goal: "",
     university: "",
     inspiration: "",
     gpa: "3.80",
@@ -95,8 +96,8 @@ export default function StudentGoalPage() {
           name: me?.fullname || "",
           number: enroll?.seat_no ?? "-",
           class: grade ? gradeLabel(grade) : "-",
-          goal: myGoal?.career_field || "ยังไม่ได้ตั้งเป้าหมาย",
-          university: myGoal?.faculty_name || "ยังไม่ระบุคณะที่สนใจ",
+          goal: myGoal?.career_field || "",
+          university: myGoal?.faculty_name || "",
           inspiration: myGoal?.goal_text || "",
           gpa: "3.80",
           avatar: generalInfo?.avatar_url ? resolveFileUrl(API_BASE, generalInfo.avatar_url) : null,
@@ -112,22 +113,27 @@ export default function StudentGoalPage() {
   }, []);
 
   const saveGoal = async () => {
+    const payload = {
+      goal_text: tempStudent.inspiration.trim(),
+      faculty_name: tempStudent.university.trim(),
+      career_field: tempStudent.goal.trim(),
+    };
+    if (!payload.faculty_name && !payload.career_field) {
+      Swal.fire("ยังไม่ได้ระบุเป้าหมาย", "กรอกคณะที่สนใจ หรืออาชีพเป้าหมาย อย่างน้อย 1 ช่อง", "warning");
+      return;
+    }
     setSaving(true);
     try {
-      const payload = {
-        goal_text: tempStudent.inspiration,
-        faculty_name: tempStudent.university,
-        career_field: tempStudent.goal,
-      };
       const saved = goalId
         ? await updateGoal(goalId, payload)
         : await createGoal({ user_user_id: CURRENT_STUDENT_ID, ...payload });
       setGoalId(saved?.goal_id ?? goalId);
-      setStudent(tempStudent);
+      setStudent({ ...tempStudent, university: payload.faculty_name, goal: payload.career_field, inspiration: payload.goal_text });
       setIsEditing(false);
+      Swal.fire({ icon: "success", title: "บันทึกเป้าหมายแล้ว", text: "ระบบจะใช้เป้าหมายนี้ในหน้าผลแบบทดสอบและคำแนะนำ", timer: 1800, showConfirmButton: false });
     } catch (err) {
       console.error("บันทึกเป้าหมายไม่สำเร็จ:", err);
-      Swal.fire("บันทึกไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
+      Swal.fire("บันทึกไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
     } finally {
       setSaving(false);
     }
@@ -154,8 +160,8 @@ export default function StudentGoalPage() {
   // เป้าหมายที่บันทึกไว้ (ตัดข้อความแทนค่าว่างออก) → คณะในฐานข้อมูล + ความสอดคล้องกับผลทดสอบ
   const goalForAdvice = useMemo(
     () => ({
-      faculty_name: student.university === "ยังไม่ระบุคณะที่สนใจ" ? "" : student.university,
-      career_field: student.goal === "ยังไม่ได้ตั้งเป้าหมาย" ? "" : student.goal,
+      faculty_name: student.university,
+      career_field: student.goal,
       goal_text: student.inspiration,
     }),
     [student.university, student.goal, student.inspiration]
@@ -285,7 +291,7 @@ export default function StudentGoalPage() {
                         className="mt-1 h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300"
                       />
                     ) : (
-                      <p className="text-[15.5px] font-medium text-gray-900 mt-0.5">{student.goal}</p>
+                      <p className={`text-[15.5px] font-medium mt-0.5 ${student.goal ? "text-gray-900" : "text-gray-400"}`}>{student.goal || "ยังไม่ได้ตั้งเป้าหมาย"}</p>
                     )}
                   </div>
                   <div>
@@ -324,7 +330,7 @@ export default function StudentGoalPage() {
                     </datalist>
                   </>
                 ) : (
-                  <p className="text-[15.5px] text-gray-600">{student.university}</p>
+                  <p className={`text-[15.5px] ${student.university ? "text-gray-600" : "text-gray-400"}`}>{student.university || "ยังไม่ระบุคณะที่สนใจ"}</p>
                 )}
               </div>
 

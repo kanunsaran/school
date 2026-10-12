@@ -40,17 +40,21 @@ router.get('/:id', async (req, res) => {
 // ---------------------- POST เพิ่มเป้าหมาย ----------------------
 router.post('/', authRequired, async (req, res) => {
   try {
-    const { goal_text, faculty_name, career_field } = req.body;
+    const clean = (v) => (typeof v === 'string' ? v.trim() : '');
+    const goal_text = clean(req.body.goal_text);
+    const faculty_name = clean(req.body.faculty_name);
+    const career_field = clean(req.body.career_field);
     const userId = req.user.id;
 
-    if (!goal_text || !faculty_name || !career_field) {
-      return res.status(400).json({ message: 'goal_text, faculty_name, career_field are required' });
+    // ต้องมีคณะหรืออาชีพอย่างน้อย 1 ช่อง (เหตุผล/แรงบันดาลใจไม่บังคับ)
+    if (!faculty_name && !career_field) {
+      return res.status(400).json({ message: 'กรอกคณะที่สนใจ หรืออาชีพเป้าหมาย อย่างน้อย 1 ช่อง' });
     }
 
     const [result] = await pool.query(
       `INSERT INTO goal (goal_text, faculty_name, career_field, user_user_id)
        VALUES (?, ?, ?, ?)`,
-      [goal_text, faculty_name, career_field, userId]
+      [goal_text || null, faculty_name || null, career_field || null, userId]
     );
 
     res.status(201).json({
@@ -72,6 +76,13 @@ router.put('/:id', authRequired, async (req, res) => {
   try {
     const { goal_text = null, faculty_name = null, career_field = null } = req.body;
     const id = req.params.id;
+
+    // นักเรียนแก้ได้เฉพาะเป้าหมายของตัวเอง (ครูแก้ได้)
+    const [own] = await pool.query('SELECT user_user_id FROM goal WHERE goal_id = ? AND deleted_at IS NULL', [id]);
+    if (!own.length) return res.status(404).json({ message: 'Not found' });
+    if (req.user.role !== 'teacher' && String(own[0].user_user_id) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'แก้ไขได้เฉพาะเป้าหมายของตัวเอง' });
+    }
 
     const [result] = await pool.query(
       `UPDATE goal
