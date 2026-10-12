@@ -11,6 +11,8 @@ const sheet = (n) => {
   if (!wb.Sheets[n]) throw new Error(`ไม่พบชีต "${n}"`);
   return XLSX.utils.sheet_to_json(wb.Sheets[n], { defval: '' });
 };
+// ชื่อวิชาเดียวกันที่เขียนต่างกันในไฟล์ → ใช้ชื่อเดียว
+const SUBJECT_SYNONYM = { 'อังกฤษ': 'ภาษาอังกฤษ', 'สุขศึกษา': 'สุขศึกษาและพลศึกษา' };
 const list = (s) => String(s || '').split(/,\s*/).map((x) => x.trim()).filter(Boolean);
 const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean);
 
@@ -30,7 +32,7 @@ const faculties = sheet('คณะ-อาชีพ-คำแนะนำ').map((
   advice: r['คำแนะนำสำหรับนักเรียน'],
   track: r['สายการเรียนที่แนะนำ'],
   traits: r['ลักษณะ/คุณลักษณะที่คณะต้องการ'],
-  subjects: list(r['วิชาที่ควรเน้น']),
+  subjects: [...new Set(list(r['วิชาที่ควรเน้น']).map((x) => SUBJECT_SYNONYM[x] || x))],
   exam: r['สิ่งที่ควรเตรียมสอบ'],
   programs: lines(r['หลักสูตรที่พบ (myTCAS)']).filter((x) => x !== '-'),
   links: lines(r['ลิงก์อ้างอิง']).filter((x) => /^https?:\/\//.test(x)),

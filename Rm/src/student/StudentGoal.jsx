@@ -261,6 +261,8 @@ export default function StudentGoalPage() {
                     {isEditing ? (
                       <input
                         value={tempStudent.goal}
+                        list="goal-career-options"
+                        placeholder="เช่น นักออกแบบกราฟิก"
                         onChange={(e) => handleChange("goal", e.target.value)}
                         className="mt-1 h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300"
                       />
@@ -282,11 +284,27 @@ export default function StudentGoalPage() {
                   <FaGraduationCap className="text-pink-400" /> คณะที่สนใจ
                 </p>
                 {isEditing ? (
-                  <input
-                    value={tempStudent.university}
-                    onChange={(e) => handleChange("university", e.target.value)}
-                    className="w-full h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300"
-                  />
+                  <>
+                    <input
+                      value={tempStudent.university}
+                      list="goal-faculty-options"
+                      placeholder="เลือกหรือพิมพ์ชื่อคณะ/สาขา"
+                      onChange={(e) => handleChange("university", e.target.value)}
+                      className="w-full h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300"
+                    />
+                    <p className="text-[12.5px] text-gray-400 mt-1">เลือกจากรายการเพื่อให้ระบบเทียบกับผลแบบทดสอบได้แม่นยำ</p>
+                    {/* รายการคณะ/อาชีพจากฐานข้อมูลแนะแนว — ยังพิมพ์ชื่ออื่นเองได้ */}
+                    <datalist id="goal-faculty-options">
+                      {(riasec.data?.faculties || []).map((f) => (
+                        <option key={f.name} value={f.name} />
+                      ))}
+                    </datalist>
+                    <datalist id="goal-career-options">
+                      {[...new Set((riasec.data?.faculties || []).flatMap((f) => f.careers))].map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </>
                 ) : (
                   <p className="text-[15.5px] text-gray-600">{student.university}</p>
                 )}

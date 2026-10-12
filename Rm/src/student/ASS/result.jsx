@@ -6,7 +6,7 @@ import { getGoals } from "../../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
 import {
-  RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, facultiesForCode, goalAlignment,
+  RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, facultiesForCode, goalTargets, analyzeTarget, personalAdvice, hasGoal,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -23,6 +23,9 @@ const colorMap = {
 };
 const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂️" };
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
+// คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
+const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
+const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
 const ROADMAP = [
   { grade: "ม.4", items: ["ค้นหาความสนใจของตัวเอง", "ลองทำกิจกรรม/ชุมนุมหลากหลายด้าน", "เริ่มทำแบบทดสอบความถนัด"] },
@@ -111,6 +114,20 @@ function Check({ children, tone = "pink" }) {
   );
 }
 
+const SOURCE_TH = { faculty: "คณะที่ตั้งเป้าหมาย", career: "อาชีพที่ตั้งเป้าหมาย", text: "สาขาจากข้อความเป้าหมาย" };
+
+function AdviceBox({ n, title, wide, children }) {
+  return (
+    <div className={`bg-white/70 rounded-xl p-4 min-w-0 ${wide ? "lg:col-span-2" : ""}`}>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="h-6 w-6 rounded-full bg-pink-500 text-white text-[12.5px] font-bold flex items-center justify-center shrink-0">{n}</span>
+        <h3 className="text-[15px] font-semibold text-gray-800">{title}</h3>
+      </div>
+      <ul className="space-y-1.5 text-[13.5px] text-gray-700">{children}</ul>
+    </div>
+  );
+}
+
 const CARD = "bg-white/60 border border-white/60 backdrop-blur-xl p-5 rounded-2xl shadow-sm";
 const thaiDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "");
 
@@ -180,8 +197,10 @@ export default function ResultPage() {
     const fromFaculty = recommended.flatMap((f) => f.rows.flatMap((row) => row.careers.map((title) => ({ title, from: row.name }))));
     return [...fromCode, ...fromFaculty].filter((c) => (seen.has(c.title) ? false : (seen.add(c.title), true))).slice(0, 9);
   }, [data, code, recommended, latest]);
-  const goalText = myGoal ? myGoal.faculty_name || myGoal.career_field || myGoal.goal_text : "";
-  const alignment = useMemo(() => (data && latest && !latest.legacy && myGoal !== undefined ? goalAlignment(data, goalText, latest.code) : null), [data, latest, myGoal, goalText]);
+  // เป้าหมาย (คณะ/อาชีพ/ข้อความ) ที่หาเจอในฐานข้อมูล → วิเคราะห์ความสอดคล้องทีละรายการ
+  const ready = data && latest && !latest.legacy && myGoal !== undefined;
+  const analyses = useMemo(() => (ready && myGoal ? goalTargets(data, myGoal).map((t) => analyzeTarget(data, latest, t)) : []), [ready, data, latest, myGoal]);
+  const advice = useMemo(() => (ready ? personalAdvice(data, latest, analyses) : null), [ready, data, latest, analyses]);
 
   if (loading) {
     return (
@@ -449,43 +468,191 @@ export default function ResultPage() {
       </div>
 
       {/* ⑨ ความสอดคล้องกับเป้าหมาย */}
+      <GroupLabel>เป้าหมายของคุณ</GroupLabel>
       <div className={CARD}>
-        <SectionHeader emoji="🎯" title="ความสอดคล้องกับเป้าหมาย" />
-        {myGoal === undefined || !alignment ? (
+        <SectionHeader emoji="🎯" title="ความสอดคล้องกับเป้าหมาย" subtitle="เทียบเป้าหมายที่ตั้งไว้กับผล RIASEC ทั้ง 6 ด้าน" />
+        {!ready ? (
           <p className="text-[14.5px] text-gray-400">กำลังโหลด...</p>
-        ) : alignment.level === "none" ? (
+        ) : !hasGoal(myGoal) ? (
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-[14.5px] text-gray-600">ยังไม่ได้ตั้งเป้าหมาย — ตั้งเป้าหมายคณะหรืออาชีพที่สนใจก่อน แล้วระบบจะเปรียบเทียบกับผลแบบทดสอบนี้ให้</p>
+            <p className="text-[14.5px] text-gray-600">ยังไม่ได้ตั้งเป้าหมาย — ตั้งเป้าหมายคณะ สาขา หรืออาชีพที่สนใจก่อน แล้วระบบจะเปรียบเทียบกับผลแบบทดสอบนี้และให้คำแนะนำที่ตรงกับเป้าหมายของคุณ</p>
             <button type="button" onClick={() => navigate("/studentgoal")} className="shrink-0 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[13.5px] font-medium">
               ไปตั้งเป้าหมาย
             </button>
           </div>
-        ) : alignment.level === "unknown" ? (
+        ) : analyses.length === 0 ? (
           <p className="text-[14.5px] text-gray-600">
-            เป้าหมายของคุณคือ <b>{goalText}</b> — ยังไม่มีข้อมูลคณะนี้ในฐานข้อมูลของระบบ จึงยังเปรียบเทียบไม่ได้ ลองปรึกษาครูแนะแนวเพิ่มเติม
+            เป้าหมายของคุณคือ <b>{[myGoal.faculty_name, myGoal.career_field].filter(Boolean).join(" / ") || myGoal.goal_text}</b> — ยังไม่มีข้อมูลคณะหรืออาชีพนี้ในฐานข้อมูลของระบบ จึงยังเปรียบเทียบไม่ได้
+            ลองเลือกชื่อคณะจากรายการในหน้าเป้าหมาย หรือปรึกษาครูแนะแนว
           </p>
         ) : (
-          <div className={`rounded-xl border px-4 py-3 ${ALIGNMENT_META[alignment.level].box}`}>
-            <p className="text-[15px] text-gray-800">
-              เป้าหมาย <b>{goalText}</b> สอดคล้องกับความสนใจของคุณในระดับ{" "}
-              <b className={ALIGNMENT_META[alignment.level].cls}>{ALIGNMENT_META[alignment.level].label}</b>
-            </p>
-            <p className="text-[14px] text-gray-700 mt-1.5 leading-6">
-              {alignment.reason === "recommended" && `${alignment.faculty.name} อยู่ในคณะที่แนะนำสำหรับรหัส ${latest.code} ของคุณ`}
-              {alignment.reason === "top" && `${alignment.faculty.name} อยู่กลุ่ม ${dimLabel(data, alignment.faculty.dim)} ซึ่งเป็นด้านที่คุณสนใจมากที่สุด`}
-              {alignment.reason === "secondary" && `${alignment.faculty.name} อยู่กลุ่ม ${dimLabel(data, alignment.faculty.dim)} ซึ่งเป็นความสนใจ${RANK_TH[alignment.position]}ของคุณ`}
-              {alignment.reason === "outside" &&
-                `${alignment.faculty.name} อยู่กลุ่ม ${dimLabel(data, alignment.faculty.dim)} ซึ่งไม่อยู่ใน 3 ด้านที่คุณสนใจมากที่สุด (ได้ ${scores[alignment.faculty.dim]}/${MAX_SCORE}) — ไม่ได้แปลว่าเรียนไม่ได้ แต่ควรลองทำกิจกรรมที่เกี่ยวข้องเพื่อสำรวจว่าสนใจจริงไหม`}
-            </p>
-            {alignment.faculty && (
-              <p className="text-[13.5px] text-gray-600 mt-2">
-                <span className="text-gray-500">สิ่งที่ควรพัฒนาสำหรับเป้าหมายนี้:</span> {alignment.faculty.skills} — {alignment.faculty.advice}
-              </p>
-            )}
+          <div className="grid gap-4">
+            {analyses.map((a) => {
+              const meta = ALIGNMENT_META[a.level];
+              const dim = a.faculty.dim;
+              return (
+                <div key={a.faculty.name} className={`rounded-xl border px-4 py-4 ${meta.box}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[12.5px] text-gray-500">{SOURCE_TH[a.source]}: {a.source === "text" ? `“${a.input.slice(0, 60)}${a.input.length > 60 ? "…" : ""}”` : a.input}</div>
+                      <div className="text-[16px] font-semibold text-gray-900">{a.faculty.name}</div>
+                    </div>
+                    <span className={`shrink-0 rounded-full bg-white px-3 py-1 text-[14px] font-bold ${meta.cls}`}>สอดคล้อง{meta.label}</span>
+                  </div>
+
+                  <div className="mt-3 grid sm:grid-cols-2 gap-2 text-[13.5px]">
+                    <div className="rounded-lg bg-white/80 px-3 py-2">
+                      <div className="text-gray-500">ผล RIASEC ของคุณ</div>
+                      <div className="font-semibold text-gray-800">
+                        {latest.code} · {top3.map((c) => dims[c].nameEn).join(" · ")}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-white/80 px-3 py-2">
+                      <div className="text-gray-500">สาขานี้เน้นด้าน (จากไฟล์ข้อมูลคณะ)</div>
+                      <div className="font-semibold text-gray-800">
+                        {dimLabel(data, dim)} — คุณได้ {a.dimScore}/{MAX_SCORE} (อันดับ {a.dimRank} จาก 6)
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[14px] text-gray-700 mt-3 leading-6">
+                    <b>เพราะอะไร: </b>
+                    {a.reason === "recommended" && `${a.faculty.name} เป็นหนึ่งในสาขาที่แนะนำสำหรับรหัส ${latest.code} โดยตรง ความสนใจของคุณจึงไปทางเดียวกับสาขานี้`}
+                    {a.reason === "top" && `สาขานี้เน้นความสนใจด้าน${TRAIT_NOUN[dim]} (${dim}) ซึ่งเป็นด้านที่คุณสนใจมากที่สุด`}
+                    {a.reason === "secondary" &&
+                      `สาขานี้เน้นความสนใจด้าน${TRAIT_NOUN[dim]} (${dim}) ซึ่งเป็นความสนใจ${RANK_TH[a.position]}ของคุณ — สอดคล้องอยู่บ้าง แต่ยังไม่ใช่ด้านที่โดดเด่นที่สุด`}
+                    {a.reason === "outside" &&
+                      `ผลประเมินแสดงว่าคุณโดดเด่นด้าน${joinTh(top3.map((c) => TRAIT_NOUN[c]))} ขณะที่สาขานี้เน้นความสนใจด้าน${TRAIT_NOUN[dim]} (${dim}) ซึ่งเป็นด้านอันดับ ${a.dimRank} ของคุณ จึงควรพิจารณาลักษณะของสาขาที่ต้องการเรียนเพิ่มเติม`}
+                  </p>
+                  <p className="text-[13.5px] text-gray-600 mt-1.5 leading-6">
+                    <span className="text-gray-500">สาขานี้ต้องการ: </span>
+                    {a.faculty.traits}
+                    <br />
+                    <span className="text-gray-500">จุดเด่นของคุณ: </span>
+                    {dims[top3[0]].traits}
+                  </p>
+
+                  {a.level !== "high" && (
+                    <div className="mt-3 pt-3 border-t border-black/5">
+                      <div className="text-[14px] font-semibold text-gray-800">แนวทางที่ควรพิจารณา</div>
+                      <ul className="mt-1.5 space-y-1 text-[13.5px] text-gray-700">
+                        <Check>สำรวจสาขาย่อยในคณะที่สนใจ ว่าตรงกับความสนใจด้านไหนของคุณบ้าง (ดูหลักสูตรจริงในลิงก์ myTCAS)</Check>
+                        <Check>ลองทำกิจกรรมหรือผลงานที่เกี่ยวข้องกับสาขานี้ เช่น {a.faculty.advice}</Check>
+                        <Check>
+                          เทียบความสนใจของตัวเองกับวิชาที่สาขานี้เน้น ({a.faculty.subjects.join(", ")}) และทักษะที่ต้องใช้ ({a.faculty.skills})
+                        </Check>
+                      </ul>
+                      {a.bridges.length > 0 && (
+                        <div className="mt-3 rounded-lg bg-white/80 px-3 py-2.5">
+                          <div className="text-[13.5px] font-medium text-gray-800">สาขาที่เชื่อมความสนใจของคุณกับเป้าหมาย</div>
+                          <div className="text-[12.5px] text-gray-500">สาขาที่ไฟล์ข้อมูลจับคู่กับรหัสซึ่งมีทั้งด้าน {top3[0]} ของคุณและด้าน {dim} ของเป้าหมาย</div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {a.bridges.map((b) => (
+                              <span key={b.row.name} className="rounded-full bg-pink-50 text-pink-700 px-2.5 py-1 text-[13px]" title={`จากรหัส ${b.codes.join(", ")}`}>
+                                {b.row.name} <span className="text-pink-400">({b.codes.slice(0, 3).join(", ")})</span>
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-[12.5px] text-gray-500 mt-2">
+                        ระดับความสอดคล้องไม่ได้แปลว่าเรียนสาขานี้ไม่ได้ — ถ้าตั้งใจจริง ให้ลองสำรวจและเตรียมพื้นฐานตามคำแนะนำด้านล่าง
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
-        <p className="text-[12.5px] text-gray-500 mt-3">ผลนี้บอก "ความสนใจ" ไม่ได้วัดความสามารถหรือรับประกันความสำเร็จในการเรียน และไม่ควรนำไปเทียบกับคะแนนของเพื่อน</p>
+        <details className="mt-3 text-[12.5px] text-gray-500">
+          <summary className="cursor-pointer select-none">เกณฑ์ที่ใช้วัดความสอดคล้อง</summary>
+          <ul className="mt-1.5 space-y-0.5 pl-4 list-disc">
+            <li>สูง: สาขาเป้าหมายอยู่ในรายการแนะนำของรหัส 3 ตัวของคุณ หรือกลุ่มของสาขาตรงกับด้านที่คุณสนใจมากที่สุด</li>
+            <li>ปานกลาง: กลุ่มของสาขาตรงกับด้านอันดับ 2 หรือ 3 ของคุณ</li>
+            <li>ต่ำ: กลุ่มของสาขาไม่อยู่ใน 3 ด้านแรกของคุณ</li>
+            <li>กลุ่มของแต่ละสาขาและรหัสที่แนะนำมาจากไฟล์ข้อมูลคณะ–อาชีพของโรงเรียน • ไม่ใช้เปอร์เซ็นต์ความเหมาะสม</li>
+          </ul>
+        </details>
+        <p className="text-[12.5px] text-gray-500 mt-2">ผลนี้บอก "ความสนใจ" ไม่ได้วัดความสามารถหรือรับประกันความสำเร็จในการเรียน และไม่ควรนำไปเทียบกับคะแนนของเพื่อน</p>
       </div>
+
+      {/* ⑩ คำแนะนำเฉพาะบุคคล */}
+      {advice && (
+        <div className={CARD}>
+          <SectionHeader
+            emoji="🧭"
+            title="คำแนะนำเฉพาะบุคคล"
+            subtitle={advice.usesGoal ? `จากผล ${latest.code} และเป้าหมาย: ${advice.focus.map((f) => f.name).join(", ")}` : `จากผล ${latest.code} (ยังไม่ได้ตั้งเป้าหมาย จึงใช้สาขาที่ตรงกับรหัสของคุณ: ${advice.focus[0].name})`}
+          />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <AdviceBox n="1" title="การเรียนและวิชาที่ควรเน้น">
+              {advice.study.focusSubjects.map((x) => (
+                <Check key={x.faculty}>
+                  {x.faculty}: เน้น <b>{x.subjects.join(", ")}</b>
+                </Check>
+              ))}
+              <Check>วิชาที่สาขาซึ่งตรงกับรหัส {latest.code} ใช้บ่อยที่สุด: {advice.study.commonSubjects.join(", ")}</Check>
+            </AdviceBox>
+
+            <AdviceBox n="2" title="ทักษะและจุดเด่นที่ควรพัฒนา">
+              <Check>
+                ใช้จุดเด่นด้าน{joinTh(advice.skills.strengths.map((s) => TRAIT_NOUN[s.code]))} เลือกกิจกรรม เช่น การทำงานเป็นทีม การแก้ปัญหา หรือการนำเสนอ
+                แล้วสังเกตว่ากิจกรรมแบบไหนทำให้อยากพัฒนาต่อ
+              </Check>
+              {advice.skills.focusSkills.map((x) => (
+                <Check key={x.faculty}>
+                  ทักษะที่ {x.faculty} ใช้: {x.skills}
+                </Check>
+              ))}
+              {advice.skills.toExplore.map((t) => (
+                <Check key={t.code}>
+                  เป้าหมายของคุณใช้ความสนใจด้าน{TRAIT_NOUN[t.code]} ({t.code} คุณได้ {t.score}/{MAX_SCORE}) ลองทำกิจกรรมที่คนสายนี้ชอบ: {t.traits}
+                </Check>
+              ))}
+            </AdviceBox>
+
+            <AdviceBox n="3" title="กิจกรรมหรือประสบการณ์ที่ควรลอง">
+              {advice.activities.map((x) => (
+                <Check key={x.text}>
+                  {x.text} <span className="text-gray-400">({x.faculty})</span>
+                </Check>
+              ))}
+            </AdviceBox>
+
+            <AdviceBox n="4" title="เตรียมตัวเข้าคณะ/สาขาที่สนใจ">
+              {advice.prepare.map((x) => (
+                <li key={x.faculty} className="rounded-lg bg-white/80 px-3 py-2 list-none">
+                  <div className="font-medium text-gray-800">{x.faculty}</div>
+                  <div>สายการเรียน: {x.track}</div>
+                  <div>เตรียมสอบ: {x.exam}</div>
+                  {x.universities.length > 0 && <div className="text-gray-500">เปิดสอนเช่น {x.universities.join(", ")}</div>}
+                  {x.link && (
+                    <a href={x.link} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
+                      ตรวจเกณฑ์ปัจจุบันใน myTCAS ↗
+                    </a>
+                  )}
+                </li>
+              ))}
+            </AdviceBox>
+
+            <AdviceBox n="5" title="อาชีพที่เกี่ยวข้องและการสำรวจเพิ่มเติม" wide>
+              <li className="flex flex-wrap gap-1.5 list-none">
+                {[...new Set([...advice.careers.fromGoal, ...advice.careers.fromCode])].map((c) => (
+                  <span key={c} className="rounded-full bg-white/80 border border-gray-100 px-2.5 py-1 text-[13px]">
+                    {c}
+                  </span>
+                ))}
+              </li>
+              <Check>เลือกอาชีพที่สนใจ 1–2 อาชีพ แล้วลองสัมภาษณ์คนที่ทำงานนั้น หรือดูวิดีโอ “หนึ่งวันของคนทำอาชีพนี้” เพื่อดูว่างานจริงเป็นอย่างไร</Check>
+              <Check>ปรึกษาครูแนะแนวเพื่อวางแผนเส้นทางหลักและเส้นทางสำรอง</Check>
+            </AdviceBox>
+          </div>
+          <p className="text-[12.5px] text-gray-500 mt-3">
+            ข้อความแนะนำเลือกจากคอลัมน์ในไฟล์ข้อมูลคณะ–อาชีพ (วิชาที่ควรเน้น ทักษะ คำแนะนำ การเตรียมสอบ) ตามผลและเป้าหมายของคุณ — เกณฑ์รับเข้าเปลี่ยนทุกปี ควรตรวจประกาศล่าสุด
+          </p>
+        </div>
+      )}
 
       {/* ===== แผนการเตรียมตัว ===== */}
       <GroupLabel>แผนการเตรียมตัว</GroupLabel>
