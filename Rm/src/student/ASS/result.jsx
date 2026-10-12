@@ -8,7 +8,7 @@ import useMyRiasec from "../../hooks/useMyRiasec.js";
 import { goalsOf, GOAL_RANK_LABEL } from "../../utils/goals.js";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, riasecAdvice, careersForResult, careersForGoal, transferableStrengths,
+  denseRank, tiedWith, riasecAdvice, careersForResult, careersForGoal, interestLinks,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -212,61 +212,62 @@ function Block({ title, children }) {
   );
 }
 
-// คำอธิบายผลความสอดคล้อง — เขียนเป็นย่อหน้าต่อเนื่อง (ผลการวิเคราะห์ → แนวทางไปสู่เป้าหมาย → สาขาทางเลือก)
-// เนื้อหาสาขาทั้งหมดมาจากไฟล์ข้อมูลคณะ–อาชีพ (ลักษณะ/คุณลักษณะที่คณะต้องการ, คำแนะนำสำหรับนักเรียน, วิชาที่ควรเน้น …)
-// ไม่บรรยายคะแนนซ้ำ (มีในช่องสรุปด้านบนแล้ว) • อันดับนับแบบคะแนนเท่ากันได้อันดับเดียวกัน
-function AlignmentCard({ a, data, latest, scores, rankText }) {
-  const dims = data.dimensions;
+// คำอธิบายผลความสอดคล้อง — แต่ละส่วนตอบคำถามเดียว:
+// ผลการวิเคราะห์ = ความสนใจของคุณเชื่อมกับเป้าหมายอย่างไร (และทำไมได้ระดับนี้ ตามเกณฑ์จริงของระบบ)
+// แนวทาง = ควรเริ่มทำอะไร (เฉพาะสาขานั้น) • สาขาทางเลือก = เส้นทางอื่นที่มีข้อมูลรองรับ
+// วลีเกี่ยวกับสาขามาจากไฟล์ข้อมูลคณะ–อาชีพทั้งหมด • ไม่ไล่คะแนน/อันดับซ้ำ (มีในช่องสรุปด้านบนแล้ว)
+const NOUN = (c) => `ด้าน${TRAIT_NOUN[c]}`;
+const nounList = (list) => joinTh(list.map(NOUN));
+const SHOWN = 3;
+const phraseList = (list) => joinTh(list.slice(0, SHOWN));
+const withPhrases = (list) => `${list.length > 1 ? "ทั้ง" : "โดยเฉพาะ"}${phraseList(list)}`;
+const CLOSING = {
+  high: "ผลนี้บอกทิศทางความสนใจของคุณ ส่วนการเข้าศึกษายังขึ้นกับผลการเรียนและการเตรียมตัวตามเกณฑ์ของแต่ละมหาวิทยาลัย",
+  medium: "ผลนี้เป็นแนวทางช่วยสำรวจความสนใจของคุณ ไม่ใช่ข้อสรุปว่าคุณจะเรียนสาขานี้ได้หรือไม่ได้",
+  low: "ผลนี้สะท้อนความสนใจจากแบบประเมินในตอนนี้ ไม่ได้วัดความสามารถหรือตัดสินว่าคุณเรียนสาขานี้ไม่ได้ หากสาขานี้คือเป้าหมายของคุณ การได้ลองทำงานจริงจะช่วยให้รู้จักความชอบของตัวเองชัดขึ้น",
+};
+
+// ชื่อที่ลงท้ายด้วยวงเล็บ ต้องเว้นวรรคก่อนข้อความต่อ
+const nm = (name) => (/\)$/.test(name) ? `${name} ` : name);
+
+function AlignmentCard({ a, data, latest, scores, rankText, alternatives, showClosing }) {
   const f = a.faculty;
   const dim = f.dim;
   const meta = ALIGNMENT_META[a.level];
-  const noun = (c) => `ด้าน${TRAIT_NOUN[c]}`;
-  const nouns = (list) => joinTh(list.map(noun));
-  const top1 = RIASEC_ORDER.filter((c) => denseRank(scores, c) === 1);
-  const tieNote = a.tied.length ? ` (คะแนนเท่ากับ${nouns(a.tied)})` : "";
-  // ความสนใจด้านอื่นของนักเรียนที่ใช้ได้กับสิ่งที่สาขานี้ต้องการ (คำต้องตรงกันทั้งในไฟล์ลักษณะด้านและไฟล์คณะ)
-  const strengths = transferableStrengths(data, latest, f).filter((x) => x.code !== dim);
-  // อ้างคำจากไฟล์ทั้งสองฝั่ง: ลักษณะเด่นของด้าน (คู่มือมิติ) ↔ สิ่งที่สาขาต้องการ (ชีตคณะ)
-  const strengthText = strengths.length
-    ? strengths
-        .slice(0, 2)
-        .map((x) => `ลักษณะ “${dims[x.code].traits.split(/\s+/).find((t) => t.includes(x.word)) || x.word}” จาก${noun(x.code)}ของคุณยังใช้ได้กับ “${x.phrase}” ที่สาขานี้ต้องการ`)
-        .join(" และ")
+  const codes = [latest.code, ...latest.alternativeCodes];
+  const links = interestLinks(data, latest, f);
+  const main = links.find((x) => x.code === dim);
+  const others = links.filter((x) => x.code !== dim);
+
+  // ความเชื่อมโยงระหว่างความสนใจกับสาขา (วลีจากไฟล์)
+  const mainText = main
+    ? `ความสนใจ${NOUN(dim)}ของคุณเชื่อมกับหัวใจของ${nm(f.name)}โดยตรง ${withPhrases(main.phrases)}`
     : "";
-  // ชื่อสาขาที่ลงท้ายด้วยวงเล็บ ต้องเว้นวรรคก่อนข้อความต่อ
-  const nm = /\)$/.test(f.name) ? `${f.name} ` : f.name;
+  const otherText = others.length
+    ? others.map((x) => `ความสนใจ${NOUN(x.code)}ของคุณช่วยในเรื่อง${phraseList(x.phrases)}`).join(" และ")
+    : "";
 
-  let analysis;
-  if (a.level === "high") {
-    const why =
-      a.reason === "recommended"
-        ? `${nm}เป็นสาขาที่ข้อมูลคณะ–อาชีพของงานแนะแนวจับคู่ไว้กับรหัส ${a.viaCode} ${a.viaCode === latest.code ? "ของคุณโดยตรง" : "ซึ่งเป็นรหัสที่เป็นไปได้ของคุณเมื่อนับด้านที่คะแนนเท่ากัน"} สาขานี้เน้น${f.traits}` +
-          (a.rank <= 3 ? ` ซึ่งสัมพันธ์กับความสนใจ${noun(dim)}ที่คุณสนใจ${a.rank === 1 ? "มากที่สุด" : `เป็นอันดับ ${a.rank}`}${tieNote}` : "")
-        : `${nm}เน้น${f.traits} ซึ่งเป็นความสนใจ${noun(dim)} และเป็นด้านที่คุณสนใจมากที่สุด${tieNote}`;
-    analysis = [
-      `${why} จึงจัดอยู่ในระดับสอดคล้องสูง${strengthText ? ` นอกจากนี้ ${strengthText}` : ""}`,
-      "ผลนี้บอกว่าความสนใจของคุณไปในทางเดียวกับสาขานี้ แต่ยังไม่ได้วัดความสามารถหรือรับประกันการเข้าศึกษา ผลการเรียนและการเตรียมตัวตามเกณฑ์รับเข้าของแต่ละมหาวิทยาลัยยังสำคัญเสมอ",
-    ];
-  } else if (a.level === "medium") {
-    analysis = [
-      `${nm}เน้น${f.traits} ซึ่งเป็นความสนใจ${noun(dim)}ที่คุณสนใจเป็นอันดับ ${a.rank}${tieNote} จึงมีส่วนที่ไปในทางเดียวกับสาขานี้ ` +
-        `แต่ด้านที่คุณสนใจมากที่สุดคือ${nouns(top1)} ซึ่งไม่ใช่ด้านหลักของสาขานี้ จึงจัดอยู่ในระดับสอดคล้องปานกลาง${strengthText ? ` อย่างไรก็ดี ${strengthText}` : ""}`,
-      "ระดับนี้ไม่ได้ตัดสินว่าคุณเหมาะหรือไม่เหมาะกับสาขานี้ แต่บอกว่าความสนใจของคุณกระจายอยู่หลายด้าน และสาขานี้ใช้เพียงบางด้านในนั้น",
-    ];
+  // เหตุผลของระดับ — ตรงกับเกณฑ์ใน alignResult
+  const codeText = codes.length > 1 ? codes.join(" หรือ ") : codes[0];
+  const reason = {
+    recommended: `ข้อมูลแนะแนวของโรงเรียนจัด${nm(f.name)}ไว้ในกลุ่มสาขาที่แนะนำสำหรับรูปแบบความสนใจ ${a.viaCode} ของคุณ จึงสอดคล้องสูง`,
+    top: main ? `และ${NOUN(dim)}ยังเป็นความสนใจที่เด่นที่สุดของคุณ จึงสอดคล้องสูง` : `${NOUN(dim)}ซึ่งเป็นด้านหลักของสาขานี้ เป็นความสนใจที่เด่นที่สุดของคุณ จึงสอดคล้องสูง`,
+    secondary: `${main ? "ทั้งนี้" : `${NOUN(dim)}ซึ่งเป็นด้านหลักของสาขานี้ เป็นหนึ่งในความสนใจที่โดดเด่นของคุณ แต่`}สาขานี้ยังไม่อยู่ในกลุ่มสาขาที่ข้อมูลแนะแนวแนะนำสำหรับรูปแบบความสนใจ ${codeText} ของคุณโดยตรง จึงจัดว่าสอดคล้องปานกลาง`,
+    outside: `${nm(f.name)}เน้น${NOUN(dim)}เป็นหลัก ซึ่งยังไม่ใช่ความสนใจที่โดดเด่นของคุณในตอนนี้ และไม่อยู่ในกลุ่มสาขาที่แนะนำสำหรับรูปแบบความสนใจ ${codeText} จึงสอดคล้องต่ำ`,
+  }[a.reason];
+
+  let first;
+  if (a.level === "low") {
+    first = `${reason}${otherText ? ` อย่างไรก็ดี ${otherText}ที่สาขานี้ต้องการ` : ""}`;
   } else {
-    analysis = [
-      `ผลการประเมินพบว่าความสนใจของคุณยังไม่สอดคล้องกับลักษณะเด่นของ${nm}มากนัก เนื่องจากสาขานี้เน้น${f.traits} ` +
-        `ซึ่งเป็นความสนใจ${noun(dim)}ที่ยังไม่อยู่ใน 3 ด้านแรกของคุณ จึงจัดอยู่ในระดับสอดคล้องต่ำ${strengthText ? ` แต่${strengthText}` : ""}`,
-      `อย่างไรก็ตาม ผลนี้ไม่ได้หมายความว่าคุณไม่มีความสามารถ${noun(dim)}หรือเรียนสาขานี้ไม่ได้ แต่สะท้อนความสนใจจากแบบประเมินในตอนนี้เท่านั้น ` +
-        "ส่วนการสมัครเข้าศึกษาต่อขึ้นกับคุณสมบัติและเกณฑ์รับเข้าของแต่ละมหาวิทยาลัย หากสาขานี้เป็นเป้าหมายที่คุณต้องการไปให้ถึง คุณยังฝึกฝนทักษะที่สาขานี้ใช้เพื่อเตรียมความพร้อมได้",
-    ];
+    const link = [mainText, otherText && (mainText ? `ส่วน${otherText}` : otherText)].filter(Boolean).join(" ");
+    first = `${link || `${nm(f.name)}เน้น${f.traits}`} ${reason}`;
   }
-
-  const lead = {
-    high: "ความสนใจของคุณตรงกับสาขานี้แล้ว ขั้นต่อไปคือเตรียมผลการเรียนและคุณสมบัติให้ตรงเกณฑ์รับเข้า",
-    medium: `ลองหาประสบการณ์ที่ใกล้เคียงกับการเรียนจริง แล้วสังเกตว่าคุณสนุกกับงาน${noun(dim)}มากขึ้นหรือไม่`,
-    low: `เริ่มจากกิจกรรมที่ได้ใช้${noun(dim)}จริง เพื่อดูว่าคุณสนใจมากขึ้นหรือไม่ ควบคู่กับฝึก${f.skills}`,
-  }[a.level];
+  // ข้อความปิดท้ายแสดงครั้งเดียวต่อระดับ (หลายเป้าหมายระดับเดียวกันไม่ต้องอ่านซ้ำ)
+  const paragraphs = showClosing ? [first, CLOSING[a.level]] : [first];
+  // แนวทาง: คำแนะนำของสาขา + ทักษะที่ยังไม่ได้พูดถึงในผลการวิเคราะห์
+  const mentioned = links.flatMap((x) => x.phrases.slice(0, SHOWN));
+  const restSkills = f.skills.split(/,\s*/).filter((x) => !mentioned.includes(x));
 
   return (
     <div className={`rounded-xl border px-4 py-4 ${meta.box}`}>
@@ -284,7 +285,7 @@ function AlignmentCard({ a, data, latest, scores, rankText }) {
         <div className="rounded-lg bg-white/80 px-3 py-2">
           <div className="text-gray-500">ผล RIASEC ของคุณ</div>
           <div className="font-semibold text-gray-800">
-            {[latest.code, ...latest.alternativeCodes].join(" / ")} · {RIASEC_ORDER.filter((c) => denseRank(scores, c) <= 3).sort((x, y) => scores[y] - scores[x]).map((c) => `${c} ${scores[c]}`).join(" · ")}
+            {codes.join(" / ")} · {RIASEC_ORDER.filter((c) => denseRank(scores, c) <= 3).sort((x, y) => scores[y] - scores[x]).map((c) => `${c} ${scores[c]}`).join(" · ")}
           </div>
         </div>
         <div className="rounded-lg bg-white/80 px-3 py-2">
@@ -296,31 +297,26 @@ function AlignmentCard({ a, data, latest, scores, rankText }) {
       </div>
 
       <Block title="ผลการวิเคราะห์ของคุณ">
-        {analysis.map((t) => (
+        {paragraphs.map((t) => (
           <p key={t}>{t}</p>
         ))}
       </Block>
 
       <Block title="แนวทางไปสู่เป้าหมาย">
         <p>
-          {lead} — ก้าวแรกที่ทำได้เลย: {f.advice}
+          {f.advice}
+          {restSkills.length > 0 && ` พร้อมฝึก${joinTh(restSkills)}`}
         </p>
-        <p className="text-[13px] text-gray-500">วิชาที่ควรเน้น การเตรียมสอบ/Portfolio และมหาวิทยาลัยที่เปิดสอน ดูต่อได้ใน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</p>
       </Block>
 
-      {a.alternatives.length > 0 && (
+      {alternatives.length > 0 && (
         <Block title="สาขาทางเลือกเพิ่มเติม">
-          <p className="text-[13px] text-gray-500">
-            สาขากลุ่ม{dims[dim].nameTh}เดียวกับเป้าหมาย ที่ใช้วิชาหลักร่วมกันและเชื่อมกับความสนใจ{nouns([...new Set(a.alternatives.flatMap((x) => x.studentDims))])}ของคุณ
-          </p>
           <ul className="space-y-2">
-            {a.alternatives.map((x) => (
+            {alternatives.map((x) => (
               <li key={x.row.name} className="rounded-lg bg-white/80 px-3 py-2">
                 <div className="font-semibold text-gray-800">{x.row.name}</div>
                 <div className="text-[13.5px] text-gray-600 leading-6">
-                  เน้น{x.row.traits} · ใช้วิชา{joinTh(x.sharedSubjects)}เหมือนเป้าหมาย
-                  {x.sharedCareers.length > 0 && ` · อาชีพร่วมกัน: ${x.sharedCareers.join(", ")}`}
-                  <span className="text-gray-400"> · ข้อมูลคณะจับคู่กับรหัส {x.codes.slice(0, 2).join(", ")}</span>
+                  งานใกล้กับเป้าหมาย: {x.work.join(", ")} — ข้อมูลแนะแนวแนะนำสาขานี้คู่กับ{nm(f.name)}สำหรับผู้ที่สนใจ{nounList(x.dims)}
                 </div>
               </li>
             ))}
@@ -400,6 +396,17 @@ export default function ResultPage() {
     [ready, data, latest, myGoal]
   );
   const advice = useMemo(() => (ready ? personalAdvice(data, latest, analyses) : null), [ready, data, latest, analyses]);
+  // สาขาทางเลือกของแต่ละการ์ด: ไม่รวมสาขาที่เป็นเป้าหมายอยู่แล้ว และไม่ซ้ำกับการ์ดก่อนหน้า
+  const altsByCard = useMemo(() => {
+    const seen = new Set(analyses.flatMap((a) => [a.faculty.name, ...a.candidates.map((r) => r.name)]));
+    return analyses.map((a) =>
+      a.alternatives.filter((x) => {
+        if (seen.has(x.row.name)) return false;
+        seen.add(x.row.name);
+        return true;
+      })
+    );
+  }, [analyses]);
   // ส่วน B: คำแนะนำจากผล RIASEC (ไม่รวมสาขาที่อยู่ในเป้าหมาย เพื่อไม่ให้ซ้ำกับส่วน A)
   const goalNames = useMemo(() => analyses.map((a) => a.faculty.name), [analyses]);
   const viewResult = useMemo(() => (latest && !latest.legacy ? (code === latest.code ? latest : { ...latest, code, alternativeCodes: [] }) : null), [latest, code]);
@@ -730,9 +737,10 @@ export default function ResultPage() {
         ) : (
           <div className="grid gap-4">
             <GoalHeader goal={myGoal} focus={advice.focus} onEdit={() => navigate("/studentgoal")} />
-            {analyses.map((a) => (
-              <AlignmentCard key={a.faculty.name} a={a} data={data} latest={latest} scores={scores} rankText={rankText} />
+            {analyses.map((a, i) => (
+              <AlignmentCard key={a.faculty.name} a={a} data={data} latest={latest} scores={scores} rankText={rankText} alternatives={altsByCard[i]} showClosing={analyses.findIndex((x) => x.level === a.level) === i} />
             ))}
+            <p className="text-[13px] text-gray-500">วิชาที่ควรเน้น การเตรียมสอบ/Portfolio และมหาวิทยาลัยที่เปิดสอน ดูต่อได้ใน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</p>
           </div>
         )}
         <details className="mt-3 text-[12.5px] text-gray-500">

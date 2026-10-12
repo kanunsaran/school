@@ -243,46 +243,94 @@ export const topDims = (result, maxRank = 3) => RIASEC_ORDER.filter((c) => dense
 // - อยู่กลุ่มด้านเดียวกับสาขาเป้าหมาย (เป้าหมายด้าน A → ทางเลือกต้องเป็นสาขาด้าน A ไม่ใช่สาขาด้าน S ที่บังเอิญมีตัว A ในรหัส)
 // - ไฟล์จับคู่สาขานั้นกับรหัสที่มีทั้งด้านของเป้าหมายและด้านเด่นของนักเรียน
 // - ใช้วิชาหลักร่วมกับเป้าหมาย หรือมีอาชีพปลายทางเดียวกัน • ไม่พบ = ไม่แสดง (ไม่สร้างคำแนะนำเอง)
-// วิชาหลักที่ใช้ร่วมกัน (ไม่นับภาษาไทย/อังกฤษซึ่งแทบทุกสาขาใช้ • "วิทยาศาสตร์" นับตรงกับ ฟิสิกส์/เคมี/ชีววิทยา)
-const GENERAL_SUBJECTS = ["ภาษาไทย", "ภาษาอังกฤษ"];
-const SCIENCES = ["ฟิสิกส์", "เคมี", "ชีววิทยา"];
-const sameSubject = (a, b) => a === b || (a === "วิทยาศาสตร์" && SCIENCES.includes(b)) || (b === "วิทยาศาสตร์" && SCIENCES.includes(a));
-const coreSubjects = (f) => {
-  const core = f.subjects.filter((x) => !GENERAL_SUBJECTS.includes(x));
-  return core.length ? core : f.subjects;
+// ---------- งานของสาขา (อาชีพ + ทักษะจากไฟล์) ----------
+// แตกข้อความในไฟล์เป็นหน่วยย่อย: อาชีพแต่ละตัว และทักษะแต่ละข้อ / คุณลักษณะแต่ละวลี
+const skillUnits = (f) => f.skills.split(/,\s*/).map((x) => x.trim()).filter(Boolean);
+const traitUnits = (f) => f.traits.split(/\s+และ|\s+/).map((x) => x.replace(/^และ/, "").trim()).filter((x) => x.length > 2);
+const workUnits = (f) => [...f.careers, ...skillUnits(f)];
+
+// คำบอกลักษณะงานเฉพาะทาง ใช้ช่วยหาว่าสองสาขาทำงานคล้ายกันหรือไม่ (ข้อความที่แสดงมาจากไฟล์ทั้งหมด)
+// ไม่ใส่คำกว้าง ๆ ที่แทบทุกสาขามี เช่น ครู/สอน/วิจัย/ผู้จัดการ/ระบบ
+const WORK_KW = [
+  "วาด", "ภาพประกอบ", "ศิลปะ", "ออกแบบ", "กราฟิก", /สี(?=$|[\s,/]|และ)/, "องค์ประกอบ", "3 มิติ", "วัสดุ", "สเก็ตช์", "ร่างแบบ", "เขียนแบบ",
+  "ภายใน", "ผลิตภัณฑ์", "บรรจุภัณฑ์", "แบรนด์", "วิดีโอ", "ตัดต่อ", "เล่าเรื่อง", "คอนเทนต์", "ภาพยนตร์", "แอนิเมชัน", "ถ่ายภาพ", "ดนตรี",
+  "แสดง", "ข่าว", "แปล", "ภาษา", "เด็ก", "เกม", "ซอฟต์แวร์", "เขียนโปรแกรม", "ข้อมูล", "สถิติ", "AI", "ผู้ป่วย", "เภสัช", "แพทย์", /(?<!โรง)พยาบาล/,
+  "สุขภาพ", "ฟื้นฟู", "กายภาพ", "รังสี", "ห้องปฏิบัติการ", "ชีว", "เคมี", "กฎหมาย", "บัญชี", "ภาษี", "การเงิน", "ธนาคาร", "การลงทุน", "การตลาด",
+  "นโยบาย", "ชุมชน", "จิตวิทยา", "กีฬา", "อาหาร", "โภชนา", "สัตว์", "พืช", "ป่าไม้", "ประมง", "เกษตร", "สิ่งแวดล้อม", "ก่อสร้าง", "ไฟฟ้า",
+  "เครื่องจักร", "ยานยนต์", "การบิน", "โลจิสติกส์", "โรงแรม", "ท่องเที่ยว", "อีเวนต์", "ประชาสัมพันธ์", "ความปลอดภัย", "UX", "หน้าจอ", "อัญมณี", "เครือข่าย",
+];
+const kwHit = (k, text) => (typeof k === "string" ? text.includes(k) : k.test(text));
+const kwKey = (k) => String(k);
+
+// ---------- ความสนใจของนักเรียน ↔ สิ่งที่สาขาต้องการ ----------
+// คำช่วยจับคู่ด้าน RIASEC กับวลีในไฟล์คณะ (คุณลักษณะที่คณะต้องการ + ทักษะที่ควรพัฒนา)
+const DIM_KW = {
+  A: ["สร้างสรรค์", "จินตนาการ", "ออกแบบ", "ศิลปะ", "ผลงาน", "แสดงออก", "วาด", "เล่าเรื่อง", "องค์ประกอบ", "ดนตรี", "การแสดง", /สี(?=$|[\s,/]|และ)/],
+  I: ["วิเคราะห์", "ตรรกะ", "แก้ปัญหา", "วิทยาศาสตร์", "ค้นคว้า", "ทดลอง", "คำนวณ", "คณิตศาสตร์", "ช่างสังเกต", "วิจัย"],
+  S: ["สื่อสาร", "ดูแล", "ช่วยเหลือ", "เข้าใจผู้", "ผู้อื่น", "สอน", "ผู้เรียน", "ผู้ป่วย", "ชุมชน", "ทำงานร่วม", "เป็นทีม", "เป็นคณะ", "บริการ", "สัมภาษณ์"],
+  E: ["ผู้นำ", "นำเสนอ", "โน้มน้าว", "ตัดสินใจ", "บริหาร", "เจรจา", "ธุรกิจ", "การตลาด", "แบรนด์", "การจัดการ"],
+  C: ["ละเอียด", "รอบคอบ", "เป็นระบบ", "ขั้นตอน", "มาตรฐาน", "รับผิดชอบ", "ระเบียบ", "วินัย", "บัญชี", "ข้อมูล", "คุณภาพ"],
+  R: ["ลงมือ", "ปฏิบัติ", "เครื่องมือ", "ช่าง", "ภาคสนาม", "ตัดเย็บ", "โมเดล", "วัสดุ", "เครื่องจักร", "ร่างกาย"],
 };
+
+// วลีของสาขาที่เชื่อมกับความสนใจเด่นแต่ละด้านของนักเรียน (ด้านหลักของสาขามาก่อน, แต่ละวลีนับให้ด้านเดียว)
+// → [{ code, phrases }] เฉพาะด้านที่มีวลีตรงกัน
+export const interestLinks = (data, result, faculty) => {
+  const dims = topDims(result).sort((a, b) => (a === faculty.dim ? -1 : b === faculty.dim ? 1 : result.scores[b] - result.scores[a]));
+  const units = [...traitUnits(faculty), ...skillUnits(faculty)];
+  const used = new Set();
+  return dims
+    .map((code) => {
+      const phrases = [];
+      units.forEach((u) => {
+        // ไม่นับวลีที่ซ้อนกับวลีที่เลือกแล้ว (เช่น "การคิดวิเคราะห์" กับ "การคิดวิเคราะห์เชิงเหตุผล")
+        const overlap = [...used].some((x) => x.includes(u) || u.includes(x));
+        if (overlap || !DIM_KW[code].some((k) => kwHit(k, u))) return;
+        phrases.push(u);
+        used.add(u);
+      });
+      return { code, phrases };
+    })
+    .filter((x) => x.phrases.length);
+};
+
+// สาขาทางเลือกเพิ่มเติม — แสดงเฉพาะสาขาที่มีข้อมูลรองรับครบทั้งสองข้อ:
+// 1) ตารางรหัสของงานแนะแนวจัดสาขานั้นไว้คู่กับสาขาเป้าหมาย (อยู่ในรหัสเดียวกัน) และรหัสนั้นมีด้านเด่นของนักเรียน
+// 2) งานใกล้กับเป้าหมายจริง: อาชีพ/ทักษะในไฟล์มีลักษณะงานเฉพาะทางร่วมกัน
+// ไม่พบ = ไม่แสดง (ไม่สร้างคำแนะนำเอง)
 export const relatedAlternatives = (data, result, goalFaculty, excludeNames = [], limit = 3) => {
-  const goalDim = goalFaculty.dim;
-  const top1 = topDims(result, 1).filter((c) => c !== goalDim);
-  const need = top1.length ? top1 : topDims(result).filter((c) => c !== goalDim);
-  if (!need.length) return [];
+  const mine = topDims(result);
+  const goalText = workUnits(goalFaculty).join(" ");
+  const goalKw = WORK_KW.filter((k) => kwHit(k, goalText));
   const found = new Map();
-  Object.keys(data.codes)
-    .filter((code) => code.includes(goalDim) && need.some((d) => code.includes(d)))
-    .forEach((code) =>
-      facultiesForCode(data, code).forEach((f) =>
-        f.rows.forEach((r) => {
-          if (r.dim !== goalDim || r.name === goalFaculty.name || excludeNames.includes(r.name)) return;
-          const cur = found.get(r.name) || { row: r, codes: [], studentDims: new Set() };
-          cur.codes.push(code);
-          need.filter((d) => code.includes(d)).forEach((d) => cur.studentDims.add(d));
-          found.set(r.name, cur);
-        })
-      )
+  Object.entries(data.codes).forEach(([code, entry]) => {
+    if (!entry.faculties.includes(goalFaculty.name)) return;
+    const shared = code.split("").filter((c) => mine.includes(c));
+    if (!shared.length) return;
+    facultiesForCode(data, code).forEach((f) =>
+      f.rows.forEach((r) => {
+        if (r.name === goalFaculty.name || excludeNames.includes(r.name)) return;
+        const cur = found.get(r.name) || { row: r, codes: [], dims: new Set() };
+        cur.codes.push(code);
+        code.split("").forEach((c) => (mine.includes(c) || c === goalFaculty.dim) && cur.dims.add(c));
+        found.set(r.name, cur);
+      })
     );
-  const goalCore = coreSubjects(goalFaculty);
-  const needShared = Math.min(2, goalCore.length);
+  });
   return [...found.values()]
-    .map((x) => ({
-      row: x.row,
-      codes: x.codes,
-      studentDims: [...x.studentDims],
-      sharedSubjects: goalCore.filter((g) => x.row.subjects.some((r) => sameSubject(g, r))),
-      sharedCareers: x.row.careers.filter((c) => goalFaculty.careers.includes(c)),
-    }))
-    // ต้องใช้วิชาหลักร่วมกับเป้าหมาย (หรือมีอาชีพปลายทางเดียวกัน) จึงนับว่าเป็นทางเลือกที่เกี่ยวข้องจริง
-    .filter((x) => x.sharedSubjects.length >= needShared || x.sharedCareers.length > 0)
-    .sort((a, b) => b.sharedCareers.length - a.sharedCareers.length || b.sharedSubjects.length - a.sharedSubjects.length || b.codes.length - a.codes.length)
+    .map((x) => {
+      const kws = goalKw.filter((k) => workUnits(x.row).some((u) => kwHit(k, u)));
+      return {
+        row: x.row,
+        codes: x.codes,
+        dims: RIASEC_ORDER.filter((c) => x.dims.has(c)),
+        shared: kws.map(kwKey),
+        // งานของสาขาทางเลือกที่ใกล้กับเป้าหมาย (ข้อความจากไฟล์)
+        work: workUnits(x.row).filter((u) => kws.some((k) => kwHit(k, u))).slice(0, 3),
+      };
+    })
+    .filter((x) => x.work.length > 0)
+    .sort((a, b) => b.shared.length - a.shared.length || b.codes.length - a.codes.length)
     .slice(0, limit);
 };
 
