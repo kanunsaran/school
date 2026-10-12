@@ -221,43 +221,85 @@ export const goalTargets = (data, goal) => {
 };
 export const hasGoal = (goal) => Boolean(goal && [goal.faculty_name, goal.career_field, goal.goal_text].some((v) => String(v || "").trim()));
 
-// สาขาเชื่อม: คณะที่ไฟล์จับคู่ไว้กับรหัสซึ่งมีทั้งด้านเด่นอันดับ 1 ของนักเรียน และด้านของเป้าหมาย
-// (เช่น นักเรียน S… ที่ตั้งเป้าหมายด้าน A → รหัส SA?, S?A → ศิลปศึกษา, กิจกรรมบำบัด …)
-export const bridgeFaculties = (data, studentCode, goalDim, excludeNames = [], limit = 3) => {
-  const top = studentCode[0];
-  if (!goalDim || goalDim === top) return [];
-  const count = new Map();
+// ---------- ความสอดคล้องแบบรองรับคะแนนเท่ากัน ----------
+// เกณฑ์เดียวกับ alignOne แต่ "อันดับ" นับแบบคะแนนเท่ากันได้อันดับเดียวกัน (เช่น I = A = 36 อยู่อันดับ 3 ร่วมกัน → ทั้งคู่อยู่ใน 3 ด้านแรก)
+// และ "สาขาที่รหัสแนะนำ" นับรวมรหัสทางเลือกที่เกิดจากคะแนนเท่ากัน
+const alignResult = (data, faculty, result) => {
+  const codes = [result.code, ...(result.alternativeCodes || [])];
+  const viaCode = codes.find((c) => facultiesForCode(data, c).some((x) => x.rows.some((r) => r.name === faculty.name)));
+  const rank = denseRank(result.scores, faculty.dim);
+  const tied = tiedWith(result.scores, faculty.dim);
+  const base = { faculty, rank, tied, viaCode: viaCode || null };
+  if (viaCode) return { ...base, level: "high", reason: "recommended" };
+  if (rank === 1) return { ...base, level: "high", reason: "top" };
+  if (rank <= 3) return { ...base, level: "medium", reason: "secondary" };
+  return { ...base, level: "low", reason: "outside" };
+};
+
+// ด้านเด่นของนักเรียน (อันดับ ≤ maxRank แบบนับคะแนนเท่ากัน)
+export const topDims = (result, maxRank = 3) => RIASEC_ORDER.filter((c) => denseRank(result.scores, c) <= maxRank);
+
+// สาขาทางเลือกเพิ่มเติม: ต้องเกี่ยวกับทั้ง "เป้าหมาย" และ "ความสนใจของนักเรียน" พร้อมเหตุผลจากไฟล์ข้อมูล
+// - อยู่กลุ่มด้านเดียวกับสาขาเป้าหมาย (เป้าหมายด้าน A → ทางเลือกต้องเป็นสาขาด้าน A ไม่ใช่สาขาด้าน S ที่บังเอิญมีตัว A ในรหัส)
+// - ไฟล์จับคู่สาขานั้นกับรหัสที่มีทั้งด้านของเป้าหมายและด้านเด่นของนักเรียน
+// - ใช้วิชาหลักร่วมกับเป้าหมาย หรือมีอาชีพปลายทางเดียวกัน • ไม่พบ = ไม่แสดง (ไม่สร้างคำแนะนำเอง)
+// วิชาหลักที่ใช้ร่วมกัน (ไม่นับภาษาไทย/อังกฤษซึ่งแทบทุกสาขาใช้ • "วิทยาศาสตร์" นับตรงกับ ฟิสิกส์/เคมี/ชีววิทยา)
+const GENERAL_SUBJECTS = ["ภาษาไทย", "ภาษาอังกฤษ"];
+const SCIENCES = ["ฟิสิกส์", "เคมี", "ชีววิทยา"];
+const sameSubject = (a, b) => a === b || (a === "วิทยาศาสตร์" && SCIENCES.includes(b)) || (b === "วิทยาศาสตร์" && SCIENCES.includes(a));
+const coreSubjects = (f) => {
+  const core = f.subjects.filter((x) => !GENERAL_SUBJECTS.includes(x));
+  return core.length ? core : f.subjects;
+};
+export const relatedAlternatives = (data, result, goalFaculty, excludeNames = [], limit = 3) => {
+  const goalDim = goalFaculty.dim;
+  const top1 = topDims(result, 1).filter((c) => c !== goalDim);
+  const need = top1.length ? top1 : topDims(result).filter((c) => c !== goalDim);
+  if (!need.length) return [];
+  const found = new Map();
   Object.keys(data.codes)
-    .filter((c) => c[0] === top && c.includes(goalDim))
-    .forEach((c) =>
-      facultiesForCode(data, c).forEach((f) =>
+    .filter((code) => code.includes(goalDim) && need.some((d) => code.includes(d)))
+    .forEach((code) =>
+      facultiesForCode(data, code).forEach((f) =>
         f.rows.forEach((r) => {
-          if (excludeNames.includes(r.name)) return;
-          const cur = count.get(r.name) || { row: r, codes: [] };
-          cur.codes.push(c);
-          count.set(r.name, cur);
+          if (r.dim !== goalDim || r.name === goalFaculty.name || excludeNames.includes(r.name)) return;
+          const cur = found.get(r.name) || { row: r, codes: [], studentDims: new Set() };
+          cur.codes.push(code);
+          need.filter((d) => code.includes(d)).forEach((d) => cur.studentDims.add(d));
+          found.set(r.name, cur);
         })
       )
     );
-  return [...count.values()].sort((a, b) => b.codes.length - a.codes.length).slice(0, limit);
+  const goalCore = coreSubjects(goalFaculty);
+  const needShared = Math.min(2, goalCore.length);
+  return [...found.values()]
+    .map((x) => ({
+      row: x.row,
+      codes: x.codes,
+      studentDims: [...x.studentDims],
+      sharedSubjects: goalCore.filter((g) => x.row.subjects.some((r) => sameSubject(g, r))),
+      sharedCareers: x.row.careers.filter((c) => goalFaculty.careers.includes(c)),
+    }))
+    // ต้องใช้วิชาหลักร่วมกับเป้าหมาย (หรือมีอาชีพปลายทางเดียวกัน) จึงนับว่าเป็นทางเลือกที่เกี่ยวข้องจริง
+    .filter((x) => x.sharedSubjects.length >= needShared || x.sharedCareers.length > 0)
+    .sort((a, b) => b.sharedCareers.length - a.sharedCareers.length || b.sharedSubjects.length - a.sharedSubjects.length || b.codes.length - a.codes.length)
+    .slice(0, limit);
 };
 
-// วิเคราะห์ความสอดคล้องของเป้าหมาย 1 รายการกับผล RIASEC (ใช้เกณฑ์เดียวกับ goalAlignment)
+// วิเคราะห์ความสอดคล้องของเป้าหมาย 1 รายการกับผล RIASEC (รองรับคะแนนเท่ากัน)
 export const analyzeTarget = (data, result, target) => {
-  const evaluated = target.match.rows.map((f) => alignOne(data, f, result.code));
+  const evaluated = target.match.rows.map((f) => alignResult(data, f, result));
   evaluated.sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
   const best = evaluated[0];
-  const dim = best.faculty.dim;
   return {
     ...best,
     source: target.source,
     input: target.input,
     label: target.match.label,
     candidates: target.match.rows,
-    dimScore: result.scores[dim],
-    dimRank: result.ranked.indexOf(dim) + 1,
-    // สาขาเชื่อมแสดงเฉพาะเมื่อด้านของเป้าหมายไม่อยู่ใน 3 อันดับแรก
-    bridges: best.level !== "low" ? [] : bridgeFaculties(data, result.code, dim, target.match.rows.map((r) => r.name)),
+    dimScore: result.scores[best.faculty.dim],
+    dimRank: best.rank,
+    alternatives: relatedAlternatives(data, result, best.faculty, target.match.rows.map((r) => r.name)),
   };
 };
 

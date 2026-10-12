@@ -205,20 +205,69 @@ function GoalHeader({ goal, focus, onEdit }) {
 
 function Block({ title, children }) {
   return (
-    <div className="mt-3">
-      <div className="text-[14px] font-semibold text-gray-800">{title}</div>
-      <div className="text-[13.5px] text-gray-700 leading-6 mt-0.5">{children}</div>
+    <div className="mt-4">
+      <div className="text-[14.5px] font-semibold text-gray-800">{title}</div>
+      <div className="text-[14px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
     </div>
   );
 }
 
-// คำอธิบายผลความสอดคล้อง แยกตามระดับ (ข้อมูลสาขาทั้งหมดมาจากไฟล์ข้อมูลคณะ–อาชีพ)
+// คำอธิบายผลความสอดคล้อง — เขียนเป็นย่อหน้าต่อเนื่อง (ผลการวิเคราะห์ → แนวทางไปสู่เป้าหมาย → สาขาทางเลือก)
+// เนื้อหาสาขาทั้งหมดมาจากไฟล์ข้อมูลคณะ–อาชีพ (ลักษณะ/คุณลักษณะที่คณะต้องการ, คำแนะนำสำหรับนักเรียน, วิชาที่ควรเน้น …)
+// ไม่บรรยายคะแนนซ้ำ (มีในช่องสรุปด้านบนแล้ว) • อันดับนับแบบคะแนนเท่ากันได้อันดับเดียวกัน
 function AlignmentCard({ a, data, latest, scores, rankText }) {
   const dims = data.dimensions;
-  const dim = a.faculty.dim;
-  const top3 = latest.code.split("");
+  const f = a.faculty;
+  const dim = f.dim;
   const meta = ALIGNMENT_META[a.level];
-  const strengths = transferableStrengths(data, latest, a.faculty);
+  const noun = (c) => `ด้าน${TRAIT_NOUN[c]}`;
+  const nouns = (list) => joinTh(list.map(noun));
+  const top1 = RIASEC_ORDER.filter((c) => denseRank(scores, c) === 1);
+  const tieNote = a.tied.length ? ` (คะแนนเท่ากับ${nouns(a.tied)})` : "";
+  // ความสนใจด้านอื่นของนักเรียนที่ใช้ได้กับสิ่งที่สาขานี้ต้องการ (คำต้องตรงกันทั้งในไฟล์ลักษณะด้านและไฟล์คณะ)
+  const strengths = transferableStrengths(data, latest, f).filter((x) => x.code !== dim);
+  // อ้างคำจากไฟล์ทั้งสองฝั่ง: ลักษณะเด่นของด้าน (คู่มือมิติ) ↔ สิ่งที่สาขาต้องการ (ชีตคณะ)
+  const strengthText = strengths.length
+    ? strengths
+        .slice(0, 2)
+        .map((x) => `ลักษณะ “${dims[x.code].traits.split(/\s+/).find((t) => t.includes(x.word)) || x.word}” จาก${noun(x.code)}ของคุณยังใช้ได้กับ “${x.phrase}” ที่สาขานี้ต้องการ`)
+        .join(" และ")
+    : "";
+  // ชื่อสาขาที่ลงท้ายด้วยวงเล็บ ต้องเว้นวรรคก่อนข้อความต่อ
+  const nm = /\)$/.test(f.name) ? `${f.name} ` : f.name;
+
+  let analysis;
+  if (a.level === "high") {
+    const why =
+      a.reason === "recommended"
+        ? `${nm}เป็นสาขาที่ข้อมูลคณะ–อาชีพของงานแนะแนวจับคู่ไว้กับรหัส ${a.viaCode} ${a.viaCode === latest.code ? "ของคุณโดยตรง" : "ซึ่งเป็นรหัสที่เป็นไปได้ของคุณเมื่อนับด้านที่คะแนนเท่ากัน"} สาขานี้เน้น${f.traits}` +
+          (a.rank <= 3 ? ` ซึ่งสัมพันธ์กับความสนใจ${noun(dim)}ที่คุณสนใจ${a.rank === 1 ? "มากที่สุด" : `เป็นอันดับ ${a.rank}`}${tieNote}` : "")
+        : `${nm}เน้น${f.traits} ซึ่งเป็นความสนใจ${noun(dim)} และเป็นด้านที่คุณสนใจมากที่สุด${tieNote}`;
+    analysis = [
+      `${why} จึงจัดอยู่ในระดับสอดคล้องสูง${strengthText ? ` นอกจากนี้ ${strengthText}` : ""}`,
+      "ผลนี้บอกว่าความสนใจของคุณไปในทางเดียวกับสาขานี้ แต่ยังไม่ได้วัดความสามารถหรือรับประกันการเข้าศึกษา ผลการเรียนและการเตรียมตัวตามเกณฑ์รับเข้าของแต่ละมหาวิทยาลัยยังสำคัญเสมอ",
+    ];
+  } else if (a.level === "medium") {
+    analysis = [
+      `${nm}เน้น${f.traits} ซึ่งเป็นความสนใจ${noun(dim)}ที่คุณสนใจเป็นอันดับ ${a.rank}${tieNote} จึงมีส่วนที่ไปในทางเดียวกับสาขานี้ ` +
+        `แต่ด้านที่คุณสนใจมากที่สุดคือ${nouns(top1)} ซึ่งไม่ใช่ด้านหลักของสาขานี้ จึงจัดอยู่ในระดับสอดคล้องปานกลาง${strengthText ? ` อย่างไรก็ดี ${strengthText}` : ""}`,
+      "ระดับนี้ไม่ได้ตัดสินว่าคุณเหมาะหรือไม่เหมาะกับสาขานี้ แต่บอกว่าความสนใจของคุณกระจายอยู่หลายด้าน และสาขานี้ใช้เพียงบางด้านในนั้น",
+    ];
+  } else {
+    analysis = [
+      `ผลการประเมินพบว่าความสนใจของคุณยังไม่สอดคล้องกับลักษณะเด่นของ${nm}มากนัก เนื่องจากสาขานี้เน้น${f.traits} ` +
+        `ซึ่งเป็นความสนใจ${noun(dim)}ที่ยังไม่อยู่ใน 3 ด้านแรกของคุณ จึงจัดอยู่ในระดับสอดคล้องต่ำ${strengthText ? ` แต่${strengthText}` : ""}`,
+      `อย่างไรก็ตาม ผลนี้ไม่ได้หมายความว่าคุณไม่มีความสามารถ${noun(dim)}หรือเรียนสาขานี้ไม่ได้ แต่สะท้อนความสนใจจากแบบประเมินในตอนนี้เท่านั้น ` +
+        "ส่วนการสมัครเข้าศึกษาต่อขึ้นกับคุณสมบัติและเกณฑ์รับเข้าของแต่ละมหาวิทยาลัย หากสาขานี้เป็นเป้าหมายที่คุณต้องการไปให้ถึง คุณยังฝึกฝนทักษะที่สาขานี้ใช้เพื่อเตรียมความพร้อมได้",
+    ];
+  }
+
+  const lead = {
+    high: "ความสนใจของคุณตรงกับสาขานี้แล้ว ขั้นต่อไปคือเตรียมผลการเรียนและคุณสมบัติให้ตรงเกณฑ์รับเข้า",
+    medium: `ลองหาประสบการณ์ที่ใกล้เคียงกับการเรียนจริง แล้วสังเกตว่าคุณสนุกกับงาน${noun(dim)}มากขึ้นหรือไม่`,
+    low: `เริ่มจากกิจกรรมที่ได้ใช้${noun(dim)}จริง เพื่อดูว่าคุณสนใจมากขึ้นหรือไม่ ควบคู่กับฝึก${f.skills}`,
+  }[a.level];
+
   return (
     <div className={`rounded-xl border px-4 py-4 ${meta.box}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -226,7 +275,7 @@ function AlignmentCard({ a, data, latest, scores, rankText }) {
           <div className="text-[12.5px] text-gray-500">
             {SOURCE_TH[a.source]}: {a.source === "text" ? `“${a.input.slice(0, 60)}${a.input.length > 60 ? "…" : ""}”` : a.input}
           </div>
-          <div className="text-[16px] font-semibold text-gray-900">{a.faculty.name}</div>
+          <div className="text-[16px] font-semibold text-gray-900">{f.name}</div>
         </div>
         <span className={`shrink-0 rounded-full bg-white px-3 py-1 text-[14px] font-bold ${meta.cls}`}>สอดคล้อง{meta.label}</span>
       </div>
@@ -235,7 +284,7 @@ function AlignmentCard({ a, data, latest, scores, rankText }) {
         <div className="rounded-lg bg-white/80 px-3 py-2">
           <div className="text-gray-500">ผล RIASEC ของคุณ</div>
           <div className="font-semibold text-gray-800">
-            {latest.code} · {top3.map((c) => `${c} ${scores[c]}`).join(" · ")}
+            {[latest.code, ...latest.alternativeCodes].join(" / ")} · {RIASEC_ORDER.filter((c) => denseRank(scores, c) <= 3).sort((x, y) => scores[y] - scores[x]).map((c) => `${c} ${scores[c]}`).join(" · ")}
           </div>
         </div>
         <div className="rounded-lg bg-white/80 px-3 py-2">
@@ -246,73 +295,37 @@ function AlignmentCard({ a, data, latest, scores, rankText }) {
         </div>
       </div>
 
-      {a.level === "high" && (
-        <>
-          <Block title="ผลการวิเคราะห์">
-            {a.reason === "recommended"
-              ? `${a.faculty.name} อยู่ในสาขาที่ไฟล์ข้อมูลแนะนำสำหรับรหัส ${latest.code} ของคุณโดยตรง และสาขานี้เน้นความสนใจด้าน${TRAIT_NOUN[dim]} (${dim}) ซึ่งคุณได้ ${scores[dim]}/${MAX_SCORE}`
-              : `สาขานี้เน้นความสนใจด้าน${TRAIT_NOUN[dim]} (${dim}) ซึ่งเป็นด้านที่คุณสนใจ${rankText(dim)}`}
-            <br />
-            <span className="text-gray-600">สาขานี้ต้องการ: {a.faculty.traits}</span>
-          </Block>
-          <Block title="ควรทำต่อ">ศึกษารายละเอียดหลักสูตรและเกณฑ์รับเข้าจริง แล้วเตรียมตัวตาม “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</Block>
-          <p className="text-[12.5px] text-gray-500 mt-2">ความสอดคล้องสูงหมายถึงความสนใจของคุณไปทางเดียวกับสาขานี้ ไม่ได้รับประกันว่าจะเรียนสำเร็จ — ผลการเรียนและการเตรียมตัวยังสำคัญเสมอ</p>
-        </>
-      )}
+      <Block title="ผลการวิเคราะห์ของคุณ">
+        {analysis.map((t) => (
+          <p key={t}>{t}</p>
+        ))}
+      </Block>
 
-      {a.level === "medium" && (
-        <>
-          <Block title="ส่วนที่สอดคล้อง">
-            สาขานี้เน้นความสนใจด้าน{TRAIT_NOUN[dim]} ({dim}) ซึ่งอยู่ใน 3 ด้านแรกของคุณ ({rankText(dim)}, {scores[dim]}/{MAX_SCORE})
-          </Block>
-          <Block title="ส่วนที่พัฒนาเพิ่มได้">
-            ด้านที่คุณสนใจมากที่สุดคือ{joinTh(top3.filter((c) => denseRank(scores, c) === 1).map((c) => `${TRAIT_NOUN[c]} (${c})`))} ซึ่งไม่ใช่ด้านหลักของสาขานี้ —
-            ทักษะที่สาขานี้ใช้: {a.faculty.skills}
-          </Block>
-          <Block title="ลองก่อนตัดสินใจ">{a.faculty.advice}</Block>
-        </>
-      )}
+      <Block title="แนวทางไปสู่เป้าหมาย">
+        <p>
+          {lead} — ก้าวแรกที่ทำได้เลย: {f.advice}
+        </p>
+        <p className="text-[13px] text-gray-500">วิชาที่ควรเน้น การเตรียมสอบ/Portfolio และมหาวิทยาลัยที่เปิดสอน ดูต่อได้ใน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</p>
+      </Block>
 
-      {a.level === "low" && (
-        <>
-          <Block title="1. ผลการวิเคราะห์">
-            ผลประเมินแสดงว่าคุณสนใจเด่นด้าน{joinTh(top3.map((c) => TRAIT_NOUN[c]))} ขณะที่{a.faculty.name}ให้ความสำคัญกับ{a.faculty.traits}
-          </Block>
-          <Block title="2. เหตุผลที่สอดคล้องต่ำ">
-            สาขานี้อยู่กลุ่ม {dimLabel(data, dim)} ซึ่งคุณได้ {scores[dim]}/{MAX_SCORE} ({rankText(dim)}) ไม่อยู่ใน 3 ด้านแรกของคุณ (
-            {top3.map((c) => `${c} ${scores[c]}`).join(", ")})
-          </Block>
-          <Block title="3. ผลนี้ไม่ได้ตัดสินว่าคุณเรียนไม่ได้">
-            คะแนนนี้บอกความสนใจในตอนนี้ ไม่ได้วัดความสามารถ หากคุณยังอยากไปให้ถึงเป้าหมายนี้ สามารถทดลองเรียนรู้และพัฒนาทักษะที่จำเป็นได้ แล้วค่อยสังเกตว่าสนใจมากขึ้นหรือไม่
-          </Block>
-          <Block title="4. แนวทางไปสู่เป้าหมาย">
-            ลองเริ่มจาก: {a.faculty.advice} — และฝึก{a.faculty.skills} (รายละเอียดใน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง)
-          </Block>
-          {strengths.length > 0 && (
-            <Block title="5. จุดเด่นที่นำไปต่อยอดได้">
-              <ul className="space-y-0.5">
-                {strengths.map((x) => (
-                  <li key={x.phrase}>
-                    ✓ ความสนใจด้าน {x.code} – {dims[x.code].nameTh} ของคุณ ({dims[x.code].traits}) ใช้ได้กับ “{x.phrase}” ที่สาขานี้ต้องการ
-                  </li>
-                ))}
-              </ul>
-            </Block>
-          )}
-          {a.bridges.length > 0 && (
-            <div className="mt-3 rounded-lg bg-white/80 px-3 py-2.5">
-              <div className="text-[13.5px] font-medium text-gray-800">สาขาที่เชื่อมความสนใจของคุณกับเป้าหมาย</div>
-              <div className="text-[12.5px] text-gray-500">สาขาที่ไฟล์ข้อมูลจับคู่กับรหัสซึ่งมีทั้งด้าน {top3[0]} ของคุณและด้าน {dim} ของเป้าหมาย</div>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {a.bridges.map((b) => (
-                  <span key={b.row.name} className="rounded-full bg-pink-50 text-pink-700 px-2.5 py-1 text-[13px]">
-                    {b.row.name} <span className="text-pink-400">({b.codes.slice(0, 3).join(", ")})</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+      {a.alternatives.length > 0 && (
+        <Block title="สาขาทางเลือกเพิ่มเติม">
+          <p className="text-[13px] text-gray-500">
+            สาขากลุ่ม{dims[dim].nameTh}เดียวกับเป้าหมาย ที่ใช้วิชาหลักร่วมกันและเชื่อมกับความสนใจ{nouns([...new Set(a.alternatives.flatMap((x) => x.studentDims))])}ของคุณ
+          </p>
+          <ul className="space-y-2">
+            {a.alternatives.map((x) => (
+              <li key={x.row.name} className="rounded-lg bg-white/80 px-3 py-2">
+                <div className="font-semibold text-gray-800">{x.row.name}</div>
+                <div className="text-[13.5px] text-gray-600 leading-6">
+                  เน้น{x.row.traits} · ใช้วิชา{joinTh(x.sharedSubjects)}เหมือนเป้าหมาย
+                  {x.sharedCareers.length > 0 && ` · อาชีพร่วมกัน: ${x.sharedCareers.join(", ")}`}
+                  <span className="text-gray-400"> · ข้อมูลคณะจับคู่กับรหัส {x.codes.slice(0, 2).join(", ")}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Block>
       )}
     </div>
   );
@@ -725,9 +738,11 @@ export default function ResultPage() {
         <details className="mt-3 text-[12.5px] text-gray-500">
           <summary className="cursor-pointer select-none">เกณฑ์ที่ใช้วัดความสอดคล้อง</summary>
           <ul className="mt-1.5 space-y-0.5 pl-4 list-disc">
-            <li>สูง: สาขาเป้าหมายอยู่ในรายการแนะนำของรหัส 3 ตัวของคุณ หรือกลุ่มของสาขาตรงกับด้านที่คุณสนใจมากที่สุด</li>
+            <li>สูง: สาขาเป้าหมายอยู่ในรายการแนะนำของรหัส 3 ตัวของคุณ (รวมรหัสทางเลือกเมื่อคะแนนเท่ากัน) หรือกลุ่มของสาขาตรงกับด้านที่คุณสนใจมากที่สุด</li>
             <li>ปานกลาง: กลุ่มของสาขาตรงกับด้านอันดับ 2 หรือ 3 ของคุณ</li>
             <li>ต่ำ: กลุ่มของสาขาไม่อยู่ใน 3 ด้านแรกของคุณ</li>
+            <li>ด้านที่คะแนนเท่ากันได้อันดับเดียวกัน เช่น ถ้าด้าน I และ A ได้คะแนนเท่ากันที่อันดับ 3 ทั้งสองด้านนับว่าอยู่ใน 3 ด้านแรก</li>
+            <li>สาขาทางเลือก: อยู่กลุ่มเดียวกับเป้าหมาย ใช้วิชาหลักหรืออาชีพปลายทางร่วมกัน และไฟล์จับคู่กับรหัสที่มีด้านเด่นของคุณ</li>
             <li>กลุ่มของแต่ละสาขาและรหัสที่แนะนำมาจากไฟล์ข้อมูลคณะ–อาชีพของโรงเรียน • ไม่ใช้เปอร์เซ็นต์ความเหมาะสม</li>
           </ul>
         </details>

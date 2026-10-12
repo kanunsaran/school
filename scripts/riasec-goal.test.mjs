@@ -8,7 +8,7 @@ const run = (title, result, goal) => {
   console.log(`\n## ${title} — ผล ${result.code}`);
   if (!R.hasGoal(goal)) { console.log("  ยังไม่ตั้งเป้าหมาย → เชิญชวนตั้งเป้าหมาย"); return []; }
   const an = R.goalTargets(data, goal).map((t) => R.analyzeTarget(data, result, t));
-  an.forEach((a) => console.log(`  [${a.source}] "${a.input}" → ${a.faculty.name} (มิติ ${a.faculty.dim}, คุณได้ ${a.dimScore}/50 อันดับ ${a.dimRank}) = ${a.level} (${a.reason})${a.bridges.length ? " | สาขาเชื่อม: " + a.bridges.map((b) => b.row.name + "[" + b.codes.join(",") + "]").join(", ") : ""}`));
+  an.forEach((a) => console.log(`  [${a.source}] "${a.input}" → ${a.faculty.name} (มิติ ${a.faculty.dim}, คุณได้ ${a.dimScore}/50 อันดับ ${a.dimRank}) = ${a.level} (${a.reason})${a.alternatives.length ? " | ทางเลือก: " + a.alternatives.map((b) => b.row.name + "[" + b.sharedSubjects.join(",") + "]").join(", ") : ""}`));
   const adv = R.personalAdvice(data, result, an);
   // คำแนะนำต้องใช้เฉพาะคณะในเป้าหมาย และทุกช่องต้องมาจากไฟล์ (ไม่ว่าง)
   assert.deepEqual(adv.perFaculty.map((f) => f.name), [...new Set(an.map((a) => a.faculty.name))]);
@@ -21,10 +21,13 @@ const SIE = res({ R: 20, I: 40, A: 25, S: 46, E: 35, C: 15 });
 assert.equal(SIE.code, "SIE");
 // 1) ไม่สอดคล้อง — ตัวอย่างในสเปก: SIE + คณะศิลปกรรมศาสตร์
 let an = run("ไม่สอดคล้อง (ตัวอย่างในสเปก)", SIE, { faculty_name: "คณะศิลปกรรมศาสตร์", career_field: "", goal_text: "" });
-assert.equal(an[0].level, "low"); assert.ok(an[0].bridges.length > 0);
+assert.equal(an[0].level, "low"); assert.ok(an[0].alternatives.length > 0);
+// ทางเลือกต้องอยู่กลุ่มเดียวกับเป้าหมาย — ไม่ใช่ปฐมวัย/ครุศาสตร์/กิจกรรมบำบัด (ด้าน S)
+an[0].alternatives.forEach((x) => { assert.equal(x.row.dim, "A"); assert.ok(x.sharedSubjects.length || x.sharedCareers.length); });
+assert.ok(!an[0].alternatives.some((x) => /ปฐมวัย|ครุศาสตร์|กิจกรรมบำบัด/.test(x.row.name)));
 // 2) สอดคล้อง — SIE + สาธารณสุขศาสตร์ (อยู่ในคณะที่ SIE แนะนำ)
 an = run("สอดคล้อง", SIE, { faculty_name: "สาธารณสุขศาสตร์", career_field: "นักวิชาการสาธารณสุข", goal_text: "" });
-assert.equal(an[0].level, "high"); assert.equal(an[0].bridges.length, 0);
+assert.equal(an[0].level, "high");
 // 3) ปานกลาง — SIE + แพทยศาสตร์ (มิติ I = อันดับ 2)
 an = run("ปานกลาง", SIE, { faculty_name: "แพทยศาสตร์", career_field: "", goal_text: "" });
 assert.equal(an[0].level, "medium");
@@ -41,6 +44,13 @@ assert.equal(an[0].faculty.name, "พยาบาลศาสตร์");
 // 7) ไม่มีเป้าหมายในฐานข้อมูล → คำแนะนำใช้คณะที่รหัสแนะนำ
 const adv = R.personalAdvice(data, SIA, []);
 assert.equal(adv.usesGoal, false); assert.equal(adv.focus[0].name, data.codes.SIA.faculties[0]); assert.equal(adv.perFaculty.length, 2);
+// 8) คะแนนเท่ากันที่อันดับ 3: I = A = 36 → A อยู่ใน 3 ด้านแรกร่วมกัน → ไม่ใช่ "ต่ำ"
+const TIE = res({ R: 20, I: 36, A: 36, S: 46, E: 40, C: 15 });
+an = run("คะแนนเท่ากัน I = A = 36", TIE, { faculty_name: "คณะศิลปกรรมศาสตร์", career_field: "", goal_text: "" });
+assert.equal(an[0].rank, 3); assert.deepEqual(an[0].tied, ["I"]); assert.equal(an[0].level, "medium");
+// 9) เท่ากันที่อันดับ 1 → สูง
+an = run("คะแนนเท่ากันอันดับ 1", res({ R: 20, I: 30, A: 46, S: 46, E: 40, C: 15 }), { faculty_name: "คณะศิลปกรรมศาสตร์", career_field: "", goal_text: "" });
+assert.equal(an[0].level, "high");
 console.log("\nผ่านทุกกรณี ✓");
 
 // ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====
