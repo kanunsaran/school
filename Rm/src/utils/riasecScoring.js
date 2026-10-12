@@ -448,7 +448,7 @@ export const careersForResult = (data, result, limit = 3) => {
 
 // 4.2 ใต้คำแนะนำตามเป้าหมาย: (1) อาชีพที่นักเรียนตั้งไว้ ถ้ามีในข้อมูลของสาขาเป้าหมาย
 // (2) อาชีพอื่นของสาขาเดียวกัน (สาขาที่มีอาชีพเป้าหมาย หรือสาขาแรกของเป้าหมาย)
-// (3) อาชีพต่อยอดจากสาขาอื่นในเป้าหมายเดียวกัน — ไม่เติมอาชีพจากสาขาอื่นที่นักเรียนไม่ได้เลือก ถ้ามีไม่ครบ 3 ก็แสดงเท่าที่มี
+// (3) ถ้าเป้าหมายมีหลายสาขา สลับหยิบทีละสาขา — ไม่เติมอาชีพจากสาขาอื่นที่นักเรียนไม่ได้เลือก ถ้ามีไม่ครบ 3 ก็แสดงเท่าที่มี
 export const careersForGoal = (data, result, goalRows, careerText, limit = 3) => {
   const out = [];
   const push = (title, source, faculty) => {
@@ -459,8 +459,10 @@ export const careersForGoal = (data, result, goalRows, careerText, limit = 3) =>
   const primary = goalRows.find((f) => f.careers.some(isMine)) || goalRows[0];
   if (!primary) return out;
   primary.careers.filter(isMine).forEach((c) => push(c, "goal", primary));
-  primary.careers.forEach((c) => push(c, "faculty", primary));
-  goalRows.filter((f) => f !== primary).forEach((f) => f.careers.forEach((c) => push(c, isMine(c) ? "goal" : "extend", f)));
+  // เป้าหมายมีหลายสาขา (เช่น คณะ + สาขาจากข้อความเป้าหมาย) → สลับหยิบทีละสาขา ให้ทุกสาขาในเป้าหมายมีอาชีพแสดง
+  const rows = [primary, ...goalRows.filter((f) => f !== primary)];
+  const depth = Math.max(...rows.map((f) => f.careers.length));
+  for (let i = 0; i < depth; i++) rows.forEach((f) => f.careers[i] && push(f.careers[i], isMine(f.careers[i]) ? "goal" : "faculty", f));
   return out;
 };
 

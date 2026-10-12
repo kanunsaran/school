@@ -121,7 +121,10 @@ const two = [data.faculties.find((f) => f.name === "ศิลปกรรมศ�
 const tl = R.careersForGoal(data, SCI, two, "นักออกแบบกราฟิก");
 console.log("เป้าหมาย 2 สาขา:", tl.map((c) => `${c.title}[${c.source}]`).join(", "));
 assert.deepEqual(tl.map((c) => c.source), ["goal", "faculty", "faculty"]);
-assert.deepEqual(R.careersForGoal(data, SCI, two, "").map((c) => c.source), ["faculty", "faculty", "faculty"]);
+const tl2 = R.careersForGoal(data, SCI, two, "");
+console.log("เป้าหมาย 2 สาขา (ไม่ระบุอาชีพ):", tl2.map((c) => `${c.title}[${c.faculty.name}]`).join(", "));
+assert.deepEqual(tl2.map((c) => c.source), ["faculty", "faculty", "faculty"]);
+assert.ok(two.every((f) => tl2.some((c) => c.faculty === f)), "ทุกสาขาในเป้าหมายต้องมีอาชีพแสดง");
 
 // 8) แก้ไขเป้าหมาย → คำแนะนำและอาชีพเปลี่ยนตาม
 const before = R.goalTargets(data, { faculty_name: "การออกแบบกราฟิก", career_field: "นักออกแบบกราฟิก" }).map((t) => R.analyzeTarget(data, SCI, t));
