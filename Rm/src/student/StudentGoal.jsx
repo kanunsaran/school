@@ -1,25 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SidebarNav from "../navstudent";
 import Header from "../Header";
 import {
-  FaGraduationCap,
-  FaLightbulb,
-  FaCompass,
-  FaBookOpen,
-  FaComments,
-  FaCamera,
+  FaGraduationCap, FaCompass, FaCamera, FaPlus, FaPen, FaTrashAlt, FaStar, FaChevronDown, FaBriefcase,
+  FaQuoteLeft, FaComments, FaCheckCircle, FaExclamationCircle, FaTimes, FaArrowRight,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import {
-  getStudent,
-  getEnrollments,
-  getClasses,
-  getGoals,
-  getStudentGeneralInfo,
-  createGoal,
-  updateGoal,
-  uploadStudentAvatar,
+  getStudent, getEnrollments, getClasses, getGoals, getStudentGeneralInfo, createGoal, updateGoal, deleteGoal, uploadStudentAvatar,
 } from "../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../utils/auth.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
@@ -28,25 +17,240 @@ import Avatar from "../components/Avatar.jsx";
 import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
 import { facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
+import { goalsOf, MAX_GOALS, GOAL_RANK_LABEL } from "../utils/goals.js";
 
-const API_BASE = API_BASE_URL;
+// หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้สูงสุด 3 ข้อ (หลัก + สำรอง) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
 
-const GOAL_LEVEL = { high: { label: "สูง", cls: "text-emerald-600" }, medium: { label: "ปานกลาง", cls: "text-amber-600" }, low: { label: "ต่ำ", cls: "text-red-600" } };
+const LEVEL = {
+  high: { label: "สอดคล้องสูง", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  medium: { label: "สอดคล้องปานกลาง", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  low: { label: "สอดคล้องต่ำ", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+};
+const EMPTY_FORM = { faculty_name: "", career_field: "", goal_text: "" };
+const CARD = "rounded-2xl border border-gray-200 bg-white";
 
-function CardHeader({ icon, title, subtitle, action }) {
+function SectionTitle({ icon, title, subtitle, action }) {
   const Icon = icon;
   return (
     <div className="flex items-center justify-between gap-3 mb-4">
       <div className="flex items-center gap-2.5 min-w-0">
-        <div className="h-9 w-9 rounded-lg bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
-          <Icon className="text-[16px]" />
+        <div className="h-9 w-9 rounded-xl bg-pink-50 text-pink-500 flex items-center justify-center shrink-0">
+          <Icon className="text-[15px]" />
         </div>
         <div className="min-w-0">
-          <h2 className="text-[15.5px] font-medium text-gray-400 truncate">{title}</h2>
-          {subtitle && <p className="text-[13.5px] text-gray-400 mt-0.5 truncate">{subtitle}</p>}
+          <h2 className="text-[16.5px] font-semibold text-gray-900">{title}</h2>
+          {subtitle && <p className="text-[13px] text-gray-500 truncate">{subtitle}</p>}
         </div>
       </div>
       {action}
+    </div>
+  );
+}
+
+// การ์ดเป้าหมาย 1 ข้อ
+function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary, busy }) {
+  const [open, setOpen] = useState(rank === 0);
+  const f = analysis?.faculty || analysis?.match?.rows?.[0] || null;
+  const primary = rank === 0;
+  return (
+    <div className={`${CARD} overflow-hidden ${primary ? "border-pink-200 shadow-[0_6px_24px_-12px_rgba(236,72,153,0.35)]" : ""}`}>
+      <div className={`px-5 pt-4 pb-3 ${primary ? "bg-gradient-to-r from-pink-50 via-white to-white" : ""}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold ${
+                primary ? "bg-pink-500 text-white" : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {primary && <FaStar className="text-[10px]" />}
+              {GOAL_RANK_LABEL[rank]}
+            </span>
+            {analysis?.level && (
+              <span className={`rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${LEVEL[analysis.level].cls}`}>{LEVEL[analysis.level].label}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            {!primary && (
+              <button
+                type="button"
+                onClick={onMakePrimary}
+                disabled={busy}
+                title="ตั้งเป็นเป้าหมายหลัก"
+                className="h-8 px-2.5 rounded-lg text-[12.5px] text-pink-600 hover:bg-pink-50 bg-transparent !p-0 sm:!px-2.5"
+              >
+                <span className="hidden sm:inline">ตั้งเป็นหลัก</span>
+                <FaStar className="sm:hidden text-[13px] mx-2" />
+              </button>
+            )}
+            <button type="button" onClick={onEdit} disabled={busy} title="แก้ไข" aria-label="แก้ไขเป้าหมาย" className="h-8 w-8 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 bg-transparent !p-0 flex items-center justify-center">
+              <FaPen className="text-[12px]" />
+            </button>
+            <button type="button" onClick={onDelete} disabled={busy} title="ลบ" aria-label="ลบเป้าหมาย" className="h-8 w-8 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 bg-transparent !p-0 flex items-center justify-center">
+              <FaTrashAlt className="text-[12px]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2.5 flex items-start gap-3">
+          <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${primary ? "bg-pink-500 text-white" : "bg-pink-50 text-pink-500"}`}>
+            <FaGraduationCap className="text-[18px]" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[18px] font-semibold text-gray-900 leading-snug">{goal.faculty_name || goal.career_field}</div>
+            {goal.career_field && goal.faculty_name && (
+              <div className="text-[14px] text-gray-600 flex items-center gap-1.5 mt-0.5">
+                <FaBriefcase className="text-[11px] text-pink-400" /> {goal.career_field}
+              </div>
+            )}
+          </div>
+        </div>
+        {goal.goal_text && (
+          <p className="mt-2.5 text-[14px] text-gray-600 leading-6 flex gap-2">
+            <FaQuoteLeft className="text-[11px] text-pink-300 mt-1.5 shrink-0" />
+            {goal.goal_text}
+          </p>
+        )}
+      </div>
+
+      {f ? (
+        <div className="px-5 pb-4">
+          <div className="rounded-xl bg-gray-50 px-3.5 py-2.5">
+            <div className="text-[12.5px] text-gray-500">ข้อมูลสาขาในระบบ: <span className="font-medium text-gray-700">{f.name}</span></div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {f.subjects.map((s) => (
+                <span key={s} className="rounded-full bg-white border border-gray-200 px-2.5 py-0.5 text-[12.5px] text-gray-700">
+                  {s}
+                </span>
+              ))}
+              <span className="rounded-full bg-pink-50 border border-pink-100 px-2.5 py-0.5 text-[12.5px] text-pink-700">{f.track}</span>
+            </div>
+          </div>
+          <button type="button" onClick={() => setOpen((v) => !v)} className="mt-2 flex items-center gap-1.5 text-[13.5px] font-medium text-pink-600 hover:text-pink-700 bg-transparent !p-0">
+            {open ? "ซ่อนแนวทางเตรียมตัว" : "ดูแนวทางเตรียมตัว"}
+            <FaChevronDown className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
+          {open && (
+            <dl className="mt-2 grid gap-2 text-[13.5px] leading-6">
+              {[
+                ["ทักษะที่ควรพัฒนา", f.skills],
+                ["กิจกรรมที่ควรลอง", f.advice],
+                ["เตรียมสอบ", f.exam],
+                ["มหาวิทยาลัยตัวอย่าง", f.universities.join(", ")],
+              ]
+                .filter(([, v]) => v)
+                .map(([k, v]) => (
+                  <div key={k} className="grid sm:grid-cols-[130px_1fr] gap-x-3">
+                    <dt className="text-gray-500">{k}</dt>
+                    <dd className="text-gray-800">{v}</dd>
+                  </div>
+                ))}
+              {f.links?.[0] && (
+                <a href={f.links[0]} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
+                  ตรวจหลักสูตรและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗
+                </a>
+              )}
+            </dl>
+          )}
+        </div>
+      ) : (
+        <div className="px-5 pb-4">
+          <div className="rounded-xl bg-amber-50 border border-amber-100 px-3.5 py-2.5 text-[13px] text-amber-800 flex gap-2">
+            <FaExclamationCircle className="mt-0.5 shrink-0" />
+            ยังไม่พบคณะหรืออาชีพนี้ในฐานข้อมูล — กดแก้ไขแล้วเลือกชื่อจากรายการ เพื่อให้ระบบให้คำแนะนำได้
+          </div>
+        </div>
+      )}
+      {total > 1 && primary && <div className="h-1 bg-gradient-to-r from-pink-400 to-rose-300" />}
+    </div>
+  );
+}
+
+// หน้าต่างเพิ่ม/แก้ไขเป้าหมาย
+function GoalModal({ initial, title, data, saving, onCancel, onSave }) {
+  const [form, setForm] = useState(initial);
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+  const match = useMemo(() => (data ? goalTargets(data, form) : []), [data, form]);
+  const careers = useMemo(() => [...new Set((data?.faculties || []).flatMap((f) => f.careers))], [data]);
+  const filled = form.faculty_name.trim() || form.career_field.trim();
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave(form);
+        }}
+        className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92dvh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+          <h3 className="text-[18px] font-semibold text-gray-900">{title}</h3>
+          <button type="button" onClick={onCancel} aria-label="ปิด" className="h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 bg-transparent !p-0 flex items-center justify-center">
+            <FaTimes className="text-[13px]" />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <label className="block">
+            <span className="text-[14px] font-medium text-gray-700">คณะ / สาขาที่อยากเรียน</span>
+            <input
+              value={form.faculty_name}
+              onChange={set("faculty_name")}
+              list="goal-faculty-options"
+              placeholder="เลือกหรือพิมพ์ เช่น การออกแบบกราฟิก"
+              className="mt-1 w-full h-11 rounded-xl border border-gray-200 px-3.5 text-[15px] outline-none focus:border-pink-400"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[14px] font-medium text-gray-700">อาชีพที่อยากเป็น</span>
+            <input
+              value={form.career_field}
+              onChange={set("career_field")}
+              list="goal-career-options"
+              placeholder="เลือกหรือพิมพ์ เช่น นักออกแบบกราฟิก"
+              className="mt-1 w-full h-11 rounded-xl border border-gray-200 px-3.5 text-[15px] outline-none focus:border-pink-400"
+            />
+          </label>
+          <label className="block">
+            <span className="text-[14px] font-medium text-gray-700">
+              เหตุผล / แรงบันดาลใจ <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
+            </span>
+            <textarea
+              value={form.goal_text}
+              onChange={set("goal_text")}
+              rows={3}
+              placeholder="ทำไมถึงอยากเรียนสาขานี้"
+              className="mt-1 w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-[15px] outline-none focus:border-pink-400 resize-none"
+            />
+          </label>
+
+          {filled && (
+            <div className={`rounded-xl px-3.5 py-2.5 text-[13.5px] flex gap-2 ${match.length ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+              {match.length ? <FaCheckCircle className="mt-0.5 shrink-0" /> : <FaExclamationCircle className="mt-0.5 shrink-0" />}
+              <span>
+                {match.length
+                  ? `ระบบพบข้อมูลสาขา: ${[...new Set(match.flatMap((m) => m.match.rows.map((r) => r.name)))].join(", ")} — จะใช้วิเคราะห์กับผล RIASEC และให้คำแนะนำ`
+                  : "ยังไม่พบในฐานข้อมูล บันทึกได้ แต่ระบบจะให้คำแนะนำไม่ได้ — ลองเลือกชื่อจากรายการ"}
+              </span>
+            </div>
+          )}
+          <datalist id="goal-faculty-options">
+            {(data?.faculties || []).map((f) => (
+              <option key={f.name} value={f.name} />
+            ))}
+          </datalist>
+          <datalist id="goal-career-options">
+            {careers.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <button type="button" onClick={onCancel} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15px] hover:bg-gray-50">
+            ยกเลิก
+          </button>
+          <button type="submit" disabled={saving || !filled} className="h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:!bg-pink-200 text-white text-[15px] font-semibold">
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -55,446 +259,289 @@ export default function StudentGoalPage() {
   const navigate = useNavigate();
   // อ่านผู้ใช้ตอนเปิดหน้า (ไม่ใช่ตอนโหลดแอป) — ไม่มีค่าสำรองเป็นนักเรียนคนอื่น
   const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? null;
-  const [isEditing, setIsEditing] = useState(false);
-
-  const [student, setStudent] = useState({
-    name: "",
-    number: "",
-    class: "",
-    goal: "",
-    university: "",
-    inspiration: "",
-    gpa: "3.80",
-    avatar: null,
-  });
-
-  const [tempStudent, setTempStudent] = useState(student);
-  const [goalId, setGoalId] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState({ name: "", number: "-", class: "-", avatar: null });
+  const [goals, setGoals] = useState(null); // null = กำลังโหลด
+  const [modal, setModal] = useState(null); // { mode: "add" } | { mode: "edit", goal }
+  const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const riasec = useMyRiasec();
+  const latestRiasec = riasec.latest && !riasec.latest.legacy ? riasec.latest : null;
 
-  // ดึงตัวตนนักเรียนจริง + เป้าหมายล่าสุดที่บันทึกไว้จริง (GPA ยังไม่มี backend เก็บ ใช้ค่า mock ไปก่อน)
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [students, enrollments, classes, goals, generalInfo] = await Promise.all([
-          getStudent().catch(() => []),
-          getEnrollments().catch(() => []),
-          getClasses().catch(() => []),
-          getGoals().catch(() => []),
-          getStudentGeneralInfo(CURRENT_STUDENT_ID).catch(() => null),
-        ]);
-
-        const me = students.find((s) => String(s.user_id) === String(CURRENT_STUDENT_ID));
-        const enroll = enrollments.find((e) => String(e.user_user_id) === String(CURRENT_STUDENT_ID));
-        const grade = enroll ? classes.find((c) => String(c.idgrade) === String(enroll.grade_idgrade)) : null;
-        const myGoal = goals
-          .filter((g) => String(g.user_user_id) === String(CURRENT_STUDENT_ID))
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
-
-        const next = {
-          name: me?.fullname || "",
-          number: enroll?.seat_no ?? "-",
-          class: grade ? gradeLabel(grade) : "-",
-          goal: myGoal?.career_field || "",
-          university: myGoal?.faculty_name || "",
-          inspiration: myGoal?.goal_text || "",
-          gpa: "3.80",
-          avatar: generalInfo?.avatar_url ? resolveFileUrl(API_BASE, generalInfo.avatar_url) : null,
-        };
-        setStudent(next);
-        setTempStudent(next);
-        setGoalId(myGoal?.goal_id ?? null);
-      } catch (err) {
-        console.error("โหลดข้อมูลเป้าหมายนักเรียนไม่สำเร็จ:", err);
-      }
-    };
-    load();
+  const loadGoals = useCallback(async () => {
+    const rows = await getGoals().catch(() => []);
+    setGoals(goalsOf(rows, CURRENT_STUDENT_ID));
   }, [CURRENT_STUDENT_ID]);
 
-  const saveGoal = async () => {
-    const payload = {
-      goal_text: tempStudent.inspiration.trim(),
-      faculty_name: tempStudent.university.trim(),
-      career_field: tempStudent.goal.trim(),
-    };
-    if (!payload.faculty_name && !payload.career_field) {
-      Swal.fire("ยังไม่ได้ระบุเป้าหมาย", "กรอกคณะที่สนใจ หรืออาชีพเป้าหมาย อย่างน้อย 1 ช่อง", "warning");
-      return;
-    }
-    setSaving(true);
+  useEffect(() => {
+    (async () => {
+      const [students, enrollments, classes, generalInfo] = await Promise.all([
+        getStudent().catch(() => []),
+        getEnrollments().catch(() => []),
+        getClasses().catch(() => []),
+        getStudentGeneralInfo(CURRENT_STUDENT_ID).catch(() => null),
+      ]);
+      const me = students.find((s) => String(s.user_id) === String(CURRENT_STUDENT_ID));
+      const enroll = enrollments.find((e) => String(e.user_user_id) === String(CURRENT_STUDENT_ID));
+      const grade = enroll ? classes.find((c) => String(c.idgrade) === String(enroll.grade_idgrade)) : null;
+      setProfile({
+        name: me?.fullname || "",
+        number: enroll?.seat_no ?? "-",
+        class: grade ? gradeLabel(grade) : "-",
+        avatar: generalInfo?.avatar_url ? resolveFileUrl(API_BASE_URL, generalInfo.avatar_url) : null,
+      });
+    })();
+    loadGoals();
+  }, [CURRENT_STUDENT_ID, loadGoals]);
+
+  // ความสอดคล้องของแต่ละเป้าหมาย (ใช้รายการแรกที่หาเจอ: คณะ → ข้อความ → อาชีพ)
+  const analyses = useMemo(() => {
+    if (!riasec.data || !goals) return {};
+    const out = {};
+    goals.forEach((g) => {
+      const t = goalTargets(riasec.data, g)[0];
+      if (!t) return;
+      out[g.goal_id] = latestRiasec ? analyzeTarget(riasec.data, latestRiasec, t) : { faculty: t.match.rows[0], level: null };
+    });
+    return out;
+  }, [riasec.data, goals, latestRiasec]);
+
+  const otherRecommended = useMemo(() => {
+    if (!latestRiasec || !riasec.data) return [];
+    const goalNames = Object.values(analyses).map((a) => a.faculty?.name);
+    return facultiesForCode(riasec.data, latestRiasec.code)
+      .flatMap((f) => f.rows)
+      .filter((f) => !goalNames.includes(f.name));
+  }, [riasec.data, latestRiasec, analyses]);
+
+  const saveGoal = async (form) => {
+    const payload = { goal_text: form.goal_text.trim(), faculty_name: form.faculty_name.trim(), career_field: form.career_field.trim() };
+    if (!payload.faculty_name && !payload.career_field) return;
+    setBusy(true);
     try {
-      const saved = goalId
-        ? await updateGoal(goalId, payload)
-        : await createGoal({ user_user_id: CURRENT_STUDENT_ID, ...payload });
-      setGoalId(saved?.goal_id ?? goalId);
-      setStudent({ ...tempStudent, university: payload.faculty_name, goal: payload.career_field, inspiration: payload.goal_text });
-      setIsEditing(false);
-      Swal.fire({ icon: "success", title: "บันทึกเป้าหมายแล้ว", text: "ระบบจะใช้เป้าหมายนี้ในหน้าผลแบบทดสอบและคำแนะนำ", timer: 1800, showConfirmButton: false });
+      if (modal.mode === "edit") await updateGoal(modal.goal.goal_id, payload);
+      else await createGoal({ user_user_id: CURRENT_STUDENT_ID, ...payload });
+      setModal(null);
+      await loadGoals();
+      Swal.fire({ icon: "success", title: "บันทึกเป้าหมายแล้ว", timer: 1400, showConfirmButton: false });
     } catch (err) {
-      console.error("บันทึกเป้าหมายไม่สำเร็จ:", err);
       Swal.fire("บันทึกไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   };
 
-  const [comments, setComments] = useState([
-    {
-      id: 1,
-      author: "ครูสุพรรณี",
-      role: "teacher",
-      time: "28/03/2569 10:30",
-      text: "ควรเริ่มทำ Portfolio ได้แล้วนะ ลองดูตัวอย่างจากรุ่นพี่ที่ติดคณะศิลปกรรมศาสตร์ปีที่แล้วด้วยค่ะ",
-    },
-  ]);
-  const [commentDraft, setCommentDraft] = useState("");
+  const removeGoal = async (g) => {
+    const ok = await Swal.fire({
+      icon: "warning",
+      title: "ลบเป้าหมายนี้?",
+      text: g.faculty_name || g.career_field,
+      showCancelButton: true,
+      confirmButtonText: "ลบ",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#e11d48",
+    });
+    if (!ok.isConfirmed) return;
+    setBusy(true);
+    try {
+      await deleteGoal(g.goal_id);
+      await loadGoals();
+    } catch (err) {
+      Swal.fire("ลบไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-  // ผลแบบทดสอบ RIASEC จริงของนักเรียน (ชุดเดียวกับหน้าผลแบบเต็ม)
-  const riasec = useMyRiasec();
-  const latestRiasec = riasec.latest && !riasec.latest.legacy ? riasec.latest : null;
-  const recommendedFaculties = useMemo(
-    () => (latestRiasec ? facultiesForCode(riasec.data, latestRiasec.code).flatMap((f) => f.rows) : []),
-    [riasec.data, latestRiasec]
-  );
-  // เป้าหมายที่บันทึกไว้ (ตัดข้อความแทนค่าว่างออก) → คณะในฐานข้อมูล + ความสอดคล้องกับผลทดสอบ
-  const goalForAdvice = useMemo(
-    () => ({
-      faculty_name: student.university,
-      career_field: student.goal,
-      goal_text: student.inspiration,
-    }),
-    [student.university, student.goal, student.inspiration]
-  );
-  const goalAdvice = useMemo(() => {
-    if (!riasec.data) return [];
-    const seen = new Set();
-    return goalTargets(riasec.data, goalForAdvice)
-      .map((t) => (latestRiasec ? analyzeTarget(riasec.data, latestRiasec, t) : { faculty: t.match.rows[0], level: null }))
-      .filter((a) => (seen.has(a.faculty.name) ? false : seen.add(a.faculty.name)));
-  }, [riasec.data, goalForAdvice, latestRiasec]);
-  const otherRecommended = recommendedFaculties.filter((f) => !goalAdvice.some((a) => a.faculty.name === f.name));
-
-  const handleChange = (field, value) => setTempStudent({ ...tempStudent, [field]: value });
+  const makePrimary = async (g) => {
+    setBusy(true);
+    try {
+      await updateGoal(g.goal_id, { priority: 1 });
+      await loadGoals();
+    } catch (err) {
+      Swal.fire("เปลี่ยนลำดับไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     e.target.value = "";
     if (!file) return;
-
     setUploadingAvatar(true);
     try {
       const result = await uploadStudentAvatar(CURRENT_STUDENT_ID, file);
-      const url = resolveFileUrl(API_BASE, result.avatar_url);
-      setStudent((prev) => ({ ...prev, avatar: url }));
-      setTempStudent((prev) => ({ ...prev, avatar: url }));
-    } catch (err) {
-      console.error("อัปโหลดรูปโปรไฟล์ไม่สำเร็จ:", err);
-      alert("อัปโหลดรูปไม่สำเร็จ ลองใหม่อีกครั้ง");
+      setProfile((p) => ({ ...p, avatar: resolveFileUrl(API_BASE_URL, result.avatar_url) }));
+    } catch {
+      Swal.fire("อัปโหลดรูปไม่สำเร็จ", "ลองใหม่อีกครั้ง", "error");
     } finally {
       setUploadingAvatar(false);
     }
   };
 
-  const addComment = () => {
-    const text = commentDraft.trim();
-    if (!text) return;
-    const time = new Date().toLocaleString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-    setComments((prev) => [...prev, { id: Date.now(), author: student.name || "นักเรียน", role: "student", time, text }]);
-    setCommentDraft("");
-  };
+  const canAdd = goals && goals.length < MAX_GOALS;
+  const openAdd = () => setModal({ mode: "add" });
 
   return (
     <div className="min-h-screen w-full bg-white flex text-[15.5px] text-gray-800">
       <SidebarNav />
-
       <div className="flex-1 min-w-0">
         <Header />
-
-        <main className="w-full px-6 md:px-8 pt-24 pb-10 space-y-6">
-
-          {/* Title */}
+        <main className="w-full px-4 sm:px-6 md:px-8 pt-24 pb-10 space-y-6">
+          {/* หัวข้อ */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div>
               <h1 className="page-title">เป้าหมายของฉัน</h1>
-              <p className="page-subtitle mt-0.5">เป้าหมายการศึกษาต่อ ผลการทดสอบความถนัด และคำแนะนำจากครู</p>
+              <p className="page-subtitle mt-0.5">ตั้งเป้าหมายการศึกษาต่อได้สูงสุด {MAX_GOALS} ข้อ แล้วดูว่าสอดคล้องกับความสนใจของคุณแค่ไหน</p>
             </div>
-
-            {isEditing ? (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setIsEditing(false); setTempStudent(student); }}
-                  className="h-9 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15.5px] hover:bg-gray-50 transition"
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="button"
-                  onClick={saveGoal}
-                  disabled={saving}
-                  className="h-9 px-4 rounded-xl bg-pink-500 text-white text-[15.5px] font-medium hover:bg-pink-600 transition disabled:opacity-60"
-                >
-                  {saving ? "กำลังบันทึก..." : "บันทึก"}
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => { setTempStudent(student); setIsEditing(true); }}
-                className="h-9 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15.5px] hover:bg-gray-50 transition"
-              >
-                แก้ไขข้อมูล
+            {canAdd && (
+              <button type="button" onClick={openAdd} className="h-10 px-4 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[15px] font-semibold flex items-center gap-2">
+                <FaPlus className="text-[12px]" /> เพิ่มเป้าหมาย
               </button>
             )}
           </div>
 
-          {/* PROFILE (student-entered info, all in one card) */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
-            <div className="flex items-center gap-5 flex-wrap">
-              <div className="relative group shrink-0">
-                <label className="cursor-pointer block">
-                  <Avatar
-                    src={isEditing ? tempStudent.avatar : student.avatar}
-                    name={student.name}
-                    size={96}
-                    rounded="rounded-2xl"
-                  />
-                  {isEditing && (
-                    <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition">
-                      <FaCamera className="text-[15px]" />
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingAvatar}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
+          {/* โปรไฟล์ */}
+          <div className="rounded-2xl border border-pink-100 bg-gradient-to-br from-pink-50 via-white to-rose-50 p-5 sm:p-6">
+            <div className="flex items-center gap-4 sm:gap-5 flex-wrap">
+              <label className="relative cursor-pointer shrink-0 group" title="เปลี่ยนรูปโปรไฟล์">
+                <Avatar src={profile.avatar} name={profile.name} size={84} rounded="rounded-2xl" />
+                <span className="absolute -bottom-1.5 -right-1.5 h-8 w-8 rounded-full bg-white border border-pink-100 shadow flex items-center justify-center text-pink-500 group-hover:bg-pink-50">
+                  <FaCamera className="text-[12px]" />
+                </span>
+                <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploadingAvatar} className="hidden" />
+              </label>
               <div className="min-w-0 flex-1">
-                <h2 className="text-[21.5px] font-semibold text-gray-900 truncate">{student.name}</h2>
-                <p className="text-[15.5px] text-gray-400 mt-0.5">เลขที่ {student.number} • ห้อง {student.class}</p>
-
-                <div className="flex items-center gap-8 mt-3">
-                  <div>
-                    <p className="text-[13.5px] text-gray-400">เป้าหมาย</p>
-                    {isEditing ? (
-                      <input
-                        value={tempStudent.goal}
-                        list="goal-career-options"
-                        placeholder="เช่น นักออกแบบกราฟิก"
-                        onChange={(e) => handleChange("goal", e.target.value)}
-                        className="mt-1 h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300"
-                      />
-                    ) : (
-                      <p className={`text-[15.5px] font-medium mt-0.5 ${student.goal ? "text-gray-900" : "text-gray-400"}`}>{student.goal || "ยังไม่ได้ตั้งเป้าหมาย"}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[13.5px] text-gray-400">GPA</p>
-                    <p className="text-[15.5px] font-medium text-gray-900 mt-0.5">{student.gpa}</p>
-                  </div>
+                <h2 className="text-[21px] font-semibold text-gray-900 truncate">{profile.name || "…"}</h2>
+                <p className="text-[14.5px] text-gray-500 mt-0.5">
+                  ห้อง {profile.class} • เลขที่ {profile.number}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-pink-100 px-3 py-1 text-[13.5px]">
+                    <FaGraduationCap className="text-pink-500 text-[12px]" /> ตั้งเป้าหมายแล้ว {goals ? goals.length : "-"}/{MAX_GOALS}
+                  </span>
+                  {latestRiasec && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-pink-100 px-3 py-1 text-[13.5px]">
+                      <FaCompass className="text-pink-500 text-[12px]" /> RIASEC <b className="text-pink-600">{latestRiasec.code}</b>
+                    </span>
+                  )}
                 </div>
-              </div>
-            </div>
-
-            <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <p className="text-[13.5px] text-gray-400 mb-1 flex items-center gap-1.5">
-                  <FaGraduationCap className="text-pink-400" /> คณะที่สนใจ
-                </p>
-                {isEditing ? (
-                  <>
-                    <input
-                      value={tempStudent.university}
-                      list="goal-faculty-options"
-                      placeholder="เลือกหรือพิมพ์ชื่อคณะ/สาขา"
-                      onChange={(e) => handleChange("university", e.target.value)}
-                      className="w-full h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300"
-                    />
-                    <p className="text-[12.5px] text-gray-400 mt-1">เลือกจากรายการเพื่อให้ระบบเทียบกับผลแบบทดสอบได้แม่นยำ</p>
-                    {/* รายการคณะ/อาชีพจากฐานข้อมูลแนะแนว — ยังพิมพ์ชื่ออื่นเองได้ */}
-                    <datalist id="goal-faculty-options">
-                      {(riasec.data?.faculties || []).map((f) => (
-                        <option key={f.name} value={f.name} />
-                      ))}
-                    </datalist>
-                    <datalist id="goal-career-options">
-                      {[...new Set((riasec.data?.faculties || []).flatMap((f) => f.careers))].map((c) => (
-                        <option key={c} value={c} />
-                      ))}
-                    </datalist>
-                  </>
-                ) : (
-                  <p className={`text-[15.5px] ${student.university ? "text-gray-600" : "text-gray-400"}`}>{student.university || "ยังไม่ระบุคณะที่สนใจ"}</p>
-                )}
-              </div>
-
-              <div>
-                <p className="text-[13.5px] text-gray-400 mb-1 flex items-center gap-1.5">
-                  <FaLightbulb className="text-pink-400" /> เหตุผล / แรงบันดาลใจ
-                </p>
-                {isEditing ? (
-                  <textarea
-                    value={tempStudent.inspiration}
-                    onChange={(e) => handleChange("inspiration", e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-[15.5px] outline-none focus:border-pink-300 resize-none"
-                  />
-                ) : (
-                  <p className="text-[15.5px] text-gray-600 leading-6">{student.inspiration}</p>
-                )}
               </div>
             </div>
           </div>
 
-          {/* MAIN 2-COLUMN LAYOUT */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-8">
-
-            {/* LEFT */}
-            <div className="space-y-6">
-
-              {/* Advice — เป้าหมายที่ตั้ง + ผลทดสอบ (ข้อมูลจากไฟล์ข้อมูลคณะ–อาชีพ) */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                <CardHeader
-                  icon={FaBookOpen}
-                  title="คำแนะนำการศึกษาต่อ"
-                  subtitle={`อ้างอิงจากเป้าหมายที่ตั้งไว้${latestRiasec ? ` และผลทดสอบ (${latestRiasec.code})` : ""}`}
-                />
-
-                {riasec.loading ? (
-                  <p className="text-[15px] text-gray-400">กำลังโหลด...</p>
-                ) : (
-                  <div className="space-y-5">
-                    <div>
-                      <p className="text-[13.5px] font-semibold text-gray-500 mb-2">ตามเป้าหมายของคุณ</p>
-                      {goalAdvice.length === 0 ? (
-                        <p className="text-[14.5px] text-gray-500">
-                          {goalForAdvice.faculty_name || goalForAdvice.career_field
-                            ? "ยังไม่พบคณะ/อาชีพในเป้าหมายของคุณในฐานข้อมูล — กด “แก้ไขข้อมูล” แล้วเลือกชื่อคณะจากรายการ"
-                            : "ยังไม่ได้ตั้งเป้าหมาย — กด “แก้ไขข้อมูล” เพื่อเลือกคณะและอาชีพที่สนใจ"}
-                        </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {goalAdvice.map(({ faculty: f, level }) => (
-                            <div key={f.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-4 py-3">
-                              <div className="flex items-start justify-between gap-2">
-                                <p className="text-[15.5px] font-semibold text-gray-800">{f.name}</p>
-                                {level && (
-                                  <span className={`shrink-0 text-[12.5px] font-semibold rounded-full px-2.5 py-0.5 bg-white ${GOAL_LEVEL[level].cls}`}>
-                                    สอดคล้อง{GOAL_LEVEL[level].label}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="mt-1.5 grid gap-0.5 text-[13.5px] text-gray-700 leading-6">
-                                <div><span className="text-gray-500">วิชาที่ควรเน้น:</span> {f.subjects.join(", ")}</div>
-                                <div><span className="text-gray-500">สายการเรียน:</span> {f.track}</div>
-                                <div><span className="text-gray-500">ทักษะที่ควรพัฒนา:</span> {f.skills}</div>
-                                <div><span className="text-gray-500">คำแนะนำ:</span> {f.advice}</div>
-                                <div><span className="text-gray-500">เตรียมสอบ:</span> {f.exam}</div>
-                                {f.universities.length > 0 && <div><span className="text-gray-500">มหาวิทยาลัยตัวอย่าง:</span> {f.universities.join(", ")}</div>}
-                              </div>
-                              {f.links[0] && (
-                                <a href={f.links[0]} target="_blank" rel="noreferrer" className="inline-block mt-1 text-[13px] text-sky-600 hover:underline">
-                                  ดูหลักสูตรใน myTCAS ↗
-                                </a>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {latestRiasec ? (
-                      otherRecommended.length > 0 && (
-                        <div className="pt-4 border-t border-gray-100">
-                          <p className="text-[13.5px] font-semibold text-gray-500 mb-2">สาขาอื่นที่ตรงกับผลทดสอบ ({latestRiasec.code})</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {otherRecommended.map((f) => (
-                              <div key={f.name} className="rounded-xl bg-gray-50 px-3.5 py-2.5 min-w-0">
-                                <p className="text-[15px] font-medium text-gray-800">✔ {f.name}</p>
-                                <p className="text-[13px] text-gray-500 mt-0.5">สายการเรียน: {f.track}</p>
-                                {f.universities.length > 0 && <p className="text-[13px] text-gray-500">เช่น {f.universities.join(", ")}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )
-                    ) : (
-                      <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3 flex-wrap">
-                        <p className="text-[14.5px] text-gray-500">ทำแบบทดสอบความถนัด เพื่อดูว่าเป้าหมายนี้สอดคล้องกับความสนใจของคุณแค่ไหน</p>
-                        <button type="button" onClick={() => navigate("/aptitudeIntro")} className="shrink-0 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[14px] font-medium">
-                          ทำแบบทดสอบ
-                        </button>
-                      </div>
-                    )}
-
-                    <p className="text-[12px] text-gray-400">ที่มา: ไฟล์ข้อมูลคณะ–อาชีพ–คำแนะนำ RIASEC ของงานแนะแนว และ myTCAS • เกณฑ์รับเข้าเปลี่ยนทุกปี ควรตรวจประกาศล่าสุด</p>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-6 lg:gap-8 items-start">
+            {/* ซ้าย: เป้าหมาย */}
+            <div className="space-y-4">
+              {goals === null ? (
+                <div className={`${CARD} p-8 text-center text-gray-400`}>กำลังโหลด...</div>
+              ) : goals.length === 0 ? (
+                <div className="rounded-2xl border-2 border-dashed border-pink-200 bg-pink-50/40 p-8 text-center">
+                  <div className="mx-auto h-14 w-14 rounded-2xl bg-white text-pink-500 flex items-center justify-center shadow-sm">
+                    <FaGraduationCap className="text-[24px]" />
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* RIGHT: sidebar — evidence + feedback */}
-            <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-
-              {/* Aptitude result + history */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                <CardHeader
-                  icon={FaCompass}
-                  title="ผลการทดสอบความถนัดล่าสุด"
-                  action={
+                  <h3 className="mt-3 text-[18px] font-semibold text-gray-900">ยังไม่ได้ตั้งเป้าหมาย</h3>
+                  <p className="mt-1 text-[14.5px] text-gray-600">เลือกคณะหรืออาชีพที่อยากเป็น ระบบจะเทียบกับผลแบบทดสอบและแนะนำวิธีเตรียมตัวให้</p>
+                  <button type="button" onClick={openAdd} className="mt-4 h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[15px] font-semibold inline-flex items-center gap-2">
+                    <FaPlus className="text-[12px]" /> ตั้งเป้าหมายแรก
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {goals.map((g, i) => (
+                    <GoalCard
+                      key={g.goal_id}
+                      goal={g}
+                      rank={i}
+                      total={goals.length}
+                      analysis={analyses[g.goal_id]}
+                      busy={busy}
+                      onEdit={() => setModal({ mode: "edit", goal: g })}
+                      onDelete={() => removeGoal(g)}
+                      onMakePrimary={() => makePrimary(g)}
+                    />
+                  ))}
+                  {canAdd && (
+                    <button
+                      type="button"
+                      onClick={openAdd}
+                      className="w-full rounded-2xl border-2 border-dashed border-gray-200 hover:border-pink-300 hover:bg-pink-50/40 bg-white py-5 text-[15px] font-medium text-gray-500 hover:text-pink-600 flex items-center justify-center gap-2 transition"
+                    >
+                      <FaPlus className="text-[12px]" /> เพิ่ม{GOAL_RANK_LABEL[goals.length]}
+                    </button>
+                  )}
+                  {latestRiasec && (
                     <button
                       type="button"
                       onClick={() => navigate("/result")}
-                      className="text-[14.5px] font-medium text-pink-600 hover:text-pink-700 transition shrink-0"
+                      className="w-full rounded-2xl border border-pink-200 !bg-pink-50 hover:!bg-pink-100 text-pink-800 px-5 py-3.5 text-left flex items-center justify-between gap-3"
                     >
-                      ดูผลแบบเต็ม →
+                      <span>
+                        <span className="block text-[15px] font-semibold">ดูการวิเคราะห์เป้าหมายแบบเต็ม</span>
+                        <span className="block text-[13px] text-pink-600/80">เหตุผลของความสอดคล้อง แนวทางเตรียมตัว และอาชีพที่เกี่ยวข้อง</span>
+                      </span>
+                      <FaArrowRight className="shrink-0" />
                     </button>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ขวา: ผล RIASEC + สาขาอื่น + ปรึกษาครู */}
+            <div className="space-y-6 lg:sticky lg:top-24">
+              <div className={`${CARD} p-5`}>
+                <SectionTitle
+                  icon={FaCompass}
+                  title="ผลแบบทดสอบความถนัด"
+                  action={
+                    latestRiasec && (
+                      <button type="button" onClick={() => navigate("/result")} className="text-[13.5px] font-medium text-pink-600 hover:text-pink-700 bg-transparent !p-0 shrink-0">
+                        ดูผลเต็ม →
+                      </button>
+                    )
                   }
                 />
-
                 {riasec.loading ? (
-                  <p className="text-[15px] text-gray-400">กำลังโหลด...</p>
+                  <p className="text-[14.5px] text-gray-400">กำลังโหลด...</p>
                 ) : !latestRiasec ? (
-                  <p className="text-[15px] text-gray-500">ยังไม่มีผลแบบทดสอบที่มีคะแนนรายด้าน</p>
-                ) : (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-[23.5px] font-bold text-pink-600">{latestRiasec.code}</span>
-                    <span className="text-[14.5px] text-gray-500">
-                      {latestRiasec.code.split("").map((c) => riasec.data.dimensions[c].nameTh).join(" • ")}
-                    </span>
+                  <div>
+                    <p className="text-[14.5px] text-gray-500">ทำแบบทดสอบความถนัด เพื่อดูว่าเป้าหมายสอดคล้องกับความสนใจของคุณแค่ไหน</p>
+                    <button type="button" onClick={() => navigate("/aptitudeIntro")} className="mt-3 h-9 px-4 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[14px] font-medium">
+                      ทำแบบทดสอบ
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    <div className="flex items-end gap-3">
+                      <span className="text-[34px] leading-none font-bold tracking-wider text-pink-600">{latestRiasec.code}</span>
+                      <span className="text-[13px] text-gray-500 pb-1">
+                        {new Date(latestRiasec.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {latestRiasec.code.split("").map((c) => (
+                        <span key={c} className="rounded-full bg-pink-50 text-pink-700 px-2.5 py-0.5 text-[12.5px]">
+                          {c} {riasec.data.dimensions[c].nameTh} {latestRiasec.scores[c]}
+                        </span>
+                      ))}
+                    </div>
+                  </>
                 )}
-
-                {riasec.history.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-[13.5px] text-gray-400 mb-1">ประวัติการทำแบบทดสอบ</p>
+                {riasec.history.length > 1 && (
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <p className="text-[12.5px] text-gray-400 mb-1">ประวัติการทำแบบทดสอบ</p>
                     <div className="divide-y divide-gray-100">
                       {riasec.history.slice(0, 5).map((h, i) => (
-                        <div key={i} className="flex items-center justify-between py-2.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-[15.5px] text-gray-700 truncate">
-                              {new Date(h.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
-                            </span>
-                            {i === 0 && <span className="text-[13.5px] font-medium text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5 shrink-0">ล่าสุด</span>}
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            <span className="text-[15.5px] font-medium text-gray-500">{h.legacy ? `${h.code} (ระบบเดิม)` : h.code}</span>
+                        <div key={i} className="flex items-center justify-between py-2 text-[14px]">
+                          <span className="text-gray-600">{new Date(h.date).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" })}</span>
+                          <span className="flex items-center gap-3">
+                            <span className="font-medium text-gray-700">{h.legacy ? `${h.code} (ระบบเดิม)` : h.code}</span>
                             {!h.legacy && (
-                              <button
-                                type="button"
-                                onClick={() => navigate("/result", { state: { scores: h.scores, date: h.date } })}
-                                className="text-[14.5px] text-pink-500 hover:text-pink-700 transition"
-                              >
+                              <button type="button" onClick={() => navigate("/result", { state: { scores: h.scores, date: h.date } })} className="text-[13px] text-pink-500 hover:text-pink-700 bg-transparent !p-0">
                                 ดูผล
                               </button>
                             )}
-                          </div>
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -502,55 +549,56 @@ export default function StudentGoalPage() {
                 )}
               </div>
 
-              {/* Comments from teacher */}
-              <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                <CardHeader icon={FaComments} title="คำแนะนำจากครู" />
-
-                <div className="space-y-3 mb-4 max-h-[280px] overflow-y-auto pr-1">
-                  {comments.length === 0 && <p className="text-[15.5px] text-gray-400">ยังไม่มีคำแนะนำ</p>}
-                  {comments.map((c) => (
-                    <div key={c.id} className="flex items-start gap-2.5">
-                      <span
-                        className={`h-7 w-7 rounded-full flex items-center justify-center text-[13.5px] font-medium shrink-0 ${
-                          c.role === "teacher" ? "bg-pink-100 text-pink-600" : "bg-gray-200 text-gray-600"
-                        }`}
-                      >
-                        {c.author[0]}
-                      </span>
-                      <div className="min-w-0 flex-1 bg-gray-50 rounded-xl px-3 py-2">
-                        <div className="flex items-center gap-2 text-[13.5px]">
-                          <span className="font-medium text-gray-800">{c.author}</span>
-                          <span className="text-gray-400">{c.time}</span>
+              {otherRecommended.length > 0 && (
+                <div className={`${CARD} p-5`}>
+                  <SectionTitle icon={FaGraduationCap} title="สาขาอื่นที่ตรงกับผลทดสอบ" subtitle={`จากรหัส ${latestRiasec.code} — ลองพิจารณาเป็นเป้าหมายสำรอง`} />
+                  <div className="space-y-2">
+                    {otherRecommended.map((f) => (
+                      <div key={f.name} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3.5 py-2.5">
+                        <div className="min-w-0">
+                          <div className="text-[14.5px] font-medium text-gray-800">{f.name}</div>
+                          <div className="text-[12.5px] text-gray-500 truncate">{f.universities.join(", ") || f.track}</div>
                         </div>
-                        <p className="text-[15.5px] text-gray-700 mt-0.5">{c.text}</p>
+                        {canAdd && (
+                          <button
+                            type="button"
+                            onClick={() => setModal({ mode: "add", preset: { ...EMPTY_FORM, faculty_name: f.name } })}
+                            className="shrink-0 h-8 px-3 rounded-lg bg-white border border-pink-200 text-pink-600 text-[13px] hover:bg-pink-50"
+                          >
+                            + ตั้งเป็นเป้าหมาย
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
+              )}
 
-                <div className="flex gap-2">
-                  <input
-                    value={commentDraft}
-                    onChange={(e) => setCommentDraft(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") addComment(); }}
-                    placeholder="พิมพ์ข้อความถึงครู..."
-                    className="flex-1 h-9 rounded-lg border border-gray-200 px-3 text-[15.5px] outline-none focus:border-pink-300 placeholder:text-gray-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={addComment}
-                    className="h-9 px-4 rounded-lg bg-pink-500 text-white text-[15.5px] font-medium hover:bg-pink-600 transition shrink-0"
-                  >
-                    ส่ง
-                  </button>
-                </div>
+              <div className={`${CARD} p-5`}>
+                <SectionTitle icon={FaComments} title="อยากปรึกษาครูแนะแนว?" subtitle="ส่งคำขอปรึกษาเรื่องเป้าหมายและการเตรียมตัว" />
+                <button type="button" onClick={() => navigate("/studentconsultations")} className="w-full h-10 rounded-xl border border-pink-200 text-pink-600 text-[14.5px] font-medium hover:bg-pink-50 bg-white">
+                  ไปหน้าคำขอปรึกษา
+                </button>
               </div>
             </div>
-
           </div>
-
         </main>
       </div>
+
+      {modal && (
+        <GoalModal
+          title={modal.mode === "edit" ? "แก้ไขเป้าหมาย" : `เพิ่ม${GOAL_RANK_LABEL[goals?.length || 0]}`}
+          initial={
+            modal.mode === "edit"
+              ? { faculty_name: modal.goal.faculty_name || "", career_field: modal.goal.career_field || "", goal_text: modal.goal.goal_text || "" }
+              : modal.preset || EMPTY_FORM
+          }
+          data={riasec.data}
+          saving={busy}
+          onCancel={() => setModal(null)}
+          onSave={saveGoal}
+        />
+      )}
     </div>
   );
 }

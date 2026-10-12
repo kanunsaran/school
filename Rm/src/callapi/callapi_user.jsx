@@ -1042,11 +1042,19 @@ export async function createGoal({ user_user_id, goal_text, faculty_name, career
   }
 }
 
-export async function updateGoal(goalId, { goal_text, faculty_name, career_field }) {
+// ลบเป้าหมาย (soft delete) — backend เรียงลำดับเป้าหมายที่เหลือใหม่ให้
+export async function deleteGoal(goalId) {
+  const response = await axios.delete(`${api}/goal/${goalId}`, {
+    headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+  });
+  return response.data;
+}
+
+export async function updateGoal(goalId, { goal_text, faculty_name, career_field, priority }) {
   try {
     const response = await axios.put(
       `${api}/goal/${goalId}`,
-      { goal_text, faculty_name, career_field },
+      { goal_text, faculty_name, career_field, priority },
       { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
     );
     return response.data;

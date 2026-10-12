@@ -10,6 +10,7 @@ import {
   getStudentAttendanceRecords,
   getAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
+import { primaryGoalOf } from "./goals.js";
 
 // รวบรวมข้อมูลสำหรับ "รายงานรายบุคคล / ตารางสรุปทั้งห้อง" จากฐานข้อมูล แล้ววิเคราะห์ให้ครู
 // (จุดเด่น, ความสอดคล้องเป้าหมายกับ RIASEC, สิ่งที่ควรพัฒนา) — ใช้กับระบบสร้างรายงานตัวเดียว
@@ -109,7 +110,7 @@ export const loadReportData = async (students, classes, onProgress) => {
       getAssessmentAdvice(s.user_id).catch(() => []),
     ]);
     const fd = parseJson(info?.form_data) || {};
-    const goal = (goals || []).filter((g) => String(g.user_user_id) === String(s.user_id) && !g.deleted_at).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+    const goal = primaryGoalOf(goals, s.user_id);
     const result = (results || []).filter((r) => String(r.user_user_id) === String(s.user_id)).sort((a, b) => new Date(b.test_date) - new Date(a.test_date))[0] || null;
     const type = result ? (types || []).find((t) => String(t.type_id) === String(result.type_type_id)) : null;
     const faculty = result ? (faculties || []).find((f) => String(f.faculty_id) === String(result.recommended_faculty_id)) : null;

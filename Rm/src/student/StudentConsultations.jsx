@@ -18,6 +18,7 @@ import {
 import { CURRENT_TEACHER, notAvailableYet } from "../utils/feedShared.js";
 import { getCurrentUser } from "../utils/auth.js";
 import { CONSULTATION_CATEGORIES, STATUS_META, normalizeConsultation } from "../utils/consultationStore.js";
+import { primaryGoalOf } from "../utils/goals.js";
 
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id;
 
@@ -96,7 +97,7 @@ export default function StudentConsultationsPage() {
   );
   const myTypeName = myLatestType ? types.find((t) => String(t.type_id) === String(myLatestType.type_type_id))?.type_name : null;
   const myLatestGoal = useMemo(
-    () => goals.filter((g) => String(g.user_user_id) === String(CURRENT_STUDENT_ID)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0],
+    () => primaryGoalOf(goals, CURRENT_STUDENT_ID),
     [goals]
   );
 

@@ -5,6 +5,7 @@ import Header from "../../Header";
 import { getGoals } from "../../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
+import { goalsOf, GOAL_RANK_LABEL } from "../../utils/goals.js";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
   denseRank, tiedWith, riasecAdvice, careersForResult, careersForGoal, transferableStrengths,
@@ -356,22 +357,19 @@ export default function ResultPage() {
   const location = useLocation();
   const { loading, data, latest } = useMyRiasec(location.state);
   const [animated, setAnimated] = useState(false);
-  // undefined = กำลังโหลด, null = ยังไม่ได้ตั้งเป้าหมาย, object = เป้าหมายล่าสุดของนักเรียนคนนี้
-  const [myGoal, setMyGoal] = useState(undefined);
+  // undefined = กำลังโหลด, [] = ยังไม่ได้ตั้งเป้าหมาย — นักเรียนตั้งได้หลายข้อ (เรียงตามลำดับ เป้าหมายหลักก่อน)
+  const [myGoals, setMyGoals] = useState(undefined);
+  const [goalIdx, setGoalIdx] = useState(0);
+  const myGoal = myGoals === undefined ? undefined : myGoals[goalIdx] || myGoals[0] || null;
   // รหัสที่กำลังดูข้อมูลคณะ/อาชีพ (เปลี่ยนได้เมื่อคะแนนเท่ากันจนมีหลายรหัส)
   const [viewCode, setViewCode] = useState(null);
 
   useEffect(() => {
     const studentId = getCurrentUser()?.user_id;
-    if (!studentId) return setMyGoal(null);
+    if (!studentId) return setMyGoals([]);
     getGoals()
-      .then((rows) => {
-        const mine = (rows || [])
-          .filter((g) => String(g.user_user_id) === String(studentId) && !g.deleted_at)
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        setMyGoal(mine[0] || null);
-      })
-      .catch(() => setMyGoal(null));
+      .then((rows) => setMyGoals(goalsOf(rows, studentId)))
+      .catch(() => setMyGoals([]));
   }, []);
 
   useEffect(() => {
@@ -678,6 +676,23 @@ export default function ResultPage() {
       <GroupLabel>เป้าหมายการศึกษาต่อ</GroupLabel>
       <div className={CARD}>
         <SectionHeader emoji="🎯" title="ความสอดคล้องกับเป้าหมาย" subtitle="เทียบเป้าหมายที่ตั้งไว้กับผล RIASEC ทั้ง 6 ด้าน" />
+        {myGoals?.length > 1 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {myGoals.map((g, i) => (
+              <button
+                key={g.goal_id}
+                type="button"
+                onClick={() => setGoalIdx(i)}
+                className={`rounded-xl border px-3 py-1.5 text-left text-[13.5px] ${
+                  (myGoal?.goal_id === g.goal_id) ? "!bg-pink-500 border-pink-500 text-white" : "bg-white border-gray-200 text-gray-700 hover:border-pink-300"
+                }`}
+              >
+                <span className="block text-[11.5px] opacity-80">{GOAL_RANK_LABEL[i]}</span>
+                <span className="font-semibold">{g.faculty_name || g.career_field}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {!ready ? (
           <p className="text-[14.5px] text-gray-400">กำลังโหลด...</p>
         ) : !hasGoal(myGoal) ? (

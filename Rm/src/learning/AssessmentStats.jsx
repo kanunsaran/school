@@ -11,6 +11,7 @@ import { gradeLabel } from "../utils/gradeLabel.js";
 import { getActivityLog } from "../utils/assessmentStore.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import PageLoading from "../components/PageLoading.jsx";
+import { primaryGoalOf } from "../utils/goals.js";
 
 const DONUT_COLORS = ["#ec4899", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
 
@@ -159,7 +160,9 @@ export default function AssessmentStatsPage() {
     };
 
     let aligned = 0, notAligned = 0, unmatched = 0;
-    goals.forEach((g) => {
+    // นับคนละ 1 เป้าหมาย (เป้าหมายหลัก) — นักเรียนตั้งได้หลายข้อ
+    const primaryGoals = [...new Set(goals.map((g) => String(g.user_user_id)))].map((id) => primaryGoalOf(goals, id));
+    primaryGoals.forEach((g) => {
       const typeRow = typeResults.find((r) => String(r.user_user_id) === String(g.user_user_id));
       if (!typeRow || !typeRow.type_type_id) return; // ยังไม่ได้ทำแบบประเมิน ไม่นับ
       const facultyType = findFacultyType(g.faculty_name);

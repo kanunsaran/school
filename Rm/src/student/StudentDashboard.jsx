@@ -33,6 +33,7 @@ import {
 } from "../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../utils/auth.js";
 import { formatThaiTimeLabel } from "../utils/feedShared.js";
+import { primaryGoalOf } from "../utils/goals.js";
 
 // ใช้ user จาก session จริงหลัง login ถ้ามี — ถ้ายังไม่ได้ login (เช่น เข้าตรงๆ ตอนทดสอบ) fallback เป็น placeholder เดิม
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
@@ -194,9 +195,7 @@ export default function StudentDashboard() {
           number: enroll?.seat_no ?? "-",
         });
 
-        const myGoal = goals
-          .filter((g) => String(g.user_user_id) === String(CURRENT_STUDENT_ID))
-          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+        const myGoal = primaryGoalOf(goals, CURRENT_STUDENT_ID);
         setGoal(myGoal ? { goal: myGoal.career_field || myGoal.goal_text, university: myGoal.faculty_name } : null);
 
         const myTypeResult = typeResults

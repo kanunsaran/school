@@ -26,6 +26,7 @@ import {
   STATUS_META, CONSULTATION_CATEGORIES, normalizeConsultation, markConsultationRead, isConsultationUnread,
 } from "../utils/consultationStore.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+import { primaryGoalOf } from "../utils/goals.js";
 
 // แปลงแถวดิบจาก GET /teacher-notes (note_id, note_text, created_at, ...) ให้เป็น shape เดิม {id, text, createdAt} ที่หน้านี้ใช้อยู่แล้ว
 const normalizeNote = (raw) => ({ id: raw.note_id, text: raw.note_text, createdAt: raw.created_at });
@@ -194,7 +195,7 @@ export default function ConsultationsPage() {
   const latestTypeResultFor = (userId) =>
     typeResults.filter((r) => String(r.user_user_id) === String(userId)).sort((a, b) => new Date(b.test_date) - new Date(a.test_date))[0];
   const latestGoalFor = (userId) =>
-    goals.filter((g) => String(g.user_user_id) === String(userId)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+    primaryGoalOf(goals, userId);
 
   const selectedGrade = selected ? classesList.find((c) => String(c.id) === String(gradeByUserId.get(String(selected.studentUserId)))) : null;
   const selectedTypeResult = selected ? latestTypeResultFor(selected.studentUserId) : null;

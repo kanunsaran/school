@@ -28,6 +28,7 @@ import { CONSULTATION_CATEGORIES, normalizeConsultation } from "../utils/consult
 import { API_BASE } from "../utils/feedShared.js";
 import { resolveFileUrl } from "../utils/media.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+import { primaryGoalOf } from "../utils/goals.js";
 
 // แปลงแถวดิบจาก GET /assessment-advice (advice_id, advice_text, created_at, ...) ให้เป็น shape เดิม {id, text, createdAt}
 const normalizeAdvice = (raw) => ({ id: raw.advice_id, text: raw.advice_text, createdAt: raw.created_at });
@@ -197,7 +198,7 @@ export default function AssessmentResultsPage() {
 
   const selectedGoal = useMemo(() => {
     if (!selected) return null;
-    return goals.filter((g) => String(g.user_user_id) === String(selected.student.user_id)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
+    return primaryGoalOf(goals, selected.student.user_id);
   }, [goals, selected]);
 
   const selectedLatestWork = useMemo(() => {

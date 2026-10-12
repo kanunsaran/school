@@ -22,6 +22,7 @@ import {
 import { gradeLabel } from "../utils/gradeLabel.js";
 import { notAvailableYet } from "../utils/feedShared.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
+import { primaryGoalOf } from "../utils/goals.js";
 
 const GOAL_FILTER_OPTIONS = [
   { value: "all", label: "เป้าหมาย: ทั้งหมด" },
@@ -521,7 +522,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
   const selectedScorePct = selectedStudent ? computeScorePct(selectedStudent.user_id) : null;
 
   const selectedGoal = selectedStudent
-    ? goals.filter((g) => String(g.user_user_id) === String(selectedStudent.user_id)).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
+    ? primaryGoalOf(goals, selectedStudent.user_id)
     : null;
 
   const selectedTypeResult = selectedStudent
