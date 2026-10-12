@@ -17,7 +17,7 @@ import PageLoading from "../components/PageLoading.jsx";
 import Avatar from "../components/Avatar.jsx";
 import {
   getStudent, getEnrollments, getClasses, getAssAll, getAllSubmissions,
-  getGoals, getTypeResults, getTypes, getFaculties, getStudentAttendanceSummary, getStudentGeneralInfo,
+  getGoals, getTypeResults, getTypes, getFaculties, getStudentAttendanceSummary, getStudentGeneralInfo, getStudentGrades,
 } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import { notAvailableYet } from "../utils/feedShared.js";
@@ -521,6 +521,17 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
   const selectedStatus = statusFromAttendance(selectedAttendancePct);
   const selectedScorePct = selectedStudent ? computeScorePct(selectedStudent.user_id) : null;
 
+  // เกรดเฉลี่ยที่นักเรียนกรอกเองในหน้าเป้าหมาย (GPAX ม.ปลาย + รายวิชาหลัก)
+  const [studentGrades, setStudentGrades] = useState({});
+  useEffect(() => {
+    const id = selectedStudent?.user_id;
+    if (!id || id in studentGrades) return;
+    getStudentGrades(id)
+      .then((g) => setStudentGrades((p) => ({ ...p, [id]: g })))
+      .catch(() => setStudentGrades((p) => ({ ...p, [id]: null })));
+  }, [selectedStudent?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedGrades = selectedStudent ? studentGrades[selectedStudent.user_id] : undefined;
+
   const selectedGoal = selectedStudent
     ? primaryGoalOf(goals, selectedStudent.user_id)
     : null;
@@ -828,7 +839,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full sm:w-auto shrink-0">
                     <MiniStat label="คะแนนเฉลี่ย" value={selectedScorePct != null ? `${selectedScorePct}%` : "-"} valueClass="text-pink-600" />
                     <MiniStat label="การมาเรียน" value={selectedAttendancePct != null ? `${selectedAttendancePct}%` : "-"} valueClass="text-emerald-600" />
-                    <MiniStat label="เป้าหมาย" value={selectedGoal?.career_field || "ยังไม่ตั้ง"} small />
+                    <MiniStat label="เป้าหมาย" value={selectedGoal?.faculty_name || selectedGoal?.career_field || "ยังไม่ตั้ง"} small />
                     <MiniStat label="ผล Holland" value={selectedType?.type_name || "ยังไม่ทำ"} small />
                   </div>
                 </div>
@@ -940,7 +951,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   ) : (
                     <>
                       <InfoRow label="เป้าหมาย" value={selectedGoal.goal_text} />
-                      <InfoRow label="สายอาชีพที่สนใจ" value={selectedGoal.career_field || "-"} />
+                      {selectedGoal.career_field && <InfoRow label="สายอาชีพที่สนใจ" value={selectedGoal.career_field} />}
                       <InfoRow label="คณะที่อยากเข้า" value={selectedGoal.faculty_name || "-"} />
                       {selectedGoal.university_name && <InfoRow label="มหาวิทยาลัย" value={selectedGoal.university_name} />}
                     </>
@@ -949,10 +960,32 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
               )}
 
               {activeTab === "grades" && (
-                <InfoCard title="ผลการเรียน (สะสมจากงานที่ส่ง)">
-                  <div className="mb-3 text-[14px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
-                    ระบบยังไม่มีแนวคิดวิชา/หน่วยกิต/เกรดรายภาคเรียน จึงแสดงเป็นคะแนนสะสมจากงานที่ส่งจริงแทน GPA/GPAX
+                <InfoCard title="ผลการเรียน">
+                  <div className="mb-4 rounded-xl border border-pink-100 bg-pink-50/50 px-4 py-3">
+                    <div className="text-[13.5px] text-gray-500">เกรดเฉลี่ยที่นักเรียนกรอก (หน้าเป้าหมาย)</div>
+                    {selectedGrades === undefined ? (
+                      <div className="text-[15px] text-gray-400">กำลังโหลด...</div>
+                    ) : !selectedGrades || selectedGrades.gpax == null ? (
+                      <div className="text-[15px] text-gray-400">นักเรียนยังไม่ได้กรอกเกรด</div>
+                    ) : (
+                      <>
+                        <div className="text-[22px] font-bold text-pink-600">
+                          GPAX {Number(selectedGrades.gpax).toFixed(2)}
+                          {selectedGrades.as_of_term && <span className="ml-2 text-[14px] font-normal text-gray-500">นับถึง ม.{selectedGrades.as_of_term}</span>}
+                        </div>
+                        {Object.keys(selectedGrades.subject_gpa || {}).length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {Object.entries(selectedGrades.subject_gpa).map(([k, v]) => (
+                              <span key={k} className="rounded-full bg-white border border-gray-200 px-2.5 py-0.5 text-[13px]">
+                                {k} <b>{Number(v).toFixed(2)}</b>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
+                  <div className="text-[14px] font-medium text-gray-600 mb-2">คะแนนสะสมจากงานที่ส่ง</div>
                   {selectedSubmissions.length === 0 ? (
                     <div className="text-[15px] text-gray-400 py-2">ยังไม่มีงานที่ให้คะแนนแล้ว</div>
                   ) : (

@@ -46,6 +46,7 @@ const announcementCommentsRouter = require('./routes/announcementcomments.routes
 const announcementLikesRouter = require('./routes/announcementlikes.routes');
 const classSubjectRouter = require('./routes/class_subject.routes');
 const gradesRouter = require('./routes/grades.routes');
+const studentGradesRouter = require('./routes/student_grades.routes');
 const attendanceRouter = require('./routes/attendance.routes');
 const attendanceSessionRouter = require('./routes/attendanceSession.routes');
 const feedPostsRouter = require('./routes/feed_posts.routes');
@@ -108,6 +109,7 @@ app.use('/announcement-comments', announcementCommentsRouter);
 app.use('/announcement-likes', announcementLikesRouter);
 app.use('/class', classSubjectRouter);
 app.use('/grades', gradesRouter);
+app.use('/student-grades', studentGradesRouter);
 app.use('/attendance', attendanceRouter);
 app.use('/attendance-session', attendanceSessionRouter);
 app.use('/feed-posts', feedPostsRouter);

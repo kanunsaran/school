@@ -35,3 +35,14 @@ export const sortGoals = (goals) =>
 export const goalsOf = (goals, userId) => sortGoals((goals || []).filter((g) => String(g.user_user_id) === String(userId) && !g.deleted_at));
 
 export const primaryGoalOf = (goals, userId) => goalsOf(goals, userId)[0] || null;
+
+// ---------- เกรดเฉลี่ย ----------
+export const GRADE_TERMS = ["4/1", "4/2", "5/1", "5/2", "6/1", "6/2"];
+export const GRADE_SUBJECTS = ["คณิตศาสตร์", "วิทยาศาสตร์", "ภาษาไทย", "ภาษาอังกฤษ", "สังคมศึกษา"];
+// วิชาในคอลัมน์ "วิชาที่ควรเน้น" → กลุ่มสาระที่นักเรียนกรอกเกรดไว้
+const SUBJECT_GROUP = { ฟิสิกส์: "วิทยาศาสตร์", เคมี: "วิทยาศาสตร์", ชีววิทยา: "วิทยาศาสตร์", "อังกฤษ": "ภาษาอังกฤษ" };
+export const gradeForSubject = (grades, subject) => {
+  const key = SUBJECT_GROUP[subject] || subject;
+  const v = grades?.subject_gpa?.[key];
+  return v == null ? null : Number(v);
+};

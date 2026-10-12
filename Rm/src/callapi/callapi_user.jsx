@@ -1042,6 +1042,23 @@ export async function createGoal({ user_user_id, goal_text, faculty_name, univer
   }
 }
 
+// เกรดเฉลี่ยของนักเรียน (GPAX ม.ปลาย + เกรดรายวิชาหลัก) — null ถ้ายังไม่เคยกรอก
+export async function getStudentGrades(userId) {
+  const response = await axios.get(`${api}/student-grades/${userId}`, {
+    headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+  });
+  return response.data;
+}
+
+export async function saveStudentGrades(userId, { gpax, as_of_term, subject_gpa }) {
+  const response = await axios.put(
+    `${api}/student-grades/${userId}`,
+    { gpax, as_of_term, subject_gpa },
+    { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+  );
+  return response.data;
+}
+
 // ลบเป้าหมาย (soft delete) — backend เรียงลำดับเป้าหมายที่เหลือใหม่ให้
 export async function deleteGoal(goalId) {
   const response = await axios.delete(`${api}/goal/${goalId}`, {

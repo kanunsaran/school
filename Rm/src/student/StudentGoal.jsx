@@ -4,11 +4,12 @@ import SidebarNav from "../navstudent";
 import Header from "../Header";
 import {
   FaGraduationCap, FaCompass, FaCamera, FaPlus, FaPen, FaTrashAlt, FaStar, FaChevronDown,
-  FaQuoteLeft, FaComments, FaCheckCircle, FaExclamationCircle, FaTimes, FaArrowRight, FaUniversity,
+  FaQuoteLeft, FaComments, FaCheckCircle, FaExclamationCircle, FaTimes, FaArrowRight, FaUniversity, FaClipboardList,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import {
   getStudent, getEnrollments, getClasses, getGoals, getStudentGeneralInfo, createGoal, updateGoal, deleteGoal, uploadStudentAvatar,
+  getStudentGrades, saveStudentGrades,
 } from "../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../utils/auth.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
@@ -17,7 +18,9 @@ import Avatar from "../components/Avatar.jsx";
 import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
 import { facultiesForCode, goalTargets, analyzeTarget, matchGoalFaculties } from "../utils/riasecScoring.js";
-import { goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor } from "../utils/goals.js";
+import {
+  goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor, GRADE_TERMS, GRADE_SUBJECTS, gradeForSubject,
+} from "../utils/goals.js";
 import uniData from "../data/universities.json";
 
 // หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้หลายข้อ (คณะ/สาขา + มหาวิทยาลัย + อาชีพ) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
@@ -49,7 +52,7 @@ function SectionTitle({ icon, title, subtitle, action }) {
 }
 
 // การ์ดเป้าหมาย 1 ข้อ
-function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary, busy }) {
+function GoalCard({ goal, rank, total, analysis, grades, onEdit, onDelete, onMakePrimary, busy }) {
   const [open, setOpen] = useState(rank === 0);
   const f = analysis?.faculty || analysis?.match?.rows?.[0] || null;
   const primary = rank === 0;
@@ -129,11 +132,15 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
               </div>
             )}
             <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {f.subjects.map((s) => (
-                <span key={s} className="rounded-full bg-white border border-gray-200 px-2.5 py-0.5 text-[12.5px] text-gray-700">
-                  {s}
-                </span>
-              ))}
+              {f.subjects.map((s) => {
+                const g = gradeForSubject(grades, s);
+                return (
+                  <span key={s} className="rounded-full bg-white border border-gray-200 px-2.5 py-0.5 text-[12.5px] text-gray-700" title={g != null ? "เกรดเฉลี่ยของคุณ" : undefined}>
+                    {s}
+                    {g != null && <b className="ml-1 text-pink-600">{g.toFixed(2)}</b>}
+                  </span>
+                );
+              })}
               <span className="rounded-full bg-pink-50 border border-pink-100 px-2.5 py-0.5 text-[12.5px] text-pink-700">{f.track}</span>
             </div>
           </div>
@@ -302,6 +309,98 @@ function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave 
   );
 }
 
+// หน้าต่างกรอกเกรด — GPAX ม.ปลาย (บังคับ) + เกรดเฉลี่ยรายวิชาหลัก (ไม่บังคับ)
+function GradeModal({ initial, saving, onCancel, onSave }) {
+  const [gpax, setGpax] = useState(initial?.gpax != null ? String(initial.gpax) : "");
+  const [term, setTerm] = useState(initial?.as_of_term || "");
+  const [subjects, setSubjects] = useState(() =>
+    Object.fromEntries(GRADE_SUBJECTS.map((k) => [k, initial?.subject_gpa?.[k] != null ? String(initial.subject_gpa[k]) : ""]))
+  );
+  const bad = (v) => v !== "" && !(Number(v) >= 0 && Number(v) <= 4);
+  const invalid = gpax === "" || bad(gpax) || Object.values(subjects).some(bad);
+  const input = "h-11 w-full rounded-xl border px-3.5 text-[15px] outline-none focus:border-pink-400";
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onCancel()}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!invalid) onSave({ gpax: Number(gpax), as_of_term: term || null, subject_gpa: Object.fromEntries(Object.entries(subjects).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])) });
+        }}
+        className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92dvh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
+          <h3 className="text-[18px] font-semibold text-gray-900">เกรดเฉลี่ยของฉัน</h3>
+          <button type="button" onClick={onCancel} aria-label="ปิด" className="h-8 w-8 rounded-lg text-gray-400 hover:bg-gray-100 bg-transparent !p-0 flex items-center justify-center">
+            <FaTimes className="text-[13px]" />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-[14px] font-medium text-gray-700">GPAX สะสม</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                max="4"
+                value={gpax}
+                onChange={(e) => setGpax(e.target.value)}
+                placeholder="เช่น 3.45"
+                className={`mt-1 ${input} ${bad(gpax) ? "border-rose-300" : "border-gray-200"}`}
+              />
+            </label>
+            <label className="block">
+              <span className="text-[14px] font-medium text-gray-700">นับถึงภาคเรียน</span>
+              <select value={term} onChange={(e) => setTerm(e.target.value)} className={`mt-1 ${input} border-gray-200 bg-white`}>
+                <option value="">ไม่ระบุ</option>
+                {GRADE_TERMS.map((t) => (
+                  <option key={t} value={t}>
+                    ม.{t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div>
+            <div className="text-[14px] font-medium text-gray-700">
+              เกรดเฉลี่ยรายวิชา <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
+            </div>
+            <div className="text-[12.5px] text-gray-500 mb-2">ใช้เทียบกับ “วิชาที่ควรเน้น” ของแต่ละเป้าหมาย</div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {GRADE_SUBJECTS.map((k) => (
+                <label key={k} className="block">
+                  <span className="text-[13px] text-gray-600">{k}</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0"
+                    max="4"
+                    value={subjects[k]}
+                    onChange={(e) => setSubjects((p) => ({ ...p, [k]: e.target.value }))}
+                    placeholder="-"
+                    className={`mt-0.5 h-10 w-full rounded-xl border px-3 text-[15px] outline-none focus:border-pink-400 ${bad(subjects[k]) ? "border-rose-300" : "border-gray-200"}`}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+          {invalid && gpax !== "" && <p className="text-[13px] text-rose-600">เกรดต้องอยู่ระหว่าง 0.00 – 4.00</p>}
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <button type="button" onClick={onCancel} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-gray-600 text-[15px] hover:bg-gray-50">
+            ยกเลิก
+          </button>
+          <button type="submit" disabled={saving || invalid} className="h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:!bg-pink-200 text-white text-[15px] font-semibold">
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function StudentGoalPage() {
   const navigate = useNavigate();
   // อ่านผู้ใช้ตอนเปิดหน้า (ไม่ใช่ตอนโหลดแอป) — ไม่มีค่าสำรองเป็นนักเรียนคนอื่น
@@ -311,6 +410,8 @@ export default function StudentGoalPage() {
   const [modal, setModal] = useState(null); // { mode: "add" } | { mode: "edit", goal }
   const [busy, setBusy] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [grades, setGrades] = useState(null); // null = ยังไม่เคยกรอก
+  const [gradeModal, setGradeModal] = useState(false);
   const riasec = useMyRiasec();
   const latestRiasec = riasec.latest && !riasec.latest.legacy ? riasec.latest : null;
 
@@ -338,7 +439,21 @@ export default function StudentGoalPage() {
       });
     })();
     loadGoals();
+    getStudentGrades(CURRENT_STUDENT_ID).then(setGrades).catch(() => setGrades(null));
   }, [CURRENT_STUDENT_ID, loadGoals]);
+
+  const saveGrades = async (payload) => {
+    setBusy(true);
+    try {
+      setGrades(await saveStudentGrades(CURRENT_STUDENT_ID, payload));
+      setGradeModal(false);
+      Swal.fire({ icon: "success", title: "บันทึกเกรดแล้ว", timer: 1300, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire("บันทึกไม่สำเร็จ", err?.response?.data?.message || "ลองใหม่อีกครั้ง", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   // ความสอดคล้องของแต่ละเป้าหมาย (ใช้รายการแรกที่หาเจอ: คณะ → ข้อความ → อาชีพ)
   const analyses = useMemo(() => {
@@ -466,6 +581,24 @@ export default function StudentGoalPage() {
                       <FaCompass className="text-pink-500 text-[12px]" /> RIASEC <b className="text-pink-600">{latestRiasec.code}</b>
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setGradeModal(true)}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13.5px] border ${
+                      grades?.gpax != null ? "bg-white border-pink-100 hover:border-pink-300" : "!bg-pink-500 border-pink-500 text-white hover:!bg-pink-600"
+                    }`}
+                  >
+                    <FaClipboardList className={`text-[12px] ${grades?.gpax != null ? "text-pink-500" : ""}`} />
+                    {grades?.gpax != null ? (
+                      <>
+                        GPAX <b className="text-pink-600">{Number(grades.gpax).toFixed(2)}</b>
+                        {grades.as_of_term && <span className="text-gray-500">(ถึง ม.{grades.as_of_term})</span>}
+                        <FaPen className="text-[10px] text-gray-400" />
+                      </>
+                    ) : (
+                      "+ กรอกเกรดเฉลี่ย"
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
@@ -496,6 +629,7 @@ export default function StudentGoalPage() {
                       rank={i}
                       total={goals.length}
                       analysis={analyses[g.goal_id]}
+                      grades={grades}
                       busy={busy}
                       onEdit={() => setModal({ mode: "edit", goal: g })}
                       onDelete={() => removeGoal(g)}
@@ -626,6 +760,7 @@ export default function StudentGoalPage() {
         </main>
       </div>
 
+      {gradeModal && <GradeModal initial={grades} saving={busy} onCancel={() => setGradeModal(false)} onSave={saveGrades} />}
       {modal && (
         <GoalModal
           title={modal.mode === "edit" ? "แก้ไขเป้าหมาย" : `เพิ่ม${GOAL_RANK_LABEL[goals?.length || 0]}`}
