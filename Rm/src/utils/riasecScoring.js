@@ -261,41 +261,34 @@ export const analyzeTarget = (data, result, target) => {
   };
 };
 
-// ---------- คำแนะนำเฉพาะบุคคล (เลือกข้อความจากคอลัมน์ในไฟล์ ไม่แต่งข้อมูลใหม่) ----------
-// focus = แถวคณะที่ใช้เป็นหลัก: คณะเป้าหมาย (ถ้ามี) ไม่งั้นคณะแรกที่รหัสแนะนำ
+// ---------- คำแนะนำเฉพาะบุคคล ----------
+// ทุกข้อความมาจากคอลัมน์ในไฟล์ข้อมูลคณะ–อาชีพ (Excel) ของ "คณะในเป้าหมายที่นักเรียนตั้ง" เท่านั้น
+// ถ้ายังไม่ตั้งเป้าหมาย/หาคณะในไฟล์ไม่เจอ จึงใช้คณะที่ไฟล์จับคู่กับรหัส RIASEC ของนักเรียนแทน (และบอกนักเรียนตรง ๆ)
 export const personalAdvice = (data, result, analyses = []) => {
-  const recommendedRows = facultiesForCode(data, result.code).flatMap((f) => f.rows);
-  const goalRows = analyses.map((a) => a.faculty);
-  const focusRows = goalRows.length ? goalRows : recommendedRows.slice(0, 1);
-  const uniq = (arr) => [...new Set(arr.filter(Boolean))];
-
-  // วิชาที่คณะซึ่งตรงกับรหัสใช้บ่อยที่สุด (นับจากคอลัมน์ "วิชาที่ควรเน้น")
-  const freq = {};
-  recommendedRows.forEach((r) => r.subjects.forEach((s) => (freq[s] = (freq[s] || 0) + 1)));
-  const commonSubjects = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([s]) => s);
-
-  const weakGoalDims = uniq(analyses.filter((a) => a.level !== "high").map((a) => a.faculty.dim));
+  const goalRows = [...new Map(analyses.map((a) => [a.faculty.name, a.faculty])).values()];
+  const usesGoal = goalRows.length > 0;
+  const focus = usesGoal ? goalRows : facultiesForCode(data, result.code).flatMap((f) => f.rows).slice(0, 2);
+  // ด้านของเป้าหมายที่ยังไม่อยู่ใน 3 อันดับแรก → ลักษณะเด่นของด้านนั้นจากชีต "คู่มือมิติ RIASEC"
+  const toExplore = [...new Set(goalRows.map((f) => f.dim))]
+    .filter((d) => !result.code.includes(d))
+    .map((d) => ({ code: d, traits: data.dimensions[d].traits, score: result.scores[d] }));
   return {
-    usesGoal: goalRows.length > 0,
-    focus: focusRows,
-    study: {
-      focusSubjects: focusRows.map((r) => ({ faculty: r.name, subjects: r.subjects })),
-      commonSubjects,
-    },
-    skills: {
-      strengths: result.code.split("").map((c) => ({ code: c, traits: data.dimensions[c].traits })),
-      focusSkills: focusRows.map((r) => ({ faculty: r.name, skills: r.skills, traits: r.traits })),
-      // ด้านของเป้าหมายที่ยังไม่อยู่ใน 3 อันดับแรก → ลักษณะของด้านนั้นตามคู่มือมิติ
-      toExplore: weakGoalDims.filter((d) => !result.code.includes(d)).map((d) => ({ code: d, traits: data.dimensions[d].traits, score: result.scores[d] })),
-    },
-    activities: uniq([...focusRows, ...recommendedRows].map((r) => r.advice)).slice(0, 4).map((text) => ({
-      text,
-      faculty: [...focusRows, ...recommendedRows].find((r) => r.advice === text).name,
+    usesGoal,
+    focus,
+    perFaculty: focus.map((f) => ({
+      name: f.name,
+      dim: f.dim,
+      subjects: f.subjects, // วิชาที่ควรเน้น
+      skills: f.skills, // ทักษะที่ควรพัฒนา
+      traits: f.traits, // ลักษณะ/คุณลักษณะที่คณะต้องการ
+      advice: f.advice, // คำแนะนำสำหรับนักเรียน
+      track: f.track, // สายการเรียนที่แนะนำ
+      exam: f.exam, // สิ่งที่ควรเตรียมสอบ
+      universities: f.universities, // มหาวิทยาลัยตัวอย่าง
+      careers: f.careers, // อาชีพที่เกี่ยวข้อง
+      programs: f.programs, // หลักสูตรที่พบใน myTCAS
+      link: f.links[0] || null,
     })),
-    prepare: focusRows.map((r) => ({ faculty: r.name, track: r.track, exam: r.exam, universities: r.universities, link: r.links[0] || null })),
-    careers: {
-      fromGoal: uniq(focusRows.flatMap((r) => r.careers)),
-      fromCode: data.codes[result.code].careers,
-    },
+    toExplore,
   };
 };

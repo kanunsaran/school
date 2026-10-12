@@ -27,10 +27,12 @@ import { resolveFileUrl } from "../utils/media.js";
 import Avatar from "../components/Avatar.jsx";
 import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
-import { facultiesForCode } from "../utils/riasecScoring.js";
+import { facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
 
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
 const API_BASE = API_BASE_URL;
+
+const GOAL_LEVEL = { high: { label: "สูง", cls: "text-emerald-600" }, medium: { label: "ปานกลาง", cls: "text-amber-600" }, low: { label: "ต่ำ", cls: "text-red-600" } };
 
 function CardHeader({ icon, title, subtitle, action }) {
   const Icon = icon;
@@ -149,7 +151,23 @@ export default function StudentGoalPage() {
     () => (latestRiasec ? facultiesForCode(riasec.data, latestRiasec.code).flatMap((f) => f.rows) : []),
     [riasec.data, latestRiasec]
   );
-  const recommendedTracks = useMemo(() => [...new Set(recommendedFaculties.map((f) => f.track))], [recommendedFaculties]);
+  // เป้าหมายที่บันทึกไว้ (ตัดข้อความแทนค่าว่างออก) → คณะในฐานข้อมูล + ความสอดคล้องกับผลทดสอบ
+  const goalForAdvice = useMemo(
+    () => ({
+      faculty_name: student.university === "ยังไม่ระบุคณะที่สนใจ" ? "" : student.university,
+      career_field: student.goal === "ยังไม่ได้ตั้งเป้าหมาย" ? "" : student.goal,
+      goal_text: student.inspiration,
+    }),
+    [student.university, student.goal, student.inspiration]
+  );
+  const goalAdvice = useMemo(() => {
+    if (!riasec.data) return [];
+    const seen = new Set();
+    return goalTargets(riasec.data, goalForAdvice)
+      .map((t) => (latestRiasec ? analyzeTarget(riasec.data, latestRiasec, t) : { faculty: t.match.rows[0], level: null }))
+      .filter((a) => (seen.has(a.faculty.name) ? false : seen.add(a.faculty.name)));
+  }, [riasec.data, goalForAdvice, latestRiasec]);
+  const otherRecommended = recommendedFaculties.filter((f) => !goalAdvice.some((a) => a.faculty.name === f.name));
 
   const handleChange = (field, value) => setTempStudent({ ...tempStudent, [field]: value });
 
@@ -334,43 +352,83 @@ export default function StudentGoalPage() {
             {/* LEFT */}
             <div className="space-y-6">
 
-              {/* Advice — derived from aptitude result */}
+              {/* Advice — เป้าหมายที่ตั้ง + ผลทดสอบ (ข้อมูลจากไฟล์ข้อมูลคณะ–อาชีพ) */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6">
                 <CardHeader
                   icon={FaBookOpen}
                   title="คำแนะนำการศึกษาต่อ"
-                  subtitle={latestRiasec ? `อ้างอิงจากผลทดสอบ (${latestRiasec.code})` : "อ้างอิงจากผลแบบทดสอบความถนัด"}
+                  subtitle={`อ้างอิงจากเป้าหมายที่ตั้งไว้${latestRiasec ? ` และผลทดสอบ (${latestRiasec.code})` : ""}`}
                 />
 
                 {riasec.loading ? (
                   <p className="text-[15px] text-gray-400">กำลังโหลด...</p>
-                ) : !latestRiasec ? (
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <p className="text-[15px] text-gray-500">ทำแบบทดสอบความถนัดก่อน แล้วระบบจะแนะนำคณะและสายการเรียนที่สัมพันธ์กับความสนใจของคุณ</p>
-                    <button type="button" onClick={() => navigate("/aptitudeIntro")} className="shrink-0 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[14px] font-medium">
-                      ทำแบบทดสอบ
-                    </button>
-                  </div>
                 ) : (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {recommendedFaculties.map((f) => (
-                        <div key={f.name} className="rounded-xl bg-gray-50 px-3.5 py-2.5 min-w-0">
-                          <p className="text-[15.5px] font-medium text-gray-800">✔ {f.name}</p>
-                          {f.universities.length > 0 && <p className="text-[13.5px] text-gray-500 mt-0.5">เช่น {f.universities.join(", ")}</p>}
+                  <div className="space-y-5">
+                    <div>
+                      <p className="text-[13.5px] font-semibold text-gray-500 mb-2">ตามเป้าหมายของคุณ</p>
+                      {goalAdvice.length === 0 ? (
+                        <p className="text-[14.5px] text-gray-500">
+                          {goalForAdvice.faculty_name || goalForAdvice.career_field
+                            ? "ยังไม่พบคณะ/อาชีพในเป้าหมายของคุณในฐานข้อมูล — กด “แก้ไขข้อมูล” แล้วเลือกชื่อคณะจากรายการ"
+                            : "ยังไม่ได้ตั้งเป้าหมาย — กด “แก้ไขข้อมูล” เพื่อเลือกคณะและอาชีพที่สนใจ"}
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          {goalAdvice.map(({ faculty: f, level }) => (
+                            <div key={f.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-4 py-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-[15.5px] font-semibold text-gray-800">{f.name}</p>
+                                {level && (
+                                  <span className={`shrink-0 text-[12.5px] font-semibold rounded-full px-2.5 py-0.5 bg-white ${GOAL_LEVEL[level].cls}`}>
+                                    สอดคล้อง{GOAL_LEVEL[level].label}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1.5 grid gap-0.5 text-[13.5px] text-gray-700 leading-6">
+                                <div><span className="text-gray-500">วิชาที่ควรเน้น:</span> {f.subjects.join(", ")}</div>
+                                <div><span className="text-gray-500">สายการเรียน:</span> {f.track}</div>
+                                <div><span className="text-gray-500">ทักษะที่ควรพัฒนา:</span> {f.skills}</div>
+                                <div><span className="text-gray-500">คำแนะนำ:</span> {f.advice}</div>
+                                <div><span className="text-gray-500">เตรียมสอบ:</span> {f.exam}</div>
+                                {f.universities.length > 0 && <div><span className="text-gray-500">มหาวิทยาลัยตัวอย่าง:</span> {f.universities.join(", ")}</div>}
+                              </div>
+                              {f.links[0] && (
+                                <a href={f.links[0]} target="_blank" rel="noreferrer" className="inline-block mt-1 text-[13px] text-sky-600 hover:underline">
+                                  ดูหลักสูตรใน myTCAS ↗
+                                </a>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <p className="text-[13.5px] text-gray-400 mb-1.5">สายการเรียนที่เหมาะสม</p>
-                      <ul className="text-[15.5px] text-gray-600 space-y-1">
-                        {recommendedTracks.map((t) => (
-                          <li key={t}>• {t}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </>
+                    {latestRiasec ? (
+                      otherRecommended.length > 0 && (
+                        <div className="pt-4 border-t border-gray-100">
+                          <p className="text-[13.5px] font-semibold text-gray-500 mb-2">สาขาอื่นที่ตรงกับผลทดสอบ ({latestRiasec.code})</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {otherRecommended.map((f) => (
+                              <div key={f.name} className="rounded-xl bg-gray-50 px-3.5 py-2.5 min-w-0">
+                                <p className="text-[15px] font-medium text-gray-800">✔ {f.name}</p>
+                                <p className="text-[13px] text-gray-500 mt-0.5">สายการเรียน: {f.track}</p>
+                                {f.universities.length > 0 && <p className="text-[13px] text-gray-500">เช่น {f.universities.join(", ")}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    ) : (
+                      <div className="pt-4 border-t border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+                        <p className="text-[14.5px] text-gray-500">ทำแบบทดสอบความถนัด เพื่อดูว่าเป้าหมายนี้สอดคล้องกับความสนใจของคุณแค่ไหน</p>
+                        <button type="button" onClick={() => navigate("/aptitudeIntro")} className="shrink-0 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[14px] font-medium">
+                          ทำแบบทดสอบ
+                        </button>
+                      </div>
+                    )}
+
+                    <p className="text-[12px] text-gray-400">ที่มา: ไฟล์ข้อมูลคณะ–อาชีพ–คำแนะนำ RIASEC ของงานแนะแนว และ myTCAS • เกณฑ์รับเข้าเปลี่ยนทุกปี ควรตรวจประกาศล่าสุด</p>
+                  </div>
                 )}
               </div>
             </div>

@@ -10,8 +10,11 @@ const run = (title, result, goal) => {
   const an = R.goalTargets(data, goal).map((t) => R.analyzeTarget(data, result, t));
   an.forEach((a) => console.log(`  [${a.source}] "${a.input}" → ${a.faculty.name} (มิติ ${a.faculty.dim}, คุณได้ ${a.dimScore}/50 อันดับ ${a.dimRank}) = ${a.level} (${a.reason})${a.bridges.length ? " | สาขาเชื่อม: " + a.bridges.map((b) => b.row.name + "[" + b.codes.join(",") + "]").join(", ") : ""}`));
   const adv = R.personalAdvice(data, result, an);
-  console.log("  คำแนะนำ: วิชา", JSON.stringify(adv.study.focusSubjects), "| วิชาที่ใช้บ่อย", adv.study.commonSubjects.join(","));
-  console.log("  สำรวจด้าน", adv.skills.toExplore.map((t) => t.code + " " + t.score).join(","), "| กิจกรรม", adv.activities.length, "| อาชีพ", adv.careers.fromGoal.slice(0, 3).join(","));
+  // คำแนะนำต้องใช้เฉพาะคณะในเป้าหมาย และทุกช่องต้องมาจากไฟล์ (ไม่ว่าง)
+  assert.deepEqual(adv.perFaculty.map((f) => f.name), [...new Set(an.map((a) => a.faculty.name))]);
+  adv.perFaculty.forEach((f) => ["subjects", "skills", "traits", "advice", "track", "exam", "careers"].forEach((k) => assert.ok(f[k] && f[k].length, `${f.name}.${k} ว่าง`)));
+  adv.perFaculty.forEach((f) => console.log(`  คำแนะนำ [${f.name}] วิชา: ${f.subjects.join(",")} | กิจกรรม: ${f.advice.slice(0, 40)}… | อาชีพ: ${f.careers.join(",")}`));
+  if (adv.toExplore.length) console.log("  ด้านที่ควรสำรวจ:", adv.toExplore.map((t) => `${t.code} (${t.score}/50)`).join(", "));
   return an;
 };
 const SIE = res({ R: 20, I: 40, A: 25, S: 46, E: 35, C: 15 });
@@ -37,5 +40,5 @@ an = run("ตั้งแค่อาชีพ", SIA, { faculty_name: "", career
 assert.equal(an[0].faculty.name, "พยาบาลศาสตร์");
 // 7) ไม่มีเป้าหมายในฐานข้อมูล → คำแนะนำใช้คณะที่รหัสแนะนำ
 const adv = R.personalAdvice(data, SIA, []);
-assert.equal(adv.usesGoal, false); assert.equal(adv.focus[0].name, data.codes.SIA.faculties[0]);
+assert.equal(adv.usesGoal, false); assert.equal(adv.focus[0].name, data.codes.SIA.faculties[0]); assert.equal(adv.perFaculty.length, 2);
 console.log("\nผ่านทุกกรณี ✓");
