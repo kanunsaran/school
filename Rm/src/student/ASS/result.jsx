@@ -184,7 +184,7 @@ function GoalHeader({ goal, focus, onEdit }) {
           แก้ไขเป้าหมาย →
         </button>
       </div>
-      <div className="mt-1.5 grid sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1 text-[14px]">
+      <div className="mt-1.5 grid sm:grid-cols-3 gap-x-4 gap-y-1 text-[14px]">
         <div>
           <span className="text-gray-500">คณะที่สนใจ: </span>
           <b>{goal.faculty_name || "-"}</b>
@@ -192,10 +192,6 @@ function GoalHeader({ goal, focus, onEdit }) {
         <div>
           <span className="text-gray-500">มหาวิทยาลัย: </span>
           <b>{goal.university_name || "-"}</b>
-        </div>
-        <div>
-          <span className="text-gray-500">อาชีพเป้าหมาย: </span>
-          <b>{goal.career_field || "-"}</b>
         </div>
         <div>
           <span className="text-gray-500">สาขาในฐานข้อมูล: </span>
@@ -385,8 +381,11 @@ export default function ResultPage() {
   const code = viewCode || latest?.code;
   // เป้าหมาย (คณะ/อาชีพ/ข้อความ) ที่หาเจอในฐานข้อมูล → วิเคราะห์ความสอดคล้องทีละรายการ
   const ready = data && latest && !latest.legacy && myGoal !== undefined;
-  const analyses = useMemo(() => (ready && myGoal ? goalTargets(data, myGoal).map((t) => analyzeTarget(data, latest, t)) : []), [ready, data, latest, myGoal]);
-  const myCareer = String(myGoal?.career_field || "").trim();
+  // ใช้คณะ/สาขาและข้อความเป้าหมาย (ไม่ใช้ช่องอาชีพแล้ว)
+  const analyses = useMemo(
+    () => (ready && myGoal ? goalTargets(data, { faculty_name: myGoal.faculty_name, goal_text: myGoal.goal_text }).map((t) => analyzeTarget(data, latest, t)) : []),
+    [ready, data, latest, myGoal]
+  );
   const advice = useMemo(() => (ready ? personalAdvice(data, latest, analyses) : null), [ready, data, latest, analyses]);
   // ส่วน B: คำแนะนำจากผล RIASEC (ไม่รวมสาขาที่อยู่ในเป้าหมาย เพื่อไม่ให้ซ้ำกับส่วน A)
   const goalNames = useMemo(() => analyses.map((a) => a.faculty.name), [analyses]);
@@ -394,8 +393,8 @@ export default function ResultPage() {
   const bAdvice = useMemo(() => (ready ? riasecAdvice(data, viewResult, goalNames) : null), [ready, data, viewResult, goalNames]);
   const resultCareers = useMemo(() => (ready ? careersForResult(data, viewResult) : []), [ready, data, viewResult]);
   const goalCareers = useMemo(
-    () => (ready && advice?.usesGoal ? careersForGoal(data, latest, advice.focus, myCareer) : []),
-    [ready, data, latest, advice, myCareer]
+    () => (ready && advice?.usesGoal ? careersForGoal(data, latest, advice.focus, "") : []),
+    [ready, data, latest, advice]
   );
 
   if (loading) {
@@ -703,7 +702,7 @@ export default function ResultPage() {
         ) : !hasGoal(myGoal) ? (
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <p className="text-[14.5px] text-gray-600">
-              ยังไม่ได้ตั้งเป้าหมาย — ตั้งเป้าหมายคณะ สาขา หรืออาชีพที่สนใจก่อน แล้วระบบจะเปรียบเทียบกับผลแบบทดสอบนี้และแนะนำวิธีเตรียมตัวให้
+              ยังไม่ได้ตั้งเป้าหมาย — ตั้งเป้าหมายคณะ/สาขาและมหาวิทยาลัยที่สนใจก่อน แล้วระบบจะเปรียบเทียบกับผลแบบทดสอบนี้และแนะนำวิธีเตรียมตัวให้
               ระหว่างนี้ใช้ “คำแนะนำจากผล RIASEC” ด้านบนเป็นแนวทางสำรวจตัวเองได้
             </p>
             <button type="button" onClick={() => navigate("/studentgoal")} className="shrink-0 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[13.5px] font-medium">
@@ -712,7 +711,7 @@ export default function ResultPage() {
           </div>
         ) : analyses.length === 0 ? (
           <p className="text-[14.5px] text-gray-600">
-            เป้าหมายของคุณคือ <b>{[myGoal.faculty_name, myGoal.career_field].filter(Boolean).join(" / ") || myGoal.goal_text}</b> — ยังไม่มีข้อมูลคณะหรืออาชีพนี้ในฐานข้อมูลของระบบ
+            เป้าหมายของคุณคือ <b>{myGoal.faculty_name || myGoal.goal_text || "-"}</b> — ยังไม่มีข้อมูลคณะนี้ในฐานข้อมูลของระบบ
             จึงยังเปรียบเทียบไม่ได้ ลองเลือกชื่อคณะจากรายการในหน้าเป้าหมาย หรือปรึกษาครูแนะแนว
           </p>
         ) : (
@@ -789,11 +788,6 @@ export default function ResultPage() {
               <li className="list-none">
                 <CareerList items={goalCareers} data={data} context="goal" />
               </li>
-              {myCareer && !goalCareers.some((c) => c.source === "goal") && (
-                <li className="list-none text-[13px] text-gray-500">
-                  อาชีพที่คุณตั้งไว้ ({myCareer}) ไม่อยู่ในรายการอาชีพของสาขานี้ในฐานข้อมูล — ลองปรึกษาครูแนะแนวว่าสาขาใดเกี่ยวข้อง
-                </li>
-              )}
             </AdviceBox>
           </div>
           <p className="text-[12.5px] text-gray-500 mt-3">

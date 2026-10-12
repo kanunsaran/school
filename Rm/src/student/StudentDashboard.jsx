@@ -196,7 +196,7 @@ export default function StudentDashboard() {
         });
 
         const myGoal = primaryGoalOf(goals, CURRENT_STUDENT_ID);
-        setGoal(myGoal ? { goal: myGoal.career_field || myGoal.goal_text, university: myGoal.faculty_name } : null);
+        setGoal(myGoal ? { goal: myGoal.faculty_name || myGoal.career_field || myGoal.goal_text, university: myGoal.university_name || "" } : null);
 
         const myTypeResult = typeResults
           .filter((r) => String(r.user_user_id) === String(CURRENT_STUDENT_ID))

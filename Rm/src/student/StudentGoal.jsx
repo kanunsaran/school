@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import SidebarNav from "../navstudent";
 import Header from "../Header";
 import {
-  FaGraduationCap, FaCompass, FaCamera, FaPlus, FaPen, FaTrashAlt, FaStar, FaChevronDown, FaBriefcase,
+  FaGraduationCap, FaCompass, FaCamera, FaPlus, FaPen, FaTrashAlt, FaStar, FaChevronDown,
   FaQuoteLeft, FaComments, FaCheckCircle, FaExclamationCircle, FaTimes, FaArrowRight, FaUniversity,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
@@ -16,7 +16,7 @@ import { resolveFileUrl } from "../utils/media.js";
 import Avatar from "../components/Avatar.jsx";
 import { API_BASE_URL } from "../config/api.js";
 import useMyRiasec from "../hooks/useMyRiasec.js";
-import { facultiesForCode, goalTargets, analyzeTarget, matchGoalFaculties, matchCareerFaculties } from "../utils/riasecScoring.js";
+import { facultiesForCode, goalTargets, analyzeTarget, matchGoalFaculties } from "../utils/riasecScoring.js";
 import { goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor } from "../utils/goals.js";
 import uniData from "../data/universities.json";
 
@@ -27,7 +27,7 @@ const LEVEL = {
   medium: { label: "สอดคล้องปานกลาง", cls: "bg-amber-50 text-amber-700 border-amber-200" },
   low: { label: "สอดคล้องต่ำ", cls: "bg-rose-50 text-rose-700 border-rose-200" },
 };
-const EMPTY_FORM = { faculty_name: "", university_name: "", career_field: "", goal_text: "" };
+const EMPTY_FORM = { faculty_name: "", university_name: "", goal_text: "" };
 const CARD = "rounded-2xl border border-gray-200 bg-white";
 
 function SectionTitle({ icon, title, subtitle, action }) {
@@ -105,11 +105,6 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
                 <FaUniversity className="text-[11px] text-pink-400" /> {goal.university_name}
               </div>
             )}
-            {goal.career_field && goal.faculty_name && (
-              <div className="text-[14px] text-gray-600 flex items-center gap-1.5 mt-0.5">
-                <FaBriefcase className="text-[11px] text-pink-400" /> {goal.career_field}
-              </div>
-            )}
           </div>
         </div>
         {goal.goal_text && (
@@ -179,7 +174,7 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
         <div className="px-5 pb-4">
           <div className="rounded-xl bg-amber-50 border border-amber-100 px-3.5 py-2.5 text-[13px] text-amber-800 flex gap-2">
             <FaExclamationCircle className="mt-0.5 shrink-0" />
-            ยังไม่พบคณะหรืออาชีพนี้ในฐานข้อมูล — กดแก้ไขแล้วเลือกชื่อจากรายการ เพื่อให้ระบบให้คำแนะนำได้
+            ยังไม่พบคณะนี้ในฐานข้อมูล — กดแก้ไขแล้วเลือกชื่อจากรายการ เพื่อให้ระบบให้คำแนะนำได้
           </div>
         </div>
       )}
@@ -192,21 +187,14 @@ function GoalCard({ goal, rank, total, analysis, onEdit, onDelete, onMakePrimary
 function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave }) {
   const [form, setForm] = useState(initial);
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
-  const match = useMemo(() => (data ? goalTargets(data, form) : []), [data, form]);
+  const match = useMemo(() => (data ? goalTargets(data, { faculty_name: form.faculty_name, goal_text: form.goal_text }) : []), [data, form.faculty_name, form.goal_text]);
   // มหาวิทยาลัยที่เปิดสอนสาขาที่เลือก (จากไฟล์ข้อมูลคณะ) — กดเพื่อเลือกได้เลย
   const facultyRows = useMemo(() => (data ? matchGoalFaculties(data, form.faculty_name)?.rows || [] : []), [data, form.faculty_name]);
   const uniChips = useMemo(() => [...new Set(facultyRows.flatMap((r) => r.universities.map(fullUniName)))], [facultyRows]);
-  // ใส่ชื่อคณะไว้ในช่องอาชีพ (เช่น "เทคนิคการแพทย์") → เสนอย้ายไปช่องคณะ
-  const careerIsFaculty = useMemo(() => {
-    const c = form.career_field.trim();
-    if (!data || !c || matchCareerFaculties(data, c)) return false;
-    return Boolean(data.faculties.find((f) => f.name === c) || data.aliases[c]);
-  }, [data, form.career_field]);
   const duplicate = otherGoals.some(
     (g) => form.faculty_name.trim() && g.faculty_name === form.faculty_name.trim() && (g.university_name || "") === form.university_name.trim()
   );
-  const careers = useMemo(() => [...new Set((data?.faculties || []).flatMap((f) => f.careers))], [data]);
-  const filled = form.faculty_name.trim() || form.career_field.trim();
+  const filled = form.faculty_name.trim();
   return (
     <div className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={(e) => e.target === e.currentTarget && onCancel()}>
       <form
@@ -265,16 +253,6 @@ function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave 
             </div>
           )}
           <label className="block">
-            <span className="text-[14px] font-medium text-gray-700">อาชีพที่อยากเป็น</span>
-            <input
-              value={form.career_field}
-              onChange={set("career_field")}
-              list="goal-career-options"
-              placeholder="เลือกหรือพิมพ์ เช่น นักออกแบบกราฟิก"
-              className="mt-1 w-full h-11 rounded-xl border border-gray-200 px-3.5 text-[15px] outline-none focus:border-pink-400"
-            />
-          </label>
-          <label className="block">
             <span className="text-[14px] font-medium text-gray-700">
               เหตุผล / แรงบันดาลใจ <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
             </span>
@@ -287,18 +265,6 @@ function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave 
             />
           </label>
 
-          {careerIsFaculty && (
-            <div className="rounded-xl bg-amber-50 text-amber-800 px-3.5 py-2.5 text-[13.5px] flex items-start justify-between gap-2">
-              <span>“{form.career_field}” เป็นชื่อคณะ/สาขา ไม่ใช่อาชีพ</span>
-              <button
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, faculty_name: p.faculty_name || p.career_field, career_field: "" }))}
-                className="shrink-0 text-[13px] font-semibold text-amber-900 underline bg-transparent !p-0"
-              >
-                {form.faculty_name ? "ล้างช่องอาชีพ" : "ย้ายไปช่องคณะ"}
-              </button>
-            </div>
-          )}
           {duplicate && (
             <div className="rounded-xl bg-amber-50 text-amber-800 px-3.5 py-2.5 text-[13.5px]">มีเป้าหมายคณะและมหาวิทยาลัยนี้อยู่แล้ว</div>
           )}
@@ -320,11 +286,6 @@ function GoalModal({ initial, title, data, saving, otherGoals, onCancel, onSave 
           <datalist id="goal-university-options">
             {uniData.universities.map((u) => (
               <option key={u} value={u} />
-            ))}
-          </datalist>
-          <datalist id="goal-career-options">
-            {careers.map((c) => (
-              <option key={c} value={c} />
             ))}
           </datalist>
         </div>
@@ -384,7 +345,7 @@ export default function StudentGoalPage() {
     if (!riasec.data || !goals) return {};
     const out = {};
     goals.forEach((g) => {
-      const t = goalTargets(riasec.data, g)[0];
+      const t = goalTargets(riasec.data, { faculty_name: g.faculty_name, goal_text: g.goal_text })[0];
       if (!t) return;
       out[g.goal_id] = latestRiasec ? analyzeTarget(riasec.data, latestRiasec, t) : { faculty: t.match.rows[0], level: null };
     });
@@ -404,9 +365,8 @@ export default function StudentGoalPage() {
       goal_text: form.goal_text.trim(),
       faculty_name: form.faculty_name.trim(),
       university_name: form.university_name.trim(),
-      career_field: form.career_field.trim(),
     };
-    if (!payload.faculty_name && !payload.career_field) return;
+    if (!payload.faculty_name) return;
     setBusy(true);
     try {
       if (modal.mode === "edit") await updateGoal(modal.goal.goal_id, payload);
@@ -522,7 +482,7 @@ export default function StudentGoalPage() {
                     <FaGraduationCap className="text-[24px]" />
                   </div>
                   <h3 className="mt-3 text-[18px] font-semibold text-gray-900">ยังไม่ได้ตั้งเป้าหมาย</h3>
-                  <p className="mt-1 text-[14.5px] text-gray-600">เลือกคณะหรืออาชีพที่อยากเป็น ระบบจะเทียบกับผลแบบทดสอบและแนะนำวิธีเตรียมตัวให้</p>
+                  <p className="mt-1 text-[14.5px] text-gray-600">เลือกคณะและมหาวิทยาลัยที่อยากเข้า ระบบจะเทียบกับผลแบบทดสอบและแนะนำวิธีเตรียมตัวให้</p>
                   <button type="button" onClick={openAdd} className="mt-4 h-10 px-5 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[15px] font-semibold inline-flex items-center gap-2">
                     <FaPlus className="text-[12px]" /> ตั้งเป้าหมายแรก
                   </button>
@@ -674,7 +634,6 @@ export default function StudentGoalPage() {
               ? {
                   faculty_name: modal.goal.faculty_name || "",
                   university_name: modal.goal.university_name || "",
-                  career_field: modal.goal.career_field || "",
                   goal_text: modal.goal.goal_text || "",
                 }
               : modal.preset || EMPTY_FORM
