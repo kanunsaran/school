@@ -292,3 +292,102 @@ export const personalAdvice = (data, result, analyses = []) => {
     toExplore,
   };
 };
+
+// ---------- ลำดับแบบรองรับคะแนนเท่ากัน ----------
+// อันดับ = 1 + จำนวนด้านที่ได้คะแนนมากกว่า (ด้านที่คะแนนเท่ากันได้อันดับเดียวกัน)
+export const denseRank = (scores, c) => 1 + RIASEC_ORDER.filter((x) => scores[x] > scores[c]).length;
+export const tiedWith = (scores, c) => RIASEC_ORDER.filter((x) => x !== c && scores[x] === scores[c]);
+
+// ---------- ส่วน B: คำแนะนำจากผล RIASEC (ไม่ขึ้นกับเป้าหมาย) ----------
+// ใช้ข้อมูลจริงจากไฟล์: ลักษณะเด่นของ 3 ด้านแรก, ความหมายของรหัส, และคอลัมน์ "คำแนะนำสำหรับนักเรียน" / "ทักษะที่ควรพัฒนา"
+// ของสาขาที่ไฟล์จับคู่กับรหัสของนักเรียน — ไม่รวมสาขาที่อยู่ในเป้าหมายแล้ว (ส่วน A แสดงอยู่) เพื่อไม่ให้ซ้ำ
+export const riasecAdvice = (data, result, excludeNames = []) => {
+  const codes = [result.code, ...result.alternativeCodes];
+  const rows = [];
+  codes.forEach((code) =>
+    facultiesForCode(data, code).forEach((f) =>
+      f.rows.forEach((r) => {
+        if (!excludeNames.includes(r.name) && !rows.some((x) => x.row.name === r.name)) rows.push({ row: r, code });
+      })
+    )
+  );
+  // สาขาที่อยู่กลุ่มด้านเด่นอันดับต้นของนักเรียนมาก่อน (ไม่ใช้ลำดับในไฟล์)
+  const w = (dim) => (result.code.indexOf(dim) >= 0 ? 3 - result.code.indexOf(dim) : 0);
+  rows.sort((a, b) => w(b.row.dim) - w(a.row.dim));
+  return {
+    strengths: result.code.split("").map((c) => ({ code: c, traits: data.dimensions[c].traits, rank: denseRank(result.scores, c), tied: tiedWith(result.scores, c) })),
+    workStyles: codes.map((c) => ({ code: c, meaning: data.codes[c].meaning })),
+    activities: rows.slice(0, 3).map(({ row }) => ({ faculty: row.name, text: row.advice })),
+    skills: rows.slice(0, 3).map(({ row }) => ({ faculty: row.name, text: row.skills })),
+    explore: rows,
+  };
+};
+
+// ---------- อาชีพที่เกี่ยวข้อง (ไม่เกิน 3) ----------
+// แถวคณะที่มีอาชีพนี้ — ตรงตัวก่อน ไม่งั้นใช้ชื่อที่ขึ้นต้นเหมือนกันอย่างน้อย 4 ตัวอักษร
+// (ไฟล์เขียนชื่ออาชีพต่างกันเล็กน้อยระหว่างชีต เช่น "พยาบาล" กับ "พยาบาลวิชาชีพ", "เภสัชกรชุมชน" กับ "เภสัชกรโรงพยาบาล")
+const commonPrefix = (a, b) => {
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  return i;
+};
+const careerFacultyRows = (data, career, within = data.faculties) => {
+  const exact = within.filter((f) => f.careers.includes(career));
+  if (exact.length) return exact;
+  return within.filter((f) => f.careers.some((c) => commonPrefix(c, career) >= Math.min(4, career.length)));
+};
+
+// 4.1 ใต้ผล RIASEC: อาชีพของรหัส (ตาราง 120 รหัส) มาก่อน แล้วจึงอาชีพของสาขาที่รหัสแนะนำ
+// เรียงตามความสัมพันธ์: อยู่ในรายการของรหัสโดยตรง + สาขาที่อาชีพนั้นอยู่ตรงกับด้านอันดับสูงของนักเรียน
+export const careersForResult = (data, result, limit = 3) => {
+  const weight = (dim) => (result.code.indexOf(dim) >= 0 ? 3 - result.code.indexOf(dim) : 0);
+  const recommended = facultiesForCode(data, result.code).flatMap((f) => f.rows);
+  const cand = new Map();
+  const add = (career, base, via) => {
+    const near = careerFacultyRows(data, career, recommended);
+    const rows = near.length ? near : careerFacultyRows(data, career);
+    const best = rows.sort((a, b) => weight(b.dim) - weight(a.dim))[0] || via || null;
+    const score = base + (best ? weight(best.dim) : 0);
+    const cur = cand.get(career);
+    if (!cur || score > cur.score) cand.set(career, { title: career, score, faculty: best, source: base >= 10 ? "code" : "faculty" });
+  };
+  data.codes[result.code].careers.forEach((c) => add(c, 10));
+  recommended.forEach((r) => r.careers.forEach((c) => add(c, 0, r)));
+  return [...cand.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+};
+
+// 4.2 ใต้คำแนะนำตามเป้าหมาย: (1) อาชีพที่นักเรียนตั้งไว้ ถ้ามีในข้อมูลของสาขาเป้าหมาย
+// (2) อาชีพอื่นของสาขาเดียวกัน (สาขาที่มีอาชีพเป้าหมาย หรือสาขาแรกของเป้าหมาย)
+// (3) อาชีพต่อยอดจากสาขาอื่นในเป้าหมายเดียวกัน — ไม่เติมอาชีพจากสาขาอื่นที่นักเรียนไม่ได้เลือก ถ้ามีไม่ครบ 3 ก็แสดงเท่าที่มี
+export const careersForGoal = (data, result, goalRows, careerText, limit = 3) => {
+  const out = [];
+  const push = (title, source, faculty) => {
+    if (out.length < limit && !out.some((x) => x.title === title)) out.push({ title, source, faculty });
+  };
+  const mine = String(careerText || "").trim();
+  const isMine = (c) => Boolean(mine) && (c === mine || c.startsWith(mine) || mine.includes(c));
+  const primary = goalRows.find((f) => f.careers.some(isMine)) || goalRows[0];
+  if (!primary) return out;
+  primary.careers.filter(isMine).forEach((c) => push(c, "goal", primary));
+  primary.careers.forEach((c) => push(c, "faculty", primary));
+  goalRows.filter((f) => f !== primary).forEach((f) => f.careers.forEach((c) => push(c, isMine(c) ? "goal" : "extend", f)));
+  return out;
+};
+
+// ---------- จุดเด่นที่นำไปต่อยอดได้ ----------
+// จับคู่เฉพาะคำที่ปรากฏทั้งใน "ลักษณะเด่น" ของด้านเด่นนักเรียน และใน "คุณลักษณะที่คณะต้องการ"/"ทักษะที่ควรพัฒนา" ของสาขา
+// (ไม่มีคำตรงกัน = ไม่แสดง เพื่อไม่ฝืนจับคู่) — รายการคำด้านล่างใช้ช่วยค้นเท่านั้น ข้อความที่แสดงมาจากไฟล์ทั้งหมด
+const SHARED_WORDS = ["สื่อสาร", "วิเคราะห์", "ละเอียด", "รอบคอบ", "ระบบ", "ขั้นตอน", "ช่วยเหลือ", "ดูแล", "เข้าใจ", "สอน", "จินตนาการ", "แสดงออก", "โน้มน้าว", "ลงมือ", "เครื่องมือ", "ค้นคว้า", "ตั้งคำถาม", "ข้อมูล", "ธรรมชาติ", "สัตว์", "กฎเกณฑ์", "แข่งขัน"];
+export const transferableStrengths = (data, result, faculty) => {
+  const facultyText = `${faculty.traits} ${faculty.skills}`;
+  const phrases = facultyText.split(/[\s,]+|และ/).filter(Boolean);
+  const out = [];
+  result.code.split("").forEach((c) => {
+    SHARED_WORDS.forEach((w) => {
+      if (!data.dimensions[c].traits.includes(w) || !facultyText.includes(w)) return;
+      const phrase = phrases.find((p) => p.includes(w)) || w;
+      if (!out.some((x) => x.phrase === phrase)) out.push({ code: c, word: w, phrase });
+    });
+  });
+  return out;
+};

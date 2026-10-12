@@ -42,3 +42,82 @@ assert.equal(an[0].faculty.name, "พยาบาลศาสตร์");
 const adv = R.personalAdvice(data, SIA, []);
 assert.equal(adv.usesGoal, false); assert.equal(adv.focus[0].name, data.codes.SIA.faculties[0]); assert.equal(adv.perFaculty.length, 2);
 console.log("\nผ่านทุกกรณี ✓");
+
+// ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====
+console.log("\n===== ส่วน B / อาชีพ / คะแนนเท่ากัน =====");
+const check3 = (list, label) => {
+  assert.ok(list.length <= 3, `${label}: เกิน 3`);
+  assert.equal(new Set(list.map((c) => c.title)).size, list.length, `${label}: อาชีพซ้ำ`);
+};
+// ทุกรหัส 120 ตัว: อาชีพใต้ผล RIASEC ไม่เกิน 3 ไม่ซ้ำ และผูกกับข้อมูลจริง
+Object.keys(data.codes).forEach((code) => {
+  const r = R.resultFromScores(Object.fromEntries(R.RIASEC_ORDER.map((c) => [c, code.includes(c) ? 50 - code.indexOf(c) * 5 : 15])));
+  assert.equal(r.code, code);
+  const list = R.careersForResult(data, r);
+  check3(list, code);
+  list.forEach((c) => assert.ok(data.codes[code].careers.includes(c.title) || data.faculties.some((f) => f.careers.includes(c.title)), `${code}: ${c.title} ไม่มีในไฟล์`));
+});
+console.log("อาชีพใต้ผล RIASEC: ครบ 120 รหัส ≤3 ไม่ซ้ำ และมีในไฟล์ทุกรายการ ✓");
+
+// ตัวอย่าง SCI ในสเปก
+const SCI = res({ R: 20, I: 38, A: 18, S: 46, E: 25, C: 40 });
+assert.equal(SCI.code, "SCI");
+const bSCI = R.riasecAdvice(data, SCI);
+console.log("SCI ลักษณะงาน:", bSCI.workStyles[0].meaning, "| กิจกรรมจาก:", bSCI.activities.map((a) => a.faculty).join(", "));
+console.log("SCI อาชีพ:", R.careersForResult(data, SCI).map((c) => `${c.title} (${c.faculty?.name})`).join(", "));
+assert.ok(bSCI.activities.length > 0 && bSCI.skills.length > 0);
+
+// 3) สอดคล้องต่ำแต่ยังอยากเรียน — จุดเด่นที่ต่อยอดได้ต้องมาจากคำที่อยู่ทั้งสองฝั่ง
+const graphic = data.faculties.find((f) => f.name === "การออกแบบกราฟิก");
+const tr = R.transferableStrengths(data, SCI, graphic);
+console.log("SCI → การออกแบบกราฟิก จุดเด่นต่อยอด:", tr.map((x) => `${x.code}:${x.phrase}`).join(", "));
+tr.forEach((x) => { assert.ok(data.dimensions[x.code].traits.includes(x.word)); assert.ok(`${graphic.traits} ${graphic.skills}`.includes(x.phrase)); });
+// ไม่ฝืนจับคู่: ถ้าไม่มีคำร่วมต้องได้รายการว่าง
+const vet = data.faculties.find((f) => f.name === "สัตวแพทยศาสตร์");
+const E1 = res({ R: 10, I: 10, A: 30, S: 10, E: 50, C: 40 });
+console.log("ECA → สัตวแพทย์ จุดเด่นต่อยอด:", JSON.stringify(R.transferableStrengths(data, E1, vet)));
+
+// 5) คะแนนเท่ากันหลายด้าน — อันดับเท่ากัน ไม่อ้างว่าด้านใดเด่นกว่า
+const T = res({ R: 20, I: 40, A: 40, S: 40, E: 20, C: 10 });
+assert.deepEqual(["I", "A", "S"].map((c) => R.denseRank(T.scores, c)), [1, 1, 1]);
+assert.deepEqual(R.tiedWith(T.scores, "I"), ["A", "S"]);
+assert.ok(T.hasTie && T.alternativeCodes.length === 5);
+assert.equal(R.riasecAdvice(data, T).workStyles.length, 6); // แสดงความหมายของทุกรหัสที่เป็นไปได้
+console.log("คะแนนเท่ากัน I=A=S: อันดับ 1 ทั้งสามด้าน, รหัสที่เป็นไปได้", [T.code, ...T.alternativeCodes].join(", "), "✓");
+
+// 6) อาชีพในข้อมูลไม่ครบ 3 — แสดงเท่าที่มี ไม่สร้างเพิ่ม
+const fewRow = data.faculties.find((f) => f.careers.length < 3 && !Object.keys(data.codes).some((c) => R.facultiesForCode(data, c).some((x) => x.rows.includes(f))));
+if (fewRow) {
+  const l = R.careersForGoal(data, SCI, [fewRow], "");
+  console.log(`อาชีพไม่ครบ: ${fewRow.name} มี ${fewRow.careers.length} อาชีพ → แสดง ${l.length}:`, l.map((c) => c.title).join(", "));
+  assert.equal(l.length, fewRow.careers.length);
+} else {
+  const dent = data.faculties.find((f) => f.name === "ทันตแพทยศาสตร์");
+  const l = R.careersForGoal(data, SCI, [dent], "");
+  console.log("อาชีพไม่ครบ: ทันตแพทยศาสตร์ มี 2 อาชีพในชีตคณะ → แสดง", l.map((c) => `${c.title}[${c.source}]`).join(", "));
+  check3(l, "ทันตะ"); assert.equal(l.length, 2, "ต้องแสดงเท่าที่มี ไม่เติมจากสาขาอื่น");
+}
+
+// 7) อาชีพเป้าหมายซ้ำกับอาชีพของสาขา — แสดงครั้งเดียว และอยู่อันดับแรก
+const gl = R.careersForGoal(data, SCI, [graphic], "นักออกแบบกราฟิก");
+console.log("เป้าหมายอาชีพซ้ำกับสาขา:", gl.map((c) => `${c.title}[${c.source}]`).join(", "));
+check3(gl, "graphic"); assert.equal(gl[0].title, "นักออกแบบกราฟิก"); assert.equal(gl[0].source, "goal");
+
+// อาชีพต่อยอดจากสาขาอื่นในเป้าหมายเดียวกัน (คณะศิลปกรรม + การออกแบบกราฟิก)
+const two = [data.faculties.find((f) => f.name === "ศิลปกรรมศาสตร์ (ทัศนศิลป์)"), graphic];
+const tl = R.careersForGoal(data, SCI, two, "นักออกแบบกราฟิก");
+console.log("เป้าหมาย 2 สาขา:", tl.map((c) => `${c.title}[${c.source}]`).join(", "));
+assert.deepEqual(tl.map((c) => c.source), ["goal", "faculty", "faculty"]);
+assert.deepEqual(R.careersForGoal(data, SCI, two, "").map((c) => c.source), ["faculty", "faculty", "faculty"]);
+
+// 8) แก้ไขเป้าหมาย → คำแนะนำและอาชีพเปลี่ยนตาม
+const before = R.goalTargets(data, { faculty_name: "การออกแบบกราฟิก", career_field: "นักออกแบบกราฟิก" }).map((t) => R.analyzeTarget(data, SCI, t));
+const after = R.goalTargets(data, { faculty_name: "พยาบาลศาสตร์", career_field: "พยาบาล" }).map((t) => R.analyzeTarget(data, SCI, t));
+const advB = R.personalAdvice(data, SCI, before), advA = R.personalAdvice(data, SCI, after);
+assert.notDeepEqual(advB.perFaculty.map((f) => f.name), advA.perFaculty.map((f) => f.name));
+console.log("แก้เป้าหมาย: ก่อน", before.map((a) => `${a.faculty.name}=${a.level}`).join(","), "→ หลัง", after.map((a) => `${a.faculty.name}=${a.level}`).join(","),
+  "| อาชีพหลัง:", R.careersForGoal(data, SCI, advA.focus, "พยาบาล").map((c) => c.title).join(", "));
+// ส่วน B ไม่ซ้ำส่วน A
+const bEx = R.riasecAdvice(data, SCI, advA.focus.map((f) => f.name));
+assert.ok(!bEx.explore.some((x) => advA.focus.some((f) => f.name === x.row.name)));
+console.log("\nผ่านทุกกรณีเพิ่มเติม ✓");
