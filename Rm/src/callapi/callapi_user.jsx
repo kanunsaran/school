@@ -1067,12 +1067,18 @@ export async function getTypeResults() {
   }
 }
 
+// ผลแบบทดสอบ RIASEC ของนักเรียนคนเดียว (ใหม่สุดก่อน)
+export async function getTypeResultsByUser(userId) {
+  const response = await axios.get(`${api}/user_type_result`, { params: { user_user_id: userId } });
+  return response.data;
+}
+
 // รายชื่อ-คำอธิบายกลุ่มบุคลิกภาพ (Holland types) — [{type_id, type_code, type_name, description}]
 // บันทึกผลแบบทดสอบความถนัด (Holland) พร้อมคะแนนรายด้าน { R, I, A, S, E, C }
-export async function createTypeResult({ user_user_id, type_type_id, result_code, scores }) {
+export async function createTypeResult({ user_user_id, type_type_id, result_code, holland_code, scores }) {
   const response = await axios.post(
     `${api}/user_type_result`,
-    { user_user_id, type_type_id, result_code, scores, test_date: new Date() },
+    { user_user_id, type_type_id, result_code, holland_code, scores, test_date: new Date() },
     { headers: { "Content-Type": "application/json" } }
   );
   return response.data;

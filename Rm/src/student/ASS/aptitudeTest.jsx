@@ -5,6 +5,7 @@ import Header from "../../Header";
 import { FaChevronRight, FaChevronLeft } from "react-icons/fa";
 import { getTypes, createTypeResult } from "../../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../../utils/auth.js";
+import { ANSWER_SCALE, scoreRiasec } from "../../utils/riasecScoring.js";
 
 // RIASEC question bank — 10 statements per dimension (60 total).
 // The dimension code is only used for scoring; it is never shown to the test-taker.
@@ -102,13 +103,8 @@ const allQuestions = CODES.flatMap((code) => QUESTION_BANK[code].map((text) => (
 const questions = shuffle(allQuestions).map((q, i) => ({ id: i + 1, ...q }));
 const pages = Array.from({ length: TOTAL_PAGES }, (_, p) => questions.slice(p * PAGE_SIZE, p * PAGE_SIZE + PAGE_SIZE));
 
-const scale = [
-  { value: 1, label: "ไม่ชอบเลย" },
-  { value: 2, label: "ไม่ค่อยชอบ" },
-  { value: 3, label: "เฉย ๆ" },
-  { value: 4, label: "ชอบ" },
-  { value: 5, label: "ชอบมาก" },
-];
+// ระดับคำตอบตามไฟล์วิธีคิดคะแนน RIASEC (1 = น้อยที่สุด … 5 = ตรงกับฉันมากที่สุด)
+const scale = ANSWER_SCALE;
 
 export default function AptitudeTestPage() {
   const navigate = useNavigate();
@@ -135,25 +131,26 @@ export default function AptitudeTestPage() {
 
   const [saving, setSaving] = useState(false);
 
-  // คำนวณคะแนนรายด้าน แล้วบันทึกผลจริงลงระบบ (ครูเห็นในผลการประเมิน + กราฟ RIASEC ในรายงาน)
+  // คำนวณคะแนนตามไฟล์วิธีคิดคะแนน (รวมรายมิติ 10–50 → รหัส 3 ตัว) แล้วบันทึกผลจริงลงระบบ
   const submitResult = async () => {
-    const scores = CODES.reduce((acc, c) => ({ ...acc, [c]: 0 }), {});
-    questions.forEach((q) => { scores[q.code] += answers[q.id] || 0; });
-    const topCode = CODES.reduce((best, c) => (scores[c] > scores[best] ? c : best), CODES[0]);
+    const result = scoreRiasec(questions.map((q) => ({ code: q.code, value: answers[q.id] })));
+    const topCode = result.code[0];
     const me = getCurrentUser();
     setSaving(true);
+    let saved = false;
     try {
       const types = await getTypes();
       const type = (types || []).find((t) => t.type_code === topCode);
       if (me?.user_id && type) {
-        await createTypeResult({ user_user_id: me.user_id, type_type_id: type.type_id, result_code: topCode, scores });
+        await createTypeResult({ user_user_id: me.user_id, type_type_id: type.type_id, result_code: topCode, holland_code: result.code, scores: result.scores });
+        saved = true;
       }
     } catch (err) {
       console.error("บันทึกผลแบบทดสอบไม่สำเร็จ:", err);
     } finally {
       setSaving(false);
     }
-    navigate("/result", { state: { scores, topCode } });
+    navigate("/result", { state: { scores: result.scores, saveFailed: !saved } });
   };
 
   const handleNext = () => {
@@ -197,7 +194,7 @@ export default function AptitudeTestPage() {
             <br />
             (ตอบตามความจริง ไม่ใช่ตามที่คิดว่าควรจะเป็น)
             <br />
-            ระดับการตอบ (Likert Scale 5 ระดับ) 1 = ไม่ชอบเลย ... 5 = ชอบมาก
+            ระดับการตอบ 5 ระดับ: 1 = น้อยที่สุด … 5 = ตรงกับฉันมากที่สุด
           </p>
         </div>
 

@@ -26,50 +26,11 @@ import { gradeLabel } from "../utils/gradeLabel.js";
 import { resolveFileUrl } from "../utils/media.js";
 import Avatar from "../components/Avatar.jsx";
 import { API_BASE_URL } from "../config/api.js";
+import useMyRiasec from "../hooks/useMyRiasec.js";
+import { facultiesForCode } from "../utils/riasecScoring.js";
 
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
 const API_BASE = API_BASE_URL;
-
-// mirrors src/student/Ass/result.jsx — this is "the same student's" latest aptitude result,
-// so the study advice on this page is derived from the same RIASEC scores/maps shown there
-const resultsData = [
-  { code: "R", skill: "Realistic", score: 12 },
-  { code: "I", skill: "Investigative", score: 18 },
-  { code: "A", skill: "Artistic", score: 15 },
-  { code: "S", skill: "Social", score: 20 },
-  { code: "E", skill: "Enterprising", score: 17 },
-  { code: "C", skill: "Conventional", score: 10 },
-];
-
-const FACULTY_MAP = {
-  R: [{ name: "คณะวิศวกรรมศาสตร์", universities: ["มหาวิทยาลัยขอนแก่น", "จุฬาลงกรณ์มหาวิทยาลัย"] }],
-  I: [
-    { name: "คณะวิทยาศาสตร์", universities: ["มหาวิทยาลัยมหิดล", "มหาวิทยาลัยเชียงใหม่"] },
-    { name: "คณะแพทยศาสตร์", universities: ["มหาวิทยาลัยขอนแก่น", "จุฬาลงกรณ์มหาวิทยาลัย"] },
-  ],
-  A: [{ name: "คณะศิลปกรรมศาสตร์", universities: ["จุฬาลงกรณ์มหาวิทยาลัย", "มหาวิทยาลัยศิลปากร"] }],
-  S: [
-    { name: "คณะครุศาสตร์ / ศึกษาศาสตร์", universities: ["มหาวิทยาลัยขอนแก่น", "จุฬาลงกรณ์มหาวิทยาลัย"] },
-    { name: "คณะพยาบาลศาสตร์", universities: ["มหาวิทยาลัยมหิดล", "มหาวิทยาลัยขอนแก่น"] },
-  ],
-  E: [{ name: "คณะบริหารธุรกิจ", universities: ["จุฬาลงกรณ์มหาวิทยาลัย", "มหาวิทยาลัยธรรมศาสตร์"] }],
-  C: [{ name: "คณะบัญชี", universities: ["จุฬาลงกรณ์มหาวิทยาลัย", "มหาวิทยาลัยขอนแก่น"] }],
-};
-
-const STREAM_MAP = {
-  R: "สายวิทย์-คณิต หรือสายอาชีวะ/ช่างอุตสาหกรรม",
-  I: "สายวิทย์-คณิต",
-  A: "สายศิลป์-ภาษา หรือศิลป์-ทั่วไป",
-  S: "สายศิลป์-ภาษา หรือสายสุขภาพ",
-  E: "สายศิลป์-คำนวณ หรือบริหารธุรกิจ",
-  C: "สายวิทย์-คณิต หรือสายคอมพิวเตอร์",
-};
-
-const testHistory = [
-  { date: "20 พฤษภาคม 2569", topCodes: "SIE", latest: true },
-  { date: "15 กุมภาพันธ์ 2569", topCodes: "SAI", latest: false },
-  { date: "10 ตุลาคม 2568", topCodes: "SEI", latest: false },
-];
 
 function CardHeader({ icon, title, subtitle, action }) {
   const Icon = icon;
@@ -181,8 +142,14 @@ export default function StudentGoalPage() {
   ]);
   const [commentDraft, setCommentDraft] = useState("");
 
-  const top3Codes = useMemo(() => [...resultsData].sort((a, b) => b.score - a.score).slice(0, 3).map((d) => d.code), []);
-  const recommendedFaculties = useMemo(() => top3Codes.flatMap((c) => FACULTY_MAP[c] || []), [top3Codes]);
+  // ผลแบบทดสอบ RIASEC จริงของนักเรียน (ชุดเดียวกับหน้าผลแบบเต็ม)
+  const riasec = useMyRiasec();
+  const latestRiasec = riasec.latest && !riasec.latest.legacy ? riasec.latest : null;
+  const recommendedFaculties = useMemo(
+    () => (latestRiasec ? facultiesForCode(riasec.data, latestRiasec.code).flatMap((f) => f.rows) : []),
+    [riasec.data, latestRiasec]
+  );
+  const recommendedTracks = useMemo(() => [...new Set(recommendedFaculties.map((f) => f.track))], [recommendedFaculties]);
 
   const handleChange = (field, value) => setTempStudent({ ...tempStudent, [field]: value });
 
@@ -351,25 +318,42 @@ export default function StudentGoalPage() {
 
               {/* Advice — derived from aptitude result */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6">
-                <CardHeader icon={FaBookOpen} title="คำแนะนำการศึกษาต่อ" subtitle={`อ้างอิงจากผลทดสอบ (${top3Codes.join("")})`} />
+                <CardHeader
+                  icon={FaBookOpen}
+                  title="คำแนะนำการศึกษาต่อ"
+                  subtitle={latestRiasec ? `อ้างอิงจากผลทดสอบ (${latestRiasec.code})` : "อ้างอิงจากผลแบบทดสอบความถนัด"}
+                />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {recommendedFaculties.map((f, i) => (
-                    <div key={i} className="rounded-xl bg-gray-50 px-3.5 py-2.5">
-                      <p className="text-[15.5px] font-medium text-gray-800">✔ {f.name}</p>
-                      <p className="text-[13.5px] text-gray-500 mt-0.5">เช่น {f.universities.join(", ")}</p>
+                {riasec.loading ? (
+                  <p className="text-[15px] text-gray-400">กำลังโหลด...</p>
+                ) : !latestRiasec ? (
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-[15px] text-gray-500">ทำแบบทดสอบความถนัดก่อน แล้วระบบจะแนะนำคณะและสายการเรียนที่สัมพันธ์กับความสนใจของคุณ</p>
+                    <button type="button" onClick={() => navigate("/aptitudeIntro")} className="shrink-0 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[14px] font-medium">
+                      ทำแบบทดสอบ
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {recommendedFaculties.map((f) => (
+                        <div key={f.name} className="rounded-xl bg-gray-50 px-3.5 py-2.5 min-w-0">
+                          <p className="text-[15.5px] font-medium text-gray-800">✔ {f.name}</p>
+                          {f.universities.length > 0 && <p className="text-[13.5px] text-gray-500 mt-0.5">เช่น {f.universities.join(", ")}</p>}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-[13.5px] text-gray-400 mb-1.5">สายการเรียนที่เหมาะสม</p>
-                  <ul className="text-[15.5px] text-gray-600 space-y-1">
-                    {top3Codes.map((c) => (
-                      <li key={c}>• {STREAM_MAP[c]}</li>
-                    ))}
-                  </ul>
-                </div>
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-[13.5px] text-gray-400 mb-1.5">สายการเรียนที่เหมาะสม</p>
+                      <ul className="text-[15.5px] text-gray-600 space-y-1">
+                        {recommendedTracks.map((t) => (
+                          <li key={t}>• {t}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -392,40 +376,48 @@ export default function StudentGoalPage() {
                   }
                 />
 
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-[23.5px] font-bold text-pink-600">{top3Codes.join("")}</span>
-                  <span className="text-[14.5px] text-gray-500">
-                    {top3Codes.map((c) => resultsData.find((d) => d.code === c).skill).join(" • ")}
-                  </span>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-[13.5px] text-gray-400 mb-1">ประวัติการทำแบบทดสอบ</p>
-                  <div className="divide-y divide-gray-100">
-                    {testHistory.map((h, i) => (
-                      <div key={i} className="flex items-center justify-between py-2.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[15.5px] text-gray-700 truncate">{h.date}</span>
-                          {h.latest && (
-                            <span className="text-[13.5px] font-medium text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5 shrink-0">
-                              ล่าสุด
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-[15.5px] font-medium text-gray-500">{h.topCodes}</span>
-                          <button
-                            type="button"
-                            onClick={() => navigate("/result")}
-                            className="text-[14.5px] text-pink-500 hover:text-pink-700 transition"
-                          >
-                            ดูผล
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                {riasec.loading ? (
+                  <p className="text-[15px] text-gray-400">กำลังโหลด...</p>
+                ) : !latestRiasec ? (
+                  <p className="text-[15px] text-gray-500">ยังไม่มีผลแบบทดสอบที่มีคะแนนรายด้าน</p>
+                ) : (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-[23.5px] font-bold text-pink-600">{latestRiasec.code}</span>
+                    <span className="text-[14.5px] text-gray-500">
+                      {latestRiasec.code.split("").map((c) => riasec.data.dimensions[c].nameTh).join(" • ")}
+                    </span>
                   </div>
-                </div>
+                )}
+
+                {riasec.history.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-[13.5px] text-gray-400 mb-1">ประวัติการทำแบบทดสอบ</p>
+                    <div className="divide-y divide-gray-100">
+                      {riasec.history.slice(0, 5).map((h, i) => (
+                        <div key={i} className="flex items-center justify-between py-2.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[15.5px] text-gray-700 truncate">
+                              {new Date(h.date).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" })}
+                            </span>
+                            {i === 0 && <span className="text-[13.5px] font-medium text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5 shrink-0">ล่าสุด</span>}
+                          </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-[15.5px] font-medium text-gray-500">{h.legacy ? `${h.code} (ระบบเดิม)` : h.code}</span>
+                            {!h.legacy && (
+                              <button
+                                type="button"
+                                onClick={() => navigate("/result", { state: { scores: h.scores, date: h.date } })}
+                                className="text-[14.5px] text-pink-500 hover:text-pink-700 transition"
+                              >
+                                ดูผล
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Comments from teacher */}
