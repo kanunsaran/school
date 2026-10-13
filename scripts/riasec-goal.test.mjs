@@ -81,6 +81,31 @@ const names = (a) => a.explore.map((x) => x.row.name);
 console.log("SCI →", names(advSCI).join(", "), "| SCA →", names(advSCA).join(", "));
 assert.ok(names(advSCI).every((n) => R.facultiesForCode(data, "SCI").some((f) => f.rows.some((r) => r.name === n))), "คำแนะนำ SCI ต้องมาจากรหัส SCI เท่านั้น");
 assert.ok(names(advSCA).every((n) => R.facultiesForCode(data, "SCA").some((f) => f.rows.some((r) => r.name === n))), "คำแนะนำ SCA ต้องมาจากรหัส SCA เท่านั้น");
+// 14) กรณีจากสเปก: S42 C39 I36 A36 R35 E35
+const SP = res({ S: 42, C: 39, I: 36, A: 36, R: 35, E: 35 });
+assert.equal(SP.code, "SCI"); assert.deepEqual(SP.alternativeCodes, ["SCA"]);
+assert.equal(SP.differentiation, 42 - 35);
+assert.deepEqual(R.RIASEC_ORDER.map((c) => R.rankLabel(SP.scores, c)), ["อันดับร่วม 5", "อันดับร่วม 3", "อันดับร่วม 3", "อันดับ 1", "อันดับร่วม 5", "อันดับ 2"]);
+assert.deepEqual(R.RIASEC_ORDER.map((c) => R.scorePercent(SP.scores[c])), [70, 72, 72, 84, 70, 78]);
+// สาขาที่ควรสำรวจ ≤ 3 ทุกสาขามีลักษณะที่เชื่อมกับความสนใจเด่น และมาจากรหัสหลัก/ทางเลือกเท่านั้น
+const ex = R.exploreFaculties(data, SP, []);
+console.log("สาขาที่ควรสำรวจ:", ex.map((x) => `${x.row.name}[${x.code}]`).join(", "));
+assert.ok(ex.length <= 3 && ex.length > 0);
+ex.forEach((x) => { assert.ok(x.links.length > 0); assert.ok(["SCI", "SCA"].includes(x.code)); });
+// ไม่แนะนำสาขาที่ตั้งเป็นเป้าหมายแล้ว
+assert.ok(!R.exploreFaculties(data, SP, ["พยาบาลศาสตร์"]).some((x) => x.row.name === "พยาบาลศาสตร์"));
+// ทุกสาขาใน 120 รหัส: ≤ 3 และไม่มีสาขาที่ไม่มีความเชื่อมโยง
+Object.keys(data.codes).forEach((code) => {
+  const r = R.resultFromScores(Object.fromEntries(R.RIASEC_ORDER.map((c) => [c, code.includes(c) ? 50 - code.indexOf(c) * 5 : 15])));
+  const l = R.exploreFaculties(data, r, []);
+  assert.ok(l.length <= 3 && l.every((x) => x.links.length > 0), code);
+});
+// ข้อค้นพบความเชื่อมโยง: เงื่อนไขตรวจสอบได้ ไม่ขึ้นกับว่าด้านใดได้คะแนนสูงสุดเพียงอย่างเดียว
+const kind = (f) => R.analyzeTarget(data, SP, R.goalTargets(data, { faculty_name: f })[0]).kind;
+assert.equal(kind("พยาบาลศาสตร์"), "recommended");
+assert.equal(kind("การออกแบบกราฟิก"), "main"); // A อันดับร่วม 3 = ความสนใจเด่น
+assert.equal(kind("วิศวกรรมโยธา"), "partial");
+console.log("ข้อค้นพบ:", ["พยาบาลศาสตร์", "การออกแบบกราฟิก", "วิศวกรรมโยธา", "บัญชี"].map((f) => `${f}=${kind(f)}`).join(", "));
 console.log("\nผ่านทุกกรณี ✓");
 
 // ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====

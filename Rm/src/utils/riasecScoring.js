@@ -340,6 +340,40 @@ export const relatedAlternatives = (data, result, goalFaculty, excludeNames = []
     .slice(0, limit);
 };
 
+// ---------- ข้อค้นพบความเชื่อมโยง (แสดงแทนระดับ สูง/ปานกลาง/ต่ำ) ----------
+// ระดับ สูง/ปานกลาง/ต่ำ เดิม (alignResult) แบ่งอันดับ 1 กับอันดับ 2–3 เป็นเกณฑ์ที่โปรเจกต์ตั้งเอง ไม่มีในข้อมูลของโรงเรียน
+// จึงแสดง "สิ่งที่พบ" ตามเงื่อนไขที่ตรวจสอบได้จากข้อมูลจริงแทน (เรียงจากหลักฐานที่ชัดที่สุด):
+//  recommended — ตาราง 120 รหัสของงานแนะแนวจับคู่สาขานี้กับรหัสของนักเรียน (รวมรหัสทางเลือกเมื่อคะแนนเท่ากัน)
+//  main        — ด้านหลักของสาขา (คอลัมน์ "มิติ") อยู่ในความสนใจเด่นของนักเรียน (อันดับ 1–3 แบบนับคะแนนเท่ากัน)
+//  partial     — ด้านหลักไม่อยู่ในความสนใจเด่น แต่คุณลักษณะ/ทักษะของสาขาบางข้อเชื่อมกับความสนใจเด่น
+//  none        — ยังไม่พบความเชื่อมโยงจากข้อมูล
+export const findingKind = (data, result, aligned) => {
+  if (aligned.reason === "recommended") return "recommended";
+  if (aligned.rank <= 3) return "main";
+  return interestLinks(data, result, aligned.faculty).some((x) => x.mine) ? "partial" : "none";
+};
+
+// ---------- สาขาที่ควรสำรวจจากผล RIASEC (ไม่เกิน 3) ----------
+// ผู้สมัคร = สาขาที่ตาราง 120 รหัสแนะนำสำหรับรหัสของนักเรียน (รหัสหลัก + รหัสทางเลือกที่เกิดจากคะแนนเท่ากัน)
+// ต้องมีคุณลักษณะ/ทักษะของสาขาที่เชื่อมกับความสนใจเด่นอย่างน้อย 1 ข้อ (ไม่ใช้ตัวอักษรรหัสเป็นเหตุผลเดียว)
+// เรียง: อันดับของด้านหลักของสาขา (น้อยก่อน) → จำนวนด้านเด่นที่เชื่อมได้ → รหัสหลักก่อนรหัสทางเลือก • ไม่ครบ 3 ก็แสดงเท่าที่มี
+export const exploreFaculties = (data, result, excludeNames = [], limit = 3) => {
+  const codes = [result.code, ...(result.alternativeCodes || [])];
+  const seen = new Map();
+  codes.forEach((code, ci) =>
+    facultiesForCode(data, code).forEach((f) =>
+      f.rows.forEach((row) => {
+        if (excludeNames.includes(row.name) || seen.has(row.name)) return;
+        const links = interestLinks(data, result, row).filter((x) => x.mine);
+        if (links.length) seen.set(row.name, { row, code, codeIndex: ci, links, rank: denseRank(result.scores, row.dim) });
+      })
+    )
+  );
+  return [...seen.values()]
+    .sort((a, b) => a.rank - b.rank || b.links.length - a.links.length || a.codeIndex - b.codeIndex)
+    .slice(0, limit);
+};
+
 // วิเคราะห์ความสอดคล้องของเป้าหมาย 1 รายการกับผล RIASEC (รองรับคะแนนเท่ากัน)
 export const analyzeTarget = (data, result, target) => {
   const evaluated = target.match.rows.map((f) => alignResult(data, f, result));
@@ -353,6 +387,9 @@ export const analyzeTarget = (data, result, target) => {
     candidates: target.match.rows,
     dimScore: result.scores[best.faculty.dim],
     dimRank: best.rank,
+    // ข้อค้นพบที่ตรวจสอบได้จากข้อมูล (ใช้แสดงผลแทนการตัดสินระดับ)
+    links: interestLinks(data, result, best.faculty).filter((x) => x.mine),
+    kind: findingKind(data, result, best),
     alternatives: relatedAlternatives(data, result, best.faculty, target.match.rows.map((r) => r.name)),
   };
 };
@@ -391,6 +428,8 @@ export const personalAdvice = (data, result, analyses = []) => {
 
 // ---------- ลำดับแบบรองรับคะแนนเท่ากัน ----------
 // อันดับ = 1 + จำนวนด้านที่ได้คะแนนมากกว่า (ด้านที่คะแนนเท่ากันได้อันดับเดียวกัน)
+// ข้อความอันดับรูปแบบเดียวทั้งระบบ: "อันดับ 1" / "อันดับร่วม 3" (อันดับ = 1 + จำนวนด้านที่คะแนนมากกว่า)
+export const rankLabel = (scores, c) => `อันดับ${tiedWith(scores, c).length ? "ร่วม" : ""} ${denseRank(scores, c)}`;
 export const denseRank = (scores, c) => 1 + RIASEC_ORDER.filter((x) => scores[x] > scores[c]).length;
 export const tiedWith = (scores, c) => RIASEC_ORDER.filter((x) => x !== c && scores[x] === scores[c]);
 
@@ -422,15 +461,12 @@ export const riasecAdvice = (data, result, excludeNames = []) => {
 // ---------- อาชีพที่เกี่ยวข้อง (ไม่เกิน 3) ----------
 // แถวคณะที่มีอาชีพนี้ — ตรงตัวก่อน ไม่งั้นใช้ชื่อที่ขึ้นต้นเหมือนกันอย่างน้อย 4 ตัวอักษร
 // (ไฟล์เขียนชื่ออาชีพต่างกันเล็กน้อยระหว่างชีต เช่น "พยาบาล" กับ "พยาบาลวิชาชีพ", "เภสัชกรชุมชน" กับ "เภสัชกรโรงพยาบาล")
-const commonPrefix = (a, b) => {
-  let i = 0;
-  while (i < a.length && a[i] === b[i]) i++;
-  return i;
-};
 const careerFacultyRows = (data, career, within = data.faculties) => {
   const exact = within.filter((f) => f.careers.includes(career));
   if (exact.length) return exact;
-  return within.filter((f) => f.careers.some((c) => commonPrefix(c, career) >= Math.min(4, career.length)));
+  // ชื่อหนึ่งต้องเป็นคำขึ้นต้นของอีกชื่อทั้งคำ ("พยาบาล" ↔ "พยาบาลวิชาชีพ" ✓) — ไม่จับคู่แค่ต้นคำเหมือนกัน
+  // ("วิศวกรข้อมูล" ↔ "วิศวกรอุตสาหการ" ✗, "นักจัดกิจกรรม…" ↔ "นักจัดการสารสนเทศ" ✗) • หาไม่เจอ = ไม่ระบุสาขา
+  return within.filter((f) => f.careers.some((c) => c.length >= 4 && career.length >= 4 && (c.startsWith(career) || career.startsWith(c))));
 };
 
 // 4.1 ใต้ผล RIASEC: อาชีพของรหัส (ตาราง 120 รหัส) มาก่อน แล้วจึงอาชีพของสาขาที่รหัสแนะนำ
@@ -442,15 +478,15 @@ export const careersForResult = (data, result, limit = 3) => {
   const codes = [result.code, ...(result.alternativeCodes || [])];
   const recommended = [...new Set(codes.flatMap((c) => facultiesForCode(data, c).flatMap((f) => f.rows)))];
   const cand = new Map();
-  const add = (career, base, via) => {
+  const add = (career, base, via, code = null) => {
     const near = careerFacultyRows(data, career, recommended);
     const rows = near.length ? near : careerFacultyRows(data, career);
     const best = rows.sort((a, b) => weight(b.dim) - weight(a.dim))[0] || via || null;
     const score = base + (best ? weight(best.dim) : 0);
     const cur = cand.get(career);
-    if (!cur || score > cur.score) cand.set(career, { title: career, score, faculty: best, source: base >= 10 ? "code" : "faculty" });
+    if (!cur || score > cur.score) cand.set(career, { title: career, score, faculty: best, source: base >= 10 ? "code" : "faculty", code: code || cur?.code || null });
   };
-  codes.forEach((code) => data.codes[code].careers.forEach((c) => add(c, 10)));
+  codes.forEach((code) => data.codes[code].careers.forEach((c) => add(c, 10, null, code)));
   recommended.forEach((r) => r.careers.forEach((c) => add(c, 0, r)));
   return [...cand.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 };

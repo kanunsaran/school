@@ -27,10 +27,12 @@ import { GRADE_OPTIONS, readGradeReport, termGpa, groupOf } from "../utils/grade
 
 // หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้หลายข้อ (คณะ/สาขา + มหาวิทยาลัย + อาชีพ) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
 
-const LEVEL = {
-  high: { label: "สอดคล้องสูง", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  medium: { label: "สอดคล้องปานกลาง", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  low: { label: "สอดคล้องต่ำ", cls: "bg-rose-50 text-rose-700 border-rose-200" },
+// ข้อค้นพบความเชื่อมโยงกับผล RIASEC (findingKind) — ชุดเดียวกับหน้าผลแบบทดสอบ
+const FINDING = {
+  recommended: { label: "อยู่ในสาขาที่แนะนำสำหรับรหัสของคุณ", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  main: { label: "ลักษณะหลักตรงกับความสนใจเด่น", cls: "bg-sky-50 text-sky-700 border-sky-200" },
+  partial: { label: "พบความเชื่อมโยงบางด้าน", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  none: { label: "ยังไม่พบความเชื่อมโยงจากข้อมูล", cls: "bg-gray-50 text-gray-600 border-gray-200" },
 };
 const EMPTY_FORM = { faculty_name: "", university_name: "", goal_text: "" };
 const CARD = "rounded-2xl border border-gray-200 bg-white";
@@ -73,8 +75,8 @@ function GoalCard({ goal, rank, total, analysis, grades, onEdit, onDelete, onMak
               {primary && <FaStar className="text-[10px]" />}
               {GOAL_RANK_LABEL[rank]}
             </span>
-            {analysis?.level && (
-              <span className={`rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${LEVEL[analysis.level].cls}`}>{LEVEL[analysis.level].label}</span>
+            {analysis?.kind && (
+              <span className={`rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${FINDING[analysis.kind].cls}`}>{FINDING[analysis.kind].label}</span>
             )}
           </div>
           <div className="flex items-center gap-1 shrink-0">

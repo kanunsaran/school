@@ -88,7 +88,7 @@ function Round({ r, labels, gpax, defaultOpen }) {
     <details open={defaultOpen} className="rounded-lg border border-gray-100 bg-white">
       <summary className="cursor-pointer px-3 py-2 text-[13.5px] text-gray-800">
         <span className="font-medium">{r.project_name_th ? projectName(r.project_name_th) : "รับสมัครทั่วไป"}</span>
-        <span className="ml-1.5 text-pink-600 font-semibold">รับ {r.receive_student_number || "-"} คน</span>
+        <span className="ml-1.5 text-pink-600 font-semibold"> · รับ {r.receive_student_number || "-"} คน</span>
       </summary>
       <div className="px-3 pb-3 space-y-1.5 text-[13px] text-gray-700 leading-6">
         <div className="flex flex-wrap gap-1.5">
