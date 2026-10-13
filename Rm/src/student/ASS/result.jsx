@@ -38,6 +38,7 @@ const DIM_ACTIVITY = {
   E: { act: "ลองรับหน้าที่นำกลุ่ม เช่น เป็นหัวหน้าโครงการ จัดงาน หรือขายของในงานโรงเรียน", skill: "การวางแผน การโน้มน้าว การตัดสินใจ", observe: "ชอบเป็นผู้นำและผลักดันให้งานสำเร็จหรือไม่" },
   C: { act: "ลองดูแลข้อมูลหรืองานของกลุ่ม เช่น ทำตารางงาน หรือบันทึกรายรับ–รายจ่ายของชมรม", skill: "ความละเอียด การจัดระเบียบข้อมูล", observe: "รู้สึกพอใจเมื่องานเป็นระบบและถูกต้องหรือไม่" },
 };
+const DIM_EN = { R: "Realistic", I: "Investigative", A: "Artistic", S: "Social", E: "Enterprising", C: "Conventional" };
 const traitWords = (f, n = 2) => f.traits.split(/\s+และ|\s+/).map((x) => x.replace(/^และ/, "")).filter((x) => x.length > 2).slice(0, n);
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
@@ -53,10 +54,25 @@ const roadmapFor = (goalName) => [
 
 // ข้อค้นพบความเชื่อมโยงระหว่างความสนใจกับสาขาเป้าหมาย (findingKind ใน riasecScoring.js) — เงื่อนไขตรวจสอบได้จากข้อมูล ไม่ใช่การให้คะแนน
 const FINDING_META = {
-  recommended: { label: "อยู่ในสาขาที่แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 border-emerald-200", box: "bg-emerald-50 border-emerald-100" },
-  main: { label: "ลักษณะหลักของสาขาตรงกับความสนใจเด่น", cls: "text-sky-700 border-sky-200", box: "bg-sky-50 border-sky-100" },
-  partial: { label: "พบความเชื่อมโยงบางด้าน", cls: "text-amber-700 border-amber-200", box: "bg-amber-50 border-amber-100" },
-  none: { label: "ยังไม่พบความเชื่อมโยงจากข้อมูล", cls: "text-gray-600 border-gray-200", box: "bg-gray-50 border-gray-100" },
+  recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", box: "bg-white/70 border-emerald-100" },
+  main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "text-pink-700 bg-pink-50 border-pink-200", box: "bg-white/70 border-pink-100" },
+  partial: { label: "เชื่อมโยงบางด้าน", cls: "text-amber-700 bg-amber-50 border-amber-200", box: "bg-white/70 border-amber-100" },
+  none: { label: "ยังไม่พบความเชื่อมโยงชัดเจน", cls: "text-gray-600 bg-gray-50 border-gray-200", box: "bg-white/70 border-gray-200" },
+};
+// แตกคำแนะนำของสาขา (ประโยคยาวคั่นด้วยช่องว่าง) เป็นข้อ ๆ — ตัดข้อที่เป็นการเตรียมสอบออก (ดูในเกณฑ์รับเข้าจริงแทน)
+const GLUE_START = /^(เช่น|และ|หรือ|ให้|เพื่อ|ที่|ด้วย|ตาม|กับ|ของ|ตั้งแต่|เบื้องต้น|แล้ว|โดย|คณิต|ฟิสิกส์|เคมี|ชีว)/;
+const GLUE_END = /(เช่น|และ|หรือ|ให้|ด้วย|กับ|ของ)$/;
+const adviceSteps = (text) => {
+  const out = [];
+  String(text || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .forEach((tok) => {
+      const prev = out[out.length - 1];
+      if (prev && (tok === "ๆ" || /^[A-Za-z0-9(/]/.test(tok) || GLUE_START.test(tok) || GLUE_END.test(prev) || tok.length < 5)) out[out.length - 1] = `${prev} ${tok}`;
+      else out.push(tok);
+    });
+  return out.filter((x) => !/(?<!ตรวจ)สอบ|TPAT|TGAT|A-Level|PAT\d/.test(x));
 };
 const CONSISTENCY_META = {
   high: { label: "สูง", text: "ความสนใจ 2 อันดับแรกอยู่ติดกันบนหกเหลี่ยม RIASEC จึงไปในทิศทางเดียวกันชัดเจน" },
@@ -238,78 +254,73 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
   const meta = FINDING_META[a.kind];
   const codes = [latest.code, ...latest.alternativeCodes];
   const dimMine = denseRank(scores, dim) <= 3;
-  const mainLink = a.links.find((x) => x.code === dim);
-  const otherLinks = a.links.filter((x) => x.code !== dim);
-
-  // ผลการวิเคราะห์ 2–4 ประโยค: ลักษณะสาขา → ความสนใจที่เชื่อม → สิ่งที่ควรสำรวจ → ข้อจำกัด
-  const sentences = [`${nm(f.name)}เน้น${f.traits}`];
-  if (a.links.length) {
-    sentences.push(
-      `ซึ่งเชื่อมกับความสนใจ${joinTh(a.links.map((l) => NOUN(l.code)))}ของคุณได้`
-    );
-  } else {
-    sentences.push(`ข้อมูลยังไม่พบลักษณะของสาขาที่เชื่อมกับความสนใจเด่นของคุณโดยตรง`);
-  }
-  const work = [...(mainLink?.phrases || []), ...f.traits.split(/\s+และ|\s+/)].find((x) => x && !/^(ความสนใจ|พื้นฐาน|และ)/.test(x) && x.length > 3);
-  if (work) sentences.push(`ลองหาโอกาสทำงานที่ต้องใช้${work} เพื่อดูว่าคุณสนุกกับงานลักษณะนี้มากน้อยเพียงใด`);
-  sentences.push("ทั้งนี้ ผล RIASEC บอกความสนใจ ไม่ได้ยืนยันความพร้อมในการเรียนหรือโอกาสสอบติด");
-  const analysis = `${sentences[0]} ${sentences[1]} ${sentences.slice(2).join(" ")}`;
+  // ความเชื่อมโยงหลัก: ด้านหลักของสาขาก่อน (ถ้าเชื่อมได้) — ไม่ไล่จับคู่ทุกคุณลักษณะกับทุกด้าน
+  const link = a.links.find((x) => x.code === dim) || a.links[0];
+  const steps = adviceSteps(f.advice).slice(0, 2);
 
   return (
-    <div className={`rounded-xl border px-4 py-4 ${meta.box}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          {a.source === "text" && <div className="text-[12.5px] text-gray-500">จากข้อความเป้าหมายของคุณ</div>}
-          <div className="text-[16px] font-semibold text-gray-900">{f.name}</div>
-        </div>
-        <span className={`shrink-0 rounded-full border bg-white px-3 py-1 text-[13.5px] font-semibold ${meta.cls}`}>{meta.label}</span>
+    <div className={`rounded-2xl border px-4 py-4 sm:px-5 ${meta.box}`}>
+      <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${meta.cls}`}>{meta.label}</span>
+      <div className="mt-1.5 text-[18px] font-bold text-gray-900">{f.name}</div>
+      <div className="text-[13.5px] text-gray-600">
+        ด้าน {dim} — {DIM_EN[dim]} ({TRAIT_NOUN[dim]}) · {dimMine ? "หนึ่งในความสนใจเด่นของคุณ" : "ยังไม่ใช่ความสนใจเด่นจากแบบประเมินครั้งนี้"}
+        {a.reason === "recommended" && (
+          <span className="block text-[12.5px] text-emerald-700">
+            ข้อมูลแนะแนวของโรงเรียนแนะนำสาขานี้สำหรับรหัส {a.viaCode}
+            {a.viaCode !== latest.code ? " (รหัสทางเลือกของคุณ)" : ""}
+          </span>
+        )}
+        {a.source === "text" && <span className="block text-[12.5px] text-gray-500">จากข้อความเป้าหมายของคุณ</span>}
       </div>
 
-      <Block title="สิ่งที่ระบบพบจากข้อมูล">
-        <ul className="space-y-1">
-          <Finding ok={a.reason === "recommended"}>
-            {a.reason === "recommended"
-              ? `ข้อมูลแนะแนวของโรงเรียนแนะนำสาขานี้สำหรับรหัส ${a.viaCode}${a.viaCode !== latest.code ? " (รหัสทางเลือกของคุณ)" : ""}`
-              : `สาขานี้ไม่อยู่ในรายการที่ข้อมูลแนะแนวแนะนำสำหรับรหัส ${codes.join(" / ")}`}
-          </Finding>
-          <Finding ok={dimMine}>
-            ลักษณะหลักของสาขาคือ{NOUN(dim)} ({dim}) — {dimMine ? `เป็นหนึ่งในความสนใจเด่นของคุณ (${rankLabel(scores, dim)})` : "ยังไม่อยู่ในความสนใจเด่นของคุณจากแบบประเมินครั้งนี้"}
-          </Finding>
-          <Finding ok={a.links.length > 0}>
-            {a.links.length
-              ? `ลักษณะของสาขาที่เชื่อมกับความสนใจเด่น: ${a.links.map((l) => `${NOUN(l.code)} — ${l.phrases.slice(0, 2).join(", ")}`).join(" · ")}`
-              : "ยังไม่พบลักษณะของสาขาที่เชื่อมกับความสนใจเด่น"}
-          </Finding>
-        </ul>
+      <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
+        <p>
+          {link
+            ? `สาขานี้เน้น${joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน${TRAIT_NOUN[link.code]}ของคุณ`
+            : `สาขานี้เน้น${f.traits} ซึ่งยังไม่ตรงกับความสนใจเด่นจากแบบประเมินครั้งนี้ แต่ความสนใจเปลี่ยนแปลงได้เมื่อได้ลองทำจริง`}
+          {" "}ลองทำกิจกรรมจริงตามข้อด้านล่าง แล้วสังเกตว่าคุณสนุกกับงานลักษณะนี้มากน้อยเพียงใด
+        </p>
+        <p className="text-[12.5px] text-gray-500">การเชื่อมโยงนี้สะท้อนความสนใจ ไม่ใช่การยืนยันความพร้อมในการเรียนหรือโอกาสสอบติด</p>
       </Block>
 
-      <Block title="ผลการวิเคราะห์ของคุณ">
-        <p>{analysis}</p>
-      </Block>
-
-      <Block title="สิ่งที่ลงมือทำได้">
+      <Block title="สิ่งที่ลองทำได้">
         <ul className="list-disc pl-5 space-y-0.5">
-          <li>{f.advice}</li>
-          {otherLinks.length === 0 && !dimMine && <li>ลองหาประสบการณ์ที่ได้ใช้{NOUN(dim)}จริง แล้วสังเกตว่าคุณสนใจมากขึ้นหรือไม่</li>}
-          <li>ตรวจสอบคุณสมบัติและเกณฑ์รับเข้าของ{university ? ` ${university}` : "หลักสูตรที่สนใจ"} ในส่วน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</li>
+          {steps.map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+          <li>ตรวจสอบเกณฑ์รับเข้าของ{university ? ` ${university}` : "หลักสูตรเป้าหมาย"} จากประกาศ myTCAS ในส่วน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</li>
         </ul>
       </Block>
 
       {alternatives.length > 0 && (
-        <Block title="สาขาทางเลือกเพิ่มเติม">
-          <ul className="space-y-2">
-            {alternatives.map((x) => (
-              <li key={x.row.name} className="rounded-lg bg-white/80 px-3 py-2">
-                <div className="font-semibold text-gray-800">{x.row.name}</div>
-                <div className="text-[13.5px] text-gray-600 leading-6">
-                  เกี่ยวข้องกับงานด้าน{joinTh(x.shared)}เช่นเดียวกับเป้าหมาย เช่น {x.work.slice(0, 2).join(", ")}
-                  {x.differs.length > 0 && <> · ต่างจากเป้าหมายตรงที่ต้องฝึก{joinTh(x.differs)}</>}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Block>
+        <div className="mt-4 space-y-2.5">
+          {alternatives.map((x) => (
+            <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
+              <div className="text-[14.5px] font-semibold text-gray-800">สาขาทางเลือก: {x.row.name}</div>
+              <p className="text-[13.5px] text-gray-700 leading-6">
+                เหมาะสำหรับการสำรวจเพิ่มเติม หากสนใจงานด้าน{joinTh(x.shared)}
+                {x.differs.length > 0 ? ` โดยมีส่วนที่แตกต่างจาก${nm(f.name)}คือการเรียนด้าน${joinTh(x.differs)}` : ""}
+              </p>
+            </div>
+          ))}
+        </div>
       )}
+
+      <details className="mt-3 text-[12.5px] text-gray-500">
+        <summary className="cursor-pointer select-none">ระบบพิจารณาจากอะไร</summary>
+        <ul className="mt-1.5 space-y-1">
+          <Finding ok={a.reason === "recommended"}>
+            {a.reason === "recommended" ? `ตาราง 120 รหัสของโรงเรียนแนะนำสาขานี้สำหรับรหัส ${a.viaCode}` : `ไม่อยู่ในรายการที่ตาราง 120 รหัสแนะนำสำหรับรหัส ${codes.join(" / ")}`}
+          </Finding>
+          <Finding ok={dimMine}>
+            ด้านหลักของสาขา ({dim}) {dimMine ? `อยู่ในความสนใจเด่นของคุณ (${rankLabel(scores, dim)})` : "ไม่อยู่ในความสนใจเด่น (อันดับ 1–3)"}
+          </Finding>
+          <Finding ok={a.links.length > 0}>
+            {a.links.length ? `คุณลักษณะของสาขาที่เชื่อมได้: ${a.links.map((l) => `${l.phrases.slice(0, 2).join(", ")} (${l.code})`).join(" · ")}` : "ไม่พบคุณลักษณะของสาขาที่เชื่อมกับความสนใจเด่น"}
+          </Finding>
+        </ul>
+        <p className="mt-1.5">ความสนใจเด่น = อันดับ 1–3 (ด้านที่คะแนนเท่ากันนับเป็นอันดับร่วม) • ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม • ความพร้อมด้านวิชาการและเกณฑ์รับเข้าดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”</p>
+      </details>
     </div>
   );
 }
@@ -776,16 +787,6 @@ export default function ResultPage() {
             ))}
           </div>
         )}
-        <details className="mt-3 text-[12.5px] text-gray-500">
-          <summary className="cursor-pointer select-none">ระบบดูความเชื่อมโยงอย่างไร</summary>
-          <ul className="mt-1.5 space-y-0.5 pl-4 list-disc">
-            <li>ตรวจ 3 เรื่องจากข้อมูลจริง: (1) ตาราง 120 รหัสของงานแนะแนวแนะนำสาขานี้สำหรับรหัสของคุณหรือไม่ (2) ลักษณะหลักของสาขา (คอลัมน์ “มิติ”) อยู่ในความสนใจเด่นของคุณหรือไม่ (3) คุณลักษณะ/ทักษะของสาขาข้อใดเชื่อมกับความสนใจเด่น</li>
-            <li>ความสนใจเด่น = อันดับ 1–3 โดยด้านที่คะแนนเท่ากันได้อันดับร่วมกัน (เช่น I และ A อันดับร่วม 3 นับทั้งคู่)</li>
-            <li>ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม และไม่ตัดสินจากว่าด้านใดได้คะแนนสูงสุดเพียงอย่างเดียว</li>
-            <li>สาขาทางเลือก: ตาราง 120 รหัสจัดไว้คู่กับสาขาเป้าหมาย และมีอาชีพ/ทักษะที่เป็นงานลักษณะเดียวกัน</li>
-            <li>ความพร้อมด้านวิชาการและเกณฑ์รับเข้าเป็นอีกเรื่องหนึ่ง ดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”</li>
-          </ul>
-        </details>
       </div>
 
       {/* แนวทางเตรียมตัวไปสู่เป้าหมาย — เฉพาะเมื่อมีเป้าหมายที่หาเจอในฐานข้อมูล */}

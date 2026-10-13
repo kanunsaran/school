@@ -29,10 +29,10 @@ import { GRADE_OPTIONS, readGradeReport, termGpa, groupOf } from "../utils/grade
 
 // ข้อค้นพบความเชื่อมโยงกับผล RIASEC (findingKind) — ชุดเดียวกับหน้าผลแบบทดสอบ
 const FINDING = {
-  recommended: { label: "อยู่ในสาขาที่แนะนำสำหรับรหัสของคุณ", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  main: { label: "ลักษณะหลักตรงกับความสนใจเด่น", cls: "bg-sky-50 text-sky-700 border-sky-200" },
-  partial: { label: "พบความเชื่อมโยงบางด้าน", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  none: { label: "ยังไม่พบความเชื่อมโยงจากข้อมูล", cls: "bg-gray-50 text-gray-600 border-gray-200" },
+  recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "bg-pink-50 text-pink-700 border-pink-200" },
+  partial: { label: "เชื่อมโยงบางด้าน", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  none: { label: "ยังไม่พบความเชื่อมโยงชัดเจน", cls: "bg-gray-50 text-gray-600 border-gray-200" },
 };
 const EMPTY_FORM = { faculty_name: "", university_name: "", goal_text: "" };
 const CARD = "rounded-2xl border border-gray-200 bg-white";
