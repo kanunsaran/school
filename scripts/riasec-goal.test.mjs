@@ -136,6 +136,17 @@ assert.equal(R.goalTargets(data, { faculty_name: "คณะเวทมนตร
 const flat = R.resultFromScores({ R: 30, I: 30, A: 30, S: 30, E: 30, C: 30 });
 assert.ok(acts(flat).some((a) => a.text === null));
 console.log("กรณีครูทดลองใช้ 1–8: SCI กิจกรรม", acts(c1).map((a) => `${a.dim}:${a.text ? "โรงเรียน" : "ทั่วไป"}`).join(","), "| SEC", acts(c2).map((a) => `${a.dim}:${a.text ? "โรงเรียน" : "ทั่วไป"}`).join(","));
+// 16) ประโยคสรุปต้องมาจากคะแนนจริงของแต่ละด้าน — "ใกล้เคียงกัน" เฉพาะเมื่อต่างกันไม่เกิน CLOSE_POINTS
+let sm = R.interestSummary({ S: 42, C: 39, I: 36, A: 36, R: 35, E: 35 });
+assert.deepEqual([sm.lead, sm.rest, sm.restClose], [["S", "C"], ["I", "A"], true]);
+sm = R.interestSummary({ S: 42, C: 39, I: 38, A: 30, R: 20, E: 20 });
+assert.deepEqual([sm.lead, sm.rest], [["S", "C"], ["I"]]); // A ไม่อยู่ใน 3 อันดับแรก → ไม่พูดถึง
+sm = R.interestSummary({ S: 42, C: 39, I: 36, A: 33, R: 33, E: 20 });
+assert.deepEqual(sm.rest, ["I"]);
+sm = R.interestSummary({ S: 44, A: 44, I: 30, E: 25, R: 20, C: 15 });
+assert.deepEqual([sm.lead.sort(), sm.leadClose, sm.rest], [["A", "S"], true, ["I"]]);
+sm = R.interestSummary({ S: 44, C: 41, I: 36, A: 33, R: 20, E: 20 }); // I อันดับ 3 คนเดียว
+assert.deepEqual(sm.rest, ["I"]);
 console.log("\nผ่านทุกกรณี ✓");
 
 // ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====

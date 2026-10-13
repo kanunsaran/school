@@ -477,6 +477,19 @@ export const personalAdvice = (data, result, analyses = []) => {
 
 // ---------- ลำดับแบบรองรับคะแนนเท่ากัน ----------
 // อันดับ = 1 + จำนวนด้านที่ได้คะแนนมากกว่า (ด้านที่คะแนนเท่ากันได้อันดับเดียวกัน)
+// ---------- โครงสร้างประโยคสรุปความสนใจ (จากคะแนนจริงของแต่ละด้าน ไม่ใช่จากตัวอักษรรหัส) ----------
+// lead = ด้านอันดับ 1 (และอันดับ 2 ถ้าอันดับ 1 มีด้านเดียว) • rest = ด้านเด่นที่เหลือ (อันดับ ≤ 3 รวมคะแนนเท่ากัน)
+// "ใกล้เคียงกัน" ใช้เมื่อคะแนนในกลุ่มต่างกันไม่เกิน CLOSE_POINTS คะแนน (จากเต็ม 50) — ถ้าห่างกว่านั้นจะไม่ใช้คำนี้
+export const CLOSE_POINTS = 2;
+export const interestSummary = (scores) => {
+  const ranked = RIASEC_ORDER.filter((c) => denseRank(scores, c) <= 3).sort((a, b) => scores[b] - scores[a] || RIASEC_ORDER.indexOf(a) - RIASEC_ORDER.indexOf(b));
+  const spread = (list) => (list.length ? Math.max(...list.map((c) => scores[c])) - Math.min(...list.map((c) => scores[c])) : 0);
+  const first = ranked.filter((c) => denseRank(scores, c) === 1);
+  const lead = first.length > 1 ? first : ranked.filter((c) => denseRank(scores, c) <= 2 && (first.includes(c) || denseRank(scores, c) === 1 + first.length)).slice(0, Math.max(2, first.length));
+  const rest = ranked.filter((c) => !lead.includes(c));
+  return { lead, leadClose: lead.length > 1 && spread(lead) <= CLOSE_POINTS, rest, restClose: rest.length > 1 && spread(rest) <= CLOSE_POINTS };
+};
+
 // ข้อความอันดับรูปแบบเดียวทั้งระบบ: "อันดับ 1" / "อันดับร่วม 3" (อันดับ = 1 + จำนวนด้านที่คะแนนมากกว่า)
 export const rankLabel = (scores, c) => `อันดับ${tiedWith(scores, c).length ? "ร่วม" : ""} ${denseRank(scores, c)}`;
 export const denseRank = (scores, c) => 1 + RIASEC_ORDER.filter((x) => scores[x] > scores[c]).length;

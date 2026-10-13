@@ -10,7 +10,7 @@ import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/
 import AdmissionInfo from "../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, rankLabel, exploreFaculties, exploreActivities, adviceSteps, careersForGoal,
+  denseRank, tiedWith, rankLabel, exploreFaculties, exploreActivities, adviceSteps, careersForGoal, interestSummary,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -49,7 +49,7 @@ const ONET_WORK = {
   C: "ทำตามขั้นตอนและระเบียบเพื่อจัดระบบข้อมูล มักอยู่ในบริบทธุรกิจ",
 };
 // คำเรียกด้านความสนใจแบบภาษาพูด (ใช้ในประโยคสรุป)
-const PLAIN = { R: "การลงมือทำงานจริง", I: "การคิดวิเคราะห์และค้นหาคำตอบ", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "การเป็นผู้นำ", C: "การทำงานอย่างเป็นระบบ" };
+const PLAIN = { R: "การลงมือทำงานจริง", I: "การคิดวิเคราะห์ ค้นหาคำตอบ", A: "การสร้างสรรค์ผลงาน", S: "การช่วยเหลือผู้อื่น", E: "การเป็นผู้นำ", C: "การทำงานอย่างเป็นระบบ" };
 const DIM_EN = { R: "Realistic", I: "Investigative", A: "Artistic", S: "Social", E: "Enterprising", C: "Conventional" };
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
@@ -489,14 +489,6 @@ export default function ResultPage() {
   const maxScore = Math.max(...RIASEC_ORDER.map((c) => scores[c]));
   const minScore = Math.min(...RIASEC_ORDER.map((c) => scores[c]));
   const atScore = (v) => RIASEC_ORDER.filter((c) => scores[c] === v).join("/");
-  const groups = [];
-  topDims.forEach((c) => {
-    const g = groups.find((x) => scores[x[0]] === scores[c]);
-    g ? g.push(c) : groups.push([c]);
-  });
-  // สรุปจากคะแนนจริง: 2 กลุ่มอันดับแรก = ความสนใจหลัก, กลุ่มถัดไปในอันดับ 1–3 = ความสนใจรอง (คะแนนเท่ากันอยู่กลุ่มเดียวกัน)
-  const mainGroups = groups.slice(0, groups[0].length > 1 ? 1 : 2);
-  const restGroups = groups.slice(mainGroups.length);
   // ขั้นตอนถัดไปตามสถานะจริงของนักเรียน (ไม่ใช้รายการเดียวกันกับทุกคน)
   const goalA = analyses[0] || null;
   const nextSteps = [
@@ -512,12 +504,18 @@ export default function ResultPage() {
     latest.lowDifferentiation && "คะแนนแต่ละด้านใกล้กัน ลองกิจกรรมหลายแบบก่อนตัดสินใจเลือกสาขา",
     "ปรึกษาครูแนะแนวเมื่อยังไม่แน่ใจ หรืออยากได้มุมมองเพิ่มเติม",
   ].filter(Boolean);
-  // สรุปเป็นภาษาง่าย ไม่ใส่ตัวอักษรย่อ — ด้านที่คะแนนเท่ากันพูดว่า "พอ ๆ กัน"
-  const plain = (list) => joinTh(list.map((c) => PLAIN[c]));
-  const restFlat = restGroups.flat();
+  // สรุปเป็นภาษาธรรมชาติจากคะแนนจริง (interestSummary) — "ใกล้เคียงกัน" เฉพาะเมื่อคะแนนต่างกันไม่เกิน 2
+  const sum = interestSummary(scores);
+  const plain = (list) => (list.length === 2 && !/\s/.test(PLAIN[list[0]]) ? `${PLAIN[list[0]]}และ${PLAIN[list[1]]}` : joinTh(list.map((c) => PLAIN[c])));
   const summary =
-    `คุณเป็นคนที่สนใจ${plain(mainGroups.flat())}เป็นหลัก` +
-    (restFlat.length ? ` และยังสนใจ${plain(restFlat)}${restFlat.length > 1 && restGroups.length === 1 ? "พอ ๆ กัน" : "ด้วย"}` : "");
+    `คุณมีความสนใจเด่นด้าน${plain(sum.lead)}${sum.leadClose ? "ในระดับใกล้เคียงกัน" : ""}` +
+    (sum.rest.length === 0
+      ? ""
+      : sum.rest.length === 1
+      ? ` รองลงมาคือด้าน${plain(sum.rest)}`
+      : sum.restClose
+      ? ` ขณะเดียวกันก็มีความสนใจด้าน${plain(sum.rest)}${sum.leadClose ? "พอ ๆ กัน" : "ในระดับใกล้เคียงกัน"}`
+      : ` รองลงมาคือด้าน${plain(sum.rest)}`);
 
   return (
     <Shell>
