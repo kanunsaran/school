@@ -6,12 +6,13 @@ import {
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
-import { getStudent, getEnrollments, getClasses, getTypeResults, getTypes, getGoals, getFaculties, getAssessmentsList } from "../callapi/callapi_user.jsx";
+import { getStudent, getEnrollments, getClasses, getTypeResults, getTypes, getGoals, getAssessmentsList } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import { getActivityLog } from "../utils/assessmentStore.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import PageLoading from "../components/PageLoading.jsx";
 import { primaryGoalOf } from "../utils/goals.js";
+import { resultFromScores, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
 
 const DONUT_COLORS = ["#ec4899", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
 
@@ -34,7 +35,6 @@ export default function AssessmentStatsPage() {
   const [allTypeResults, setAllTypeResults] = useState([]);
   const [types, setTypes] = useState([]);
   const [allGoals, setAllGoals] = useState([]);
-  const [faculties, setFaculties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roomFilter, setRoomFilter] = useState("");
   const [customAssessments, setCustomAssessments] = useState([]);
@@ -43,14 +43,13 @@ export default function AssessmentStatsPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [studentData, enrollData, gradeData, typeResultData, typeData, goalData, facultyData, assessmentData] = await Promise.all([
+        const [studentData, enrollData, gradeData, typeResultData, typeData, goalData, assessmentData] = await Promise.all([
           getStudent().catch(() => []),
           getEnrollments().catch(() => []),
           getClasses().catch(() => []),
           getTypeResults().catch(() => []),
           getTypes().catch(() => []),
           getGoals().catch(() => []),
-          getFaculties().catch(() => []),
           getAssessmentsList().catch(() => []),
         ]);
         // กรองเฉพาะแถวของ "นักเรียน" จริง — ตาราง user_type_result/goal ผูกกับ user_user_id รวมทุก role
@@ -62,7 +61,6 @@ export default function AssessmentStatsPage() {
         setAllTypeResults((typeResultData || []).filter((r) => studentIds.has(String(r.user_user_id))));
         setTypes(typeData || []);
         setAllGoals((goalData || []).filter((g) => studentIds.has(String(g.user_user_id))));
-        setFaculties(facultyData || []);
         setCustomAssessments(assessmentData || []);
       } finally {
         setLoading(false);
@@ -147,32 +145,39 @@ export default function AssessmentStatsPage() {
   }, [goals]);
 
   // ความสอดคล้องระหว่างผลประเมิน (RIASEC) กับเป้าหมายคณะที่ตั้งไว้ — เทียบ type_type_id ของนักเรียนกับ faculty.Type_type_id จริง
-  // goal.faculty_name เป็นข้อความที่นักเรียนพิมพ์เอง ไม่ตรงกับชื่อคณะในตาราง faculty เป๊ะเสมอไป จึงจับคู่แบบ "ชื่อคล้ายกัน" (substring)
-  // คนที่จับคู่ชื่อคณะไม่ได้เลยจะไม่นับในสถิตินี้ (ไม่ใช่ "ไม่สอดคล้อง" เพราะไม่รู้ข้อมูลจริง)
+  // ความสอดคล้องกับเป้าหมาย — ใช้เกณฑ์เดียวกับหน้าผลของนักเรียน (analyzeTarget / levelOfKind ใน utils/riasecScoring.js)
+  // นับคนละ 1 เป้าหมาย (เป้าหมายหลัก) กับผลแบบประเมินครั้งล่าสุดที่มีคะแนนรายด้าน
+  const [riasecData, setRiasecData] = useState(null);
+  useEffect(() => {
+    import("../data/riasec.json").then((m) => setRiasecData(m.default)).catch(() => setRiasecData(null));
+  }, []);
   const alignment = useMemo(() => {
-    const findFacultyType = (goalFacultyName) => {
-      const needle = (goalFacultyName || "").trim();
-      if (!needle) return null;
-      const exact = faculties.find((f) => f.faculty_name === needle);
-      if (exact) return exact.Type_type_id;
-      const fuzzy = faculties.find((f) => f.faculty_name.includes(needle) || needle.includes(f.faculty_name));
-      return fuzzy ? fuzzy.Type_type_id : null;
+    const out = { high: 0, medium: 0, low: 0, unmatched: 0, noScores: 0, total: 0 };
+    if (!riasecData) return out;
+    const parse = (v) => {
+      if (!v) return null;
+      if (typeof v === "object") return v;
+      try {
+        return JSON.parse(v);
+      } catch {
+        return null;
+      }
     };
-
-    let aligned = 0, notAligned = 0, unmatched = 0;
-    // นับคนละ 1 เป้าหมาย (เป้าหมายหลัก) — นักเรียนตั้งได้หลายข้อ
     const primaryGoals = [...new Set(goals.map((g) => String(g.user_user_id)))].map((id) => primaryGoalOf(goals, id));
     primaryGoals.forEach((g) => {
-      const typeRow = typeResults.find((r) => String(r.user_user_id) === String(g.user_user_id));
-      if (!typeRow || !typeRow.type_type_id) return; // ยังไม่ได้ทำแบบประเมิน ไม่นับ
-      const facultyType = findFacultyType(g.faculty_name);
-      if (facultyType == null) { unmatched += 1; return; }
-      if (String(facultyType) === String(typeRow.type_type_id)) aligned += 1;
-      else notAligned += 1;
+      const rows = typeResults
+        .filter((r) => String(r.user_user_id) === String(g.user_user_id))
+        .sort((x, y) => new Date(y.test_date) - new Date(x.test_date) || y.result_id - x.result_id);
+      if (!rows.length) return; // ยังไม่ได้ทำแบบประเมิน ไม่นับ
+      const scores = parse(rows[0].scores_json);
+      if (!scores) return void (out.noScores += 1); // ผลเก่าที่ไม่มีคะแนนรายด้าน
+      const target = goalTargets(riasecData, { faculty_name: g.faculty_name, goal_text: g.goal_text })[0];
+      if (!target) return void (out.unmatched += 1);
+      out[analyzeTarget(riasecData, resultFromScores(scores), target).displayLevel] += 1;
     });
-    const total = aligned + notAligned;
-    return { aligned, notAligned, unmatched, pct: total > 0 ? Math.round((aligned / total) * 100) : 0, total };
-  }, [goals, typeResults, faculties]);
+    out.total = out.high + out.medium + out.low;
+    return out;
+  }, [goals, typeResults, riasecData]);
 
   const notDoneList = useMemo(
     () => students.filter((s) => !completedUserIds.has(String(s.user_id))).slice(0, 5),
@@ -299,33 +304,43 @@ export default function AssessmentStatsPage() {
               {/* ความสอดคล้องระหว่างผลประเมิน (RIASEC) กับเป้าหมายคณะ */}
               <div className="rounded-2xl border border-gray-200 p-5">
                 <div className="text-[15px] font-semibold text-gray-900 mb-1">ความสอดคล้องระหว่างผลประเมินกับเป้าหมาย</div>
-                <div className="text-[13.5px] text-gray-400 mb-4">เทียบกลุ่มบุคลิกภาพกับคณะที่ตั้งเป้าหมายไว้ (จับคู่จากชื่อคณะ)</div>
+                <div className="text-[13.5px] text-gray-400 mb-4">เกณฑ์เบื้องต้นเดียวกับที่นักเรียนเห็นในหน้าผล (เป้าหมายหลักของแต่ละคน)</div>
 
                 {alignment.total === 0 ? (
                   <div className="text-center text-gray-400 py-6 text-[14.5px]">ยังไม่มีข้อมูลที่จับคู่ได้พอจะสรุป</div>
                 ) : (
                   <>
-                    <div className="text-[30px] font-bold text-gray-900">{alignment.pct}%</div>
-                    <div className="h-3 rounded-full bg-gray-100 overflow-hidden mt-2 mb-4">
-                      <div className="h-full rounded-full bg-pink-500" style={{ width: `${alignment.pct}%` }} />
+                    <div className="h-3 rounded-full bg-gray-100 overflow-hidden flex">
+                      <div className="h-full bg-emerald-500" style={{ width: `${(alignment.high / alignment.total) * 100}%` }} />
+                      <div className="h-full bg-amber-400" style={{ width: `${(alignment.medium / alignment.total) * 100}%` }} />
+                      <div className="h-full bg-gray-300" style={{ width: `${(alignment.low / alignment.total) * 100}%` }} />
                     </div>
-                    <div className="flex flex-col gap-2 text-[14px]">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-pink-500 shrink-0" /> สอดคล้อง</span>
-                        <span className="font-semibold text-gray-800">{alignment.aligned} คน</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border-2 border-gray-300 shrink-0" /> ไม่สอดคล้อง</span>
-                        <span className="font-semibold text-gray-800">{alignment.notAligned} คน</span>
-                      </div>
+                    <div className="mt-4 flex flex-col gap-2 text-[14px]">
+                      {[
+                        ["high", "สูง — ตารางของโรงเรียนแนะนำสาขานี้สำหรับรหัสของนักเรียน", "bg-emerald-500"],
+                        ["medium", "ปานกลาง — ด้านหลักของสาขาอยู่ในความสนใจเด่น", "bg-amber-400"],
+                        ["low", "ต่ำ — ด้านหลักของสาขาไม่อยู่ในความสนใจเด่น", "bg-gray-300"],
+                      ].map(([k, label, dot]) => (
+                        <div key={k} className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-2">
+                            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} /> {label}
+                          </span>
+                          <span className="font-semibold text-gray-800 shrink-0">
+                            {alignment[k]} คน ({Math.round((alignment[k] / alignment.total) * 100)}%)
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}
-                {alignment.unmatched > 0 && (
+                {(alignment.unmatched > 0 || alignment.noScores > 0) && (
                   <div className="text-[12.5px] text-gray-400 mt-3">
-                    ไม่รวมนักเรียน {alignment.unmatched} คนที่ตั้งเป้าหมายไว้ แต่จับคู่ชื่อคณะกับข้อมูลกลุ่มบุคลิกภาพไม่ได้
+                    ไม่รวม: {alignment.unmatched > 0 && `${alignment.unmatched} คนที่ชื่อคณะเป้าหมายไม่ตรงกับข้อมูลของระบบ`}
+                    {alignment.unmatched > 0 && alignment.noScores > 0 && " • "}
+                    {alignment.noScores > 0 && `${alignment.noScores} คนที่มีแต่ผลแบบเดิม (ไม่มีคะแนนรายด้าน)`}
                   </div>
                 )}
+                <div className="text-[12px] text-gray-400 mt-2">เป็นเกณฑ์เบื้องต้นของระบบ ไม่ใช่เกณฑ์มาตรฐานทางจิตวิทยา และไม่ได้วัดความสามารถ</div>
               </div>
 
               {/* โดนัท สถานะการทำแบบประเมิน */}

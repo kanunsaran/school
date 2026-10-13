@@ -5,6 +5,7 @@ import Header from "../../Header";
 import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
+import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY, ONET_TITLE_TH } from "../../data/guidanceTexts.js";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
 import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
@@ -30,39 +31,6 @@ const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂�
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
-// กิจกรรมทั่วไปตามด้านความสนใจ — ข้อความของระบบ ใช้เฉพาะเมื่อข้อมูลแนะแนวของโรงเรียนไม่มีกิจกรรมของด้านนั้น
-// (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว) • คำถามทบทวนตัวเองใช้กับทุกกิจกรรมของด้านนั้น
-const DIM_ACTIVITY = {
-  R: { act: "ทดลองลงมือทำชิ้นงานด้วยตัวเอง", how: "ลองซ่อมของใช้ที่ชำรุดเล็กน้อย ประกอบชุดโมเดล หรือทำชิ้นงานง่าย ๆ ให้เสร็จ 1 ชิ้น แล้วจดว่าติดปัญหาตรงไหน", skill: "การใช้เครื่องมือ การแก้ปัญหาเฉพาะหน้า และความสนใจในงานที่จับต้องได้", question: "คุณรู้สึกอย่างไรเมื่อได้ลงมือทำจนเห็นผลงานเป็นชิ้นเป็นอัน?" },
-  I: { act: "ค้นหาคำตอบจากคำถามที่สงสัย", how: "เลือกคำถามที่สนใจ ค้นข้อมูลจากแหล่งที่น่าเชื่อถืออย่างน้อย 2 แหล่ง เปรียบเทียบข้อมูล แล้วสรุปคำตอบด้วยเหตุผลของตนเอง", skill: "การตั้งคำถาม การค้นคว้า และการใช้เหตุผล", question: "คุณสนุกกับการค้นหาสาเหตุ ตรวจสอบข้อมูล และทำความเข้าใจเรื่องที่ยังไม่รู้หรือไม่?" },
-  A: { act: "สร้างผลงานในแบบของตัวเอง", how: "สร้างโปสเตอร์ ภาพประกอบ คลิปสั้น หรืองานเขียนในหัวข้อที่สนใจ โดยเลือกวิธีนำเสนอได้อย่างอิสระ", skill: "จินตนาการ การแสดงออก และการถ่ายทอดความคิด", question: "คุณชอบการสร้างผลงานที่สะท้อนแนวคิดหรือเอกลักษณ์ของตัวเองมากน้อยเพียงใด?" },
-  S: { act: "ทดลองช่วยเหลือหรือถ่ายทอดความรู้ให้ผู้อื่น", how: "ลองช่วยเพื่อนทบทวนบทเรียน รับฟังปัญหาของเพื่อน หรือเข้าร่วมกิจกรรมจิตอาสาที่สนใจ", skill: "การรับฟัง การสื่อสาร และความสนใจในการช่วยเหลือผู้อื่น", question: "คุณรู้สึกอย่างไรเมื่อได้ช่วยให้ผู้อื่นเข้าใจหรือจัดการปัญหาของตนเองได้ดีขึ้น?" },
-  E: { act: "ทดลองนำกลุ่มหรือจัดงานเล็ก ๆ", how: "อาสาเป็นหัวหน้างานกลุ่ม วางแผนกิจกรรม หรือขายของในงานโรงเรียน ตั้งเป้าหมายแล้วติดตามผล", skill: "การวางแผน การโน้มน้าว และการตัดสินใจ", question: "คุณรู้สึกอย่างไรเมื่อได้เป็นคนนำและผลักดันให้งานสำเร็จ?" },
-  C: { act: "ทดลองจัดระบบข้อมูลหรือวางแผนงาน", how: "ลองจัดตารางอ่านหนังสือ จัดหมวดหมู่เอกสาร หรือสร้างตารางบันทึกงานที่ต้องทำให้เป็นระบบ", skill: "ความละเอียด การวางแผน และความพึงพอใจในการทำงานอย่างเป็นระเบียบ", question: "คุณชอบการจัดข้อมูลให้เป็นระบบและตรวจสอบได้หรือไม่?" },
-};
-// ชื่อความรู้ของ O*NET (Knowledge) → ภาษาไทย (แปลตามนิยามของ O*NET)
-const KNOWLEDGE_TH = {
-  "Administration and Management": "การบริหารและการจัดการ", Administrative: "งานธุรการและเอกสาร", "Economics and Accounting": "เศรษฐศาสตร์และการบัญชี",
-  "Sales and Marketing": "การขายและการตลาด", "Customer and Personal Service": "การให้บริการผู้รับบริการ", "Personnel and Human Resources": "การบริหารบุคคล",
-  "Production and Processing": "กระบวนการผลิต", "Food Production": "การผลิตอาหาร", "Computers and Electronics": "คอมพิวเตอร์และอิเล็กทรอนิกส์",
-  "Engineering and Technology": "วิศวกรรมและเทคโนโลยี", Design: "การออกแบบ (แบบร่าง แบบแปลน)", "Building and Construction": "การก่อสร้าง", Mechanical: "เครื่องจักรและเครื่องมือ",
-  Mathematics: "คณิตศาสตร์", Physics: "ฟิสิกส์", Chemistry: "เคมี", Biology: "ชีววิทยา", Psychology: "จิตวิทยา", "Sociology and Anthropology": "สังคมวิทยาและมานุษยวิทยา",
-  Geography: "ภูมิศาสตร์", "Medicine and Dentistry": "การแพทย์และทันตกรรม", "Therapy and Counseling": "การบำบัดและการให้คำปรึกษา", "Education and Training": "การสอนและการฝึกอบรม",
-  "English Language": "การใช้ภาษาและการเขียน", "Foreign Language": "ภาษาต่างประเทศ", "Fine Arts": "ศิลปะ (ทัศนศิลป์ ดนตรี การแสดง)", "History and Archeology": "ประวัติศาสตร์และโบราณคดี",
-  "Philosophy and Theology": "ปรัชญาและศาสนา", "Public Safety and Security": "ความปลอดภัยสาธารณะ", "Law and Government": "กฎหมายและการปกครอง", Telecommunications: "โทรคมนาคม",
-  "Communications and Media": "การสื่อสารและสื่อ", Transportation: "การขนส่ง",
-};
-// ลักษณะงานของแต่ละด้าน — แปลสรุปจากนิยามของ O*NET OnLine (Interests, 1.B.1) ตรวจเมื่อ 14 ต.ค. 2569
-const ONET_WORK = {
-  R: "ออกแบบ สร้าง หรือซ่อมอุปกรณ์ วัสดุ หรือโครงสร้าง งานที่ใช้กำลังกาย หรือทำงานกลางแจ้ง",
-  I: "ศึกษาและค้นคว้าเกี่ยวกับวัตถุ สิ่งมีชีวิต โรค หรือพฤติกรรมของมนุษย์",
-  A: "สร้างสรรค์ผลงานภาพ การแสดง งานเขียน อาหาร หรือดนตรี หรือนำหลักศิลปะไปใช้ออกแบบ",
-  S: "ช่วยเหลือ สอน ให้คำแนะนำ หรือให้บริการผู้อื่น",
-  E: "บริหาร เจรจา การตลาด หรือการขาย หรือนำและให้คำปรึกษาผู้คนในเรื่องการเมืองและกฎหมาย",
-  C: "ทำตามขั้นตอนและระเบียบเพื่อจัดระบบข้อมูล มักอยู่ในบริบทธุรกิจ",
-};
-// คำเรียกด้านความสนใจแบบภาษาพูด (ใช้ในประโยคสรุป)
-const PLAIN = { R: "การลงมือทำงานจริง", I: "การคิดวิเคราะห์ ค้นหาคำตอบ", A: "การสร้างสรรค์ผลงาน", S: "การช่วยเหลือผู้อื่น", E: "การเป็นผู้นำ", C: "การทำงานอย่างเป็นระบบ" };
 const DIM_EN = { R: "Realistic", I: "Investigative", A: "Artistic", S: "Social", E: "Enterprising", C: "Conventional" };
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
@@ -78,13 +46,6 @@ const roadmapFor = (goalName) => [
 
 // ข้อค้นพบความเชื่อมโยงระหว่างความสนใจกับสาขาเป้าหมาย (findingKind ใน riasecScoring.js) — เงื่อนไขตรวจสอบได้จากข้อมูล ไม่ใช่การให้คะแนน
 const LEVEL_TH = { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" };
-// เหตุผลของระดับ = เงื่อนไขที่ใช้จริงใน levelOfKind / findingKind (riasecScoring.js)
-const LEVEL_WHY = {
-  recommended: "ตาราง 120 รหัสในข้อมูลแนะแนวของโรงเรียนแนะนำสาขานี้สำหรับรหัสของคุณ",
-  main: "สาขานี้ไม่อยู่ในรายการแนะนำของรหัสคุณ แต่ด้านหลักของสาขาเป็นหนึ่งในความสนใจเด่นของคุณ (อันดับ 1–3 รวมคะแนนเท่ากัน)",
-  partial: "ด้านหลักของสาขายังไม่อยู่ในความสนใจเด่นของคุณ แต่มีคุณลักษณะบางข้อของสาขาที่เชื่อมกับความสนใจเด่น",
-  none: "ด้านหลักของสาขายังไม่อยู่ในความสนใจเด่นของคุณ และยังไม่พบคุณลักษณะของสาขาที่เชื่อมกับความสนใจเด่น",
-};
 const FINDING_META = {
   recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", box: "bg-white/70 border-emerald-100" },
   main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "text-pink-700 bg-pink-50 border-pink-200", box: "bg-white/70 border-pink-100" },
@@ -380,7 +341,7 @@ function StudyBeforeDeciding({ faculty, skip = [] }) {
         <li className="text-[11.5px] text-gray-400 leading-5">
           อ้างอิงอาชีพตัวแทน:{" "}
           <a href={o.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-sky-700">
-            O*NET — {o.title}
+            {ONET_TITLE_TH[o.code] || o.title} (O*NET)
           </a>
           {o.interest && ` • O*NET จัดอาชีพนี้ในกลุ่มความสนใจ ${o.interest}`} • ตรวจเมื่อ {thaiDate(onet.checkedAt)}
         </li>
@@ -653,18 +614,24 @@ export default function ResultPage() {
         )}
         {latest.hasTie && (
           <p className="mt-2 text-[13px] text-gray-500">
-            {joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนเป็น {latest.alternativeCodes.join(", ")} ได้ด้วย (ผลชุดเดียวกัน ไม่ต้องเลือก){" "}
-            {latest.alternativeCodes.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-expanded={altOpen === c}
-                onClick={() => setAltOpen(altOpen === c ? null : c)}
-                className="ml-1 bg-transparent !p-0 text-pink-600 underline underline-offset-2 hover:text-pink-700"
-              >
-                {altOpen === c ? `ซ่อนคำอธิบาย ${c}` : `ดูคำอธิบาย ${c}`}
-              </button>
-            ))}
+            {latest.alternativeCodes.length > 2 ? (
+              <>{joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนได้อีก {latest.alternativeCodes.length} แบบ ({latest.alternativeCodes.join(", ")}) — เป็นผลชุดเดียวกัน ไม่ต้องเลือก</>
+            ) : (
+              <>
+                {joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนเป็น {latest.alternativeCodes.join(", ")} ได้ด้วย (ผลชุดเดียวกัน ไม่ต้องเลือก){" "}
+                {latest.alternativeCodes.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-expanded={altOpen === c}
+                    onClick={() => setAltOpen(altOpen === c ? null : c)}
+                    className="ml-1 bg-transparent !p-0 text-pink-600 underline underline-offset-2 hover:text-pink-700"
+                  >
+                    {altOpen === c ? `ซ่อนคำอธิบาย ${c}` : `ดูคำอธิบาย ${c}`}
+                  </button>
+                ))}
+              </>
+            )}
             {altOpen && (
               <span className="block mt-1 text-gray-700">
                 {altOpen}: {data.codes[altOpen].meaning} • {latest.code}: {data.codes[latest.code].meaning}
@@ -840,6 +807,11 @@ export default function ResultPage() {
 
           <AdviceBox n="2" title="สาขาที่ควรสำรวจ" wide>
             <li className="list-none">
+              {latest.lowDifferentiation && (
+                <p className="mb-2 rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-sky-900">
+                  คะแนนทุกด้านของคุณใกล้กัน สาขาด้านล่างเป็นเพียงตัวอย่างให้เริ่มสำรวจ — แนะนำให้ลองกิจกรรมหลายด้านก่อนตัดสินใจ
+                </p>
+              )}
               {explore.length === 0 ? (
                 <p className="text-gray-600">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
               ) : (
@@ -981,9 +953,12 @@ export default function ResultPage() {
                     {f.exam}
                   </div>
                   <ProgramPick faculty={f} goalUni={myGoal?.university_name} />
-                  <div className="mt-2">
-                    <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} />
-                  </div>
+                  <details className="mt-2" open={Boolean(myGoal?.university_name)}>
+                    <summary className="cursor-pointer select-none text-[13.5px] font-medium text-sky-700">ดูข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS)</summary>
+                    <div className="mt-2">
+                      <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} />
+                    </div>
+                  </details>
                 </FacultyItem>
               ))}
             </AdviceBox>
@@ -1010,27 +985,24 @@ export default function ResultPage() {
             <li key={t}>{t}</li>
           ))}
         </ol>
-      </div>
-
-      {/* ===== แผนการเตรียมตัว ===== */}
-      <GroupLabel>แผนการเตรียมตัว</GroupLabel>
-      <div className={CARD}>
-        <SectionHeader emoji="🗺️" title="Roadmap การเตรียมตัว" subtitle="แนวทางทั่วไป ปรับตามเป้าหมายและจังหวะของแต่ละคน" />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {roadmapFor(advice?.usesGoal ? advice.focus[0]?.name : null).map((step) => (
-            <div key={step.grade} className="bg-white/70 rounded-xl p-4">
-              <div className="text-[15.5px] font-semibold text-pink-600">{step.grade}</div>
-              <ul className="mt-2 space-y-1.5 text-[13.5px] text-gray-700">
-                {step.items.map((it, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400" />
-                    <span>{it}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+        <details className="mt-4">
+          <summary className="cursor-pointer select-none text-[14px] font-medium text-gray-700">🗺️ แนวทางทั่วไป ม.4–ม.6 (ปรับตามเป้าหมายและจังหวะของแต่ละคน)</summary>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {roadmapFor(advice?.usesGoal ? advice.focus[0]?.name : null).map((step) => (
+              <div key={step.grade} className="bg-white/70 rounded-xl p-4">
+                <div className="text-[15.5px] font-semibold text-pink-600">{step.grade}</div>
+                <ul className="mt-2 space-y-1.5 text-[13.5px] text-gray-700">
+                  {step.items.map((it, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400" />
+                      <span>{it}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </details>
       </div>
 
       <div className="text-[13px] text-gray-500 px-1">
