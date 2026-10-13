@@ -148,6 +148,9 @@ function Round({ r, labels, gpax, defaultOpen }) {
 export default function AdmissionInfo({ facultyName, university, gpax = null }) {
   const [data, setData] = useState(null);
   const [pid, setPid] = useState(null);
+  // มหาวิทยาลัยที่เลือกดูในกล่องนี้ (ค่าเริ่มต้น = มหาวิทยาลัยในเป้าหมาย) — ดูอย่างเดียว ไม่บันทึกเป้าหมาย
+  const [picked, setPicked] = useState(null);
+  const uni = picked || university || null;
   const [rounds, setRounds] = useState({ status: "idle", list: [] });
 
   useEffect(() => {
@@ -158,17 +161,17 @@ export default function AdmissionInfo({ facultyName, university, gpax = null }) 
     };
   }, []);
 
-  const { programs, uniCount, otherUnis } = useMemo(() => {
-    if (!data) return { programs: [], uniCount: 0, otherUnis: [] };
+  const { programs, unis } = useMemo(() => {
+    if (!data) return { programs: [], unis: [] };
     const all = data.index.faculties[facultyName] || [];
     const list = all
-      .filter(([u]) => sameUni(data.index.universities[u], university))
+      .filter(([u]) => sameUni(data.index.universities[u], uni))
       .map(([, id, name, type, campus]) => ({ id, name, type, campus }))
       // ภาษาไทยปกติก่อน
       .sort((a, b) => (a.type ? 1 : 0) - (b.type ? 1 : 0));
-    const unis = [...new Set(all.map(([u]) => data.index.universities[u]))];
-    return { programs: list, uniCount: unis.length, otherUnis: unis.filter((u) => !sameUni(u, university)) };
-  }, [data, facultyName, university]);
+    const names = [...new Set(all.map(([u]) => data.index.universities[u]))].sort((a, b) => a.localeCompare(b, "th"));
+    return { programs: list, unis: names };
+  }, [data, facultyName, uni]);
 
   const selected = programs.find((p) => p.id === pid) || programs[0] || null;
 
@@ -187,30 +190,52 @@ export default function AdmissionInfo({ facultyName, university, gpax = null }) 
   if (!data) return <p className="text-[13px] text-gray-400">กำลังโหลดข้อมูลหลักสูตร…</p>;
 
   const box = "rounded-xl border border-sky-100 bg-sky-50/40 px-3.5 py-3";
-  if (!university) {
+  const goalListed = university && unis.some((u) => sameUni(u, university));
+  const uniValue = uni ? unis.find((u) => sameUni(u, uni)) || uni : "";
+  const select = "w-full h-9 rounded-lg border border-gray-200 bg-white px-2 text-[13px] outline-none focus:border-pink-400";
+  const header = (
+    <>
+      <div className="text-[14px] font-semibold text-gray-800">ข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS)</div>
+      <label className="mt-1.5 block">
+        <span className="text-[12.5px] text-gray-500">มหาวิทยาลัย</span>
+        <select
+          value={uniValue}
+          onChange={(e) => {
+            setPicked(e.target.value || null);
+            setPid(null);
+          }}
+          className={`mt-0.5 ${select}`}
+        >
+          <option value="">— เลือกมหาวิทยาลัย ({unis.length} แห่งที่เปิดหลักสูตรนี้ในปีนี้) —</option>
+          {university && !goalListed && <option value={university}>{university} (ในเป้าหมาย — ไม่พบหลักสูตรในประกาศปีนี้)</option>}
+          {unis.map((u) => (
+            <option key={u} value={u}>
+              {u}
+              {university && sameUni(u, university) ? " (มหาวิทยาลัยในเป้าหมาย)" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      {picked && university && !sameUni(picked, university) && (
+        <p className="mt-1 text-[12px] text-gray-500">กำลังดูมหาวิทยาลัยอื่นชั่วคราว — ถ้าต้องการเปลี่ยนเป้าหมาย ให้แก้ที่หน้าเป้าหมาย</p>
+      )}
+    </>
+  );
+  if (!uni) {
     return (
       <div className={box}>
-        <div className="text-[13.5px] text-gray-700">
-          เลือกมหาวิทยาลัยในเป้าหมาย เพื่อดูเกณฑ์รับเข้าจริงจาก myTCAS
-          {uniCount > 0 && <span className="text-gray-500"> (ปีนี้มีหลักสูตรที่เกี่ยวข้องใน {uniCount} มหาวิทยาลัย)</span>}
-        </div>
+        {header}
+        <p className="mt-2 text-[13px] text-gray-600">เลือกมหาวิทยาลัยด้านบน เพื่อดูจำนวนที่รับ เกณฑ์คะแนน และเกณฑ์ Portfolio ของแต่ละรอบ</p>
       </div>
     );
   }
   if (!selected) {
     return (
       <div className={box}>
-        <div className="text-[13.5px] text-gray-700">
-          ยังไม่พบหลักสูตร “{facultyName}” ของ {university} ในประกาศ myTCAS ปีนี้
-        </div>
-        {otherUnis.length > 0 && (
-          <div className="mt-1 text-[13px] text-gray-600">
-            มหาวิทยาลัยที่เปิดหลักสูตรที่เกี่ยวข้องในประกาศปีนี้ ({otherUnis.length} แห่ง): {otherUnis.slice(0, 8).join(", ")}
-            {otherUnis.length > 8 && " และอื่น ๆ"}
-          </div>
-        )}
+        {header}
+        <p className="mt-2 text-[13.5px] text-gray-700">ยังไม่พบหลักสูตร “{facultyName}” ของ {uni} ในประกาศ myTCAS ปีนี้ — ลองเลือกมหาวิทยาลัยอื่นจากรายการด้านบน</p>
         <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 hover:underline">
-          ค้นหาหลักสูตรใน myTCAS ↗
+          ค้นหาหลักสูตรเพิ่มเติมใน myTCAS ↗
         </a>
       </div>
     );
@@ -220,13 +245,9 @@ export default function AdmissionInfo({ facultyName, university, gpax = null }) 
   const year = rounds.list[0]?.type?.split("_")[1];
   return (
     <div className={box}>
-      <div className="text-[14px] font-semibold text-gray-800">ข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS) — {university}</div>
+      {header}
       {programs.length > 1 ? (
-        <select
-          value={selected.id}
-          onChange={(e) => setPid(e.target.value)}
-          className="mt-1.5 w-full h-9 rounded-lg border border-gray-200 bg-white px-2 text-[13px] outline-none focus:border-pink-400"
-        >
+        <select value={selected.id} onChange={(e) => setPid(e.target.value)} aria-label="หลักสูตร" className={`mt-1.5 ${select}`}>
           {programs.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}

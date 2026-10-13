@@ -824,19 +824,20 @@ export default function ResultPage() {
                   </div>
                   {f.programs.length > 0 && (
                     <div className="text-[13px] text-gray-600">
-                      หลักสูตรใน myTCAS:{" "}
-                      {f.programs.slice(0, 3).map((pg, k) => (
-                        <span key={pg}>
-                          {k > 0 && " • "}
-                          {f.links?.[k] ? (
-                            <a href={f.links[k]} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
-                              {pg}
-                            </a>
-                          ) : (
-                            pg
-                          )}
-                        </span>
-                      ))}
+                      หลักสูตรใน myTCAS (กดเพื่อเปิดหน้าหลักสูตร):
+                      <ul className="mt-0.5 space-y-0.5">
+                        {f.programs.slice(0, 3).map((pg, k) => (
+                          <li key={pg}>
+                            {f.links?.[k] ? (
+                              <a href={f.links[k]} target="_blank" rel="noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-700">
+                                {pg} ↗
+                              </a>
+                            ) : (
+                              pg
+                            )}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                   {f.programs.length === 0 && (
