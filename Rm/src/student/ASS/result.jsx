@@ -36,9 +36,9 @@ const ROADMAP = [
 ];
 
 const ALIGNMENT_META = {
-  high: { label: "สูง", cls: "text-emerald-600", box: "bg-emerald-50 border-emerald-100" },
-  medium: { label: "ปานกลาง", cls: "text-amber-600", box: "bg-amber-50 border-amber-100" },
-  low: { label: "ต่ำ", cls: "text-red-600", box: "bg-red-50 border-red-100" },
+  high: { label: "สูง", icon: "●●●", cls: "text-emerald-600", box: "bg-emerald-50 border-emerald-100" },
+  medium: { label: "ปานกลาง", icon: "●●○", cls: "text-amber-600", box: "bg-amber-50 border-amber-100" },
+  low: { label: "ต่ำ", icon: "●○○", cls: "text-red-600", box: "bg-red-50 border-red-100" },
 };
 const CONSISTENCY_META = {
   high: { label: "สูง", text: "ความสนใจ 2 อันดับแรกอยู่ติดกันบนหกเหลี่ยม RIASEC จึงไปในทิศทางเดียวกันชัดเจน" },
@@ -173,7 +173,7 @@ function Shell({ children }) {
 }
 
 // เป้าหมายที่นักเรียนตั้งไว้ (จากตาราง goal ของนักเรียนคนปัจจุบัน)
-function GoalHeader({ goal, focus, onEdit }) {
+function GoalHeader({ goal, onEdit }) {
   return (
     <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -184,7 +184,7 @@ function GoalHeader({ goal, focus, onEdit }) {
           แก้ไขเป้าหมาย →
         </button>
       </div>
-      <div className="mt-1.5 grid sm:grid-cols-3 gap-x-4 gap-y-1 text-[14px]">
+      <div className="mt-1.5 grid sm:grid-cols-2 gap-x-4 gap-y-1 text-[14px]">
         <div>
           <span className="text-gray-500">คณะที่สนใจ: </span>
           <b>{goal.faculty_name || "-"}</b>
@@ -192,10 +192,6 @@ function GoalHeader({ goal, focus, onEdit }) {
         <div>
           <span className="text-gray-500">มหาวิทยาลัย: </span>
           <b>{goal.university_name || "-"}</b>
-        </div>
-        <div>
-          <span className="text-gray-500">สาขาในฐานข้อมูล: </span>
-          <b>{focus.map((f) => f.name).join(", ")}</b>
         </div>
       </div>
       {goal.goal_text && <p className="text-[13.5px] text-gray-600 mt-1">“{goal.goal_text}”</p>}
@@ -212,117 +208,106 @@ function Block({ title, children }) {
   );
 }
 
-// คำอธิบายผลความสอดคล้อง — แต่ละส่วนตอบคำถามเดียว:
-// ผลการวิเคราะห์ = ความสนใจของคุณเชื่อมกับเป้าหมายอย่างไร (และทำไมได้ระดับนี้ ตามเกณฑ์จริงของระบบ)
-// แนวทาง = ควรเริ่มทำอะไร (เฉพาะสาขานั้น) • สาขาทางเลือก = เส้นทางอื่นที่มีข้อมูลรองรับ
-// วลีเกี่ยวกับสาขามาจากไฟล์ข้อมูลคณะ–อาชีพทั้งหมด • ไม่ไล่คะแนน/อันดับซ้ำ (มีในช่องสรุปด้านบนแล้ว)
+// การ์ดความสอดคล้องของเป้าหมาย 1 สาขา — แต่ละส่วนตอบคำถามเดียว:
+//  ระดับ + ที่มาของระดับ (เกณฑ์จริงใน alignResult) → ผลการวิเคราะห์ (สาขาเป็นอย่างไร / ความสนใจไหนเชื่อมได้ / ควรสำรวจอะไร)
+//  → ขอบเขตของผล → แนวทางลงมือทำ (คำแนะนำของสาขา) → สาขาทางเลือก (เฉพาะที่มีข้อมูลรองรับ)
+// วลีเกี่ยวกับสาขามาจากไฟล์ข้อมูลคณะ–อาชีพทั้งหมด • ไม่ไล่คะแนน/อันดับซ้ำ (มีในส่วนคะแนนด้านบนแล้ว)
 const NOUN = (c) => `ด้าน${TRAIT_NOUN[c]}`;
 const nounList = (list) => joinTh(list.map(NOUN));
-const SHOWN = 3;
-const phraseList = (list) => joinTh(list.slice(0, SHOWN));
-const withPhrases = (list) => `${list.length > 1 ? "ทั้ง" : "โดยเฉพาะ"}${phraseList(list)}`;
-const CLOSING = {
-  high: "ผลนี้บอกทิศทางความสนใจของคุณ ส่วนการเข้าศึกษายังขึ้นกับผลการเรียนและการเตรียมตัวตามเกณฑ์ของแต่ละมหาวิทยาลัย",
-  medium: "ผลนี้เป็นแนวทางช่วยสำรวจความสนใจของคุณ ไม่ใช่ข้อสรุปว่าคุณจะเรียนสาขานี้ได้หรือไม่ได้",
-  low: "ผลนี้สะท้อนความสนใจจากแบบประเมินในตอนนี้ ไม่ได้วัดความสามารถหรือตัดสินว่าคุณเรียนสาขานี้ไม่ได้ หากสาขานี้คือเป้าหมายของคุณ การได้ลองทำงานจริงจะช่วยให้รู้จักความชอบของตัวเองชัดขึ้น",
-};
-
+const SCOPE_NOTE = "ผลนี้เป็นข้อมูลประกอบการสำรวจความสนใจ ไม่ได้ตัดสินว่าคุณจะเรียนสาขานี้ได้หรือไม่ได้ ควรพิจารณาร่วมกับความชอบ ประสบการณ์ ผลการเรียน และเกณฑ์การรับเข้าของแต่ละหลักสูตร";
 // ชื่อที่ลงท้ายด้วยวงเล็บ ต้องเว้นวรรคก่อนข้อความต่อ
 const nm = (name) => (/\)$/.test(name) ? `${name} ` : name);
 
-function AlignmentCard({ a, data, latest, scores, rankText, alternatives, showClosing }) {
+function AlignmentCard({ a, data, latest, scores, alternatives }) {
   const f = a.faculty;
   const dim = f.dim;
   const meta = ALIGNMENT_META[a.level];
-  const codes = [latest.code, ...latest.alternativeCodes];
   const links = interestLinks(data, latest, f);
   const main = links.find((x) => x.code === dim);
-  const others = links.filter((x) => x.code !== dim);
+  const mainIsMine = denseRank(scores, dim) <= 3;
+  const helpers = links.filter((x) => x.code !== dim && x.mine);
+  const tiedNote = a.tied.length ? ` (คะแนนเท่ากับ${nounList(a.tied)})` : "";
 
-  // ความเชื่อมโยงระหว่างความสนใจกับสาขา (วลีจากไฟล์)
-  const mainText = main
-    ? `ความสนใจ${NOUN(dim)}ของคุณเชื่อมกับหัวใจของ${nm(f.name)}โดยตรง ${withPhrases(main.phrases)}`
-    : "";
-  const otherText = others.length
-    ? others.map((x) => `ความสนใจ${NOUN(x.code)}ของคุณช่วยในเรื่อง${phraseList(x.phrases)}`).join(" และ")
-    : "";
-
-  // เหตุผลของระดับ — ตรงกับเกณฑ์ใน alignResult
-  const codeText = codes.length > 1 ? codes.join(" หรือ ") : codes[0];
-  const reason = {
-    recommended: `ข้อมูลแนะแนวของโรงเรียนจัด${nm(f.name)}ไว้ในกลุ่มสาขาที่แนะนำสำหรับรูปแบบความสนใจ ${a.viaCode} ของคุณ จึงสอดคล้องสูง`,
-    top: main ? `และ${NOUN(dim)}ยังเป็นความสนใจที่เด่นที่สุดของคุณ จึงสอดคล้องสูง` : `${NOUN(dim)}ซึ่งเป็นด้านหลักของสาขานี้ เป็นความสนใจที่เด่นที่สุดของคุณ จึงสอดคล้องสูง`,
-    secondary: `${main ? "ทั้งนี้" : `${NOUN(dim)}ซึ่งเป็นด้านหลักของสาขานี้ เป็นหนึ่งในความสนใจที่โดดเด่นของคุณ แต่`}สาขานี้ยังไม่อยู่ในกลุ่มสาขาที่ข้อมูลแนะแนวแนะนำสำหรับรูปแบบความสนใจ ${codeText} ของคุณโดยตรง จึงจัดว่าสอดคล้องปานกลาง`,
-    outside: `${nm(f.name)}เน้น${NOUN(dim)}เป็นหลัก ซึ่งยังไม่ใช่ความสนใจที่โดดเด่นของคุณในตอนนี้ และไม่อยู่ในกลุ่มสาขาที่แนะนำสำหรับรูปแบบความสนใจ ${codeText} จึงสอดคล้องต่ำ`,
+  // ที่มาของระดับ — อธิบายเกณฑ์ที่ระบบใช้จริง ด้วยภาษาที่นักเรียนเข้าใจ
+  const levelWhy = {
+    recommended:
+      a.viaCode === latest.code
+        ? "ข้อมูลแนะแนวของโรงเรียนจับคู่สาขานี้ไว้กับรูปแบบความสนใจของคุณโดยตรง"
+        : "ข้อมูลแนะแนวของโรงเรียนจับคู่สาขานี้ไว้กับรูปแบบความสนใจของคุณ (เมื่อนับด้านที่คะแนนเท่ากัน)",
+    top: `ลักษณะหลักของสาขานี้คือ${NOUN(dim)} ซึ่งเป็นความสนใจที่เด่นที่สุดของคุณ${tiedNote}`,
+    secondary: `ลักษณะหลักของสาขานี้คือ${NOUN(dim)} ซึ่งเป็นหนึ่งในความสนใจเด่นของคุณ${tiedNote} แต่ยังไม่ใช่ด้านที่คุณสนใจมากที่สุด`,
+    outside: `ลักษณะหลักของสาขานี้คือ${NOUN(dim)} ซึ่งยังไม่อยู่ในกลุ่มความสนใจเด่นของคุณจากแบบประเมินครั้งนี้`,
   }[a.reason];
 
-  let first;
-  if (a.level === "low") {
-    first = `${reason}${otherText ? ` อย่างไรก็ดี ${otherText}ที่สาขานี้ต้องการ` : ""}`;
-  } else {
-    const link = [mainText, otherText && (mainText ? `ส่วน${otherText}` : otherText)].filter(Boolean).join(" ");
-    first = `${link || `${nm(f.name)}เน้น${f.traits}`} ${reason}`;
+  // ผลการวิเคราะห์ 2–4 ประโยค
+  const sentences = [`${nm(f.name)}เน้น${f.traits}`];
+  sentences.push(
+    mainIsMine
+      ? `ความสนใจ${NOUN(dim)}ของคุณจึงเป็นจุดที่สามารถนำมาต่อยอดกับสาขานี้ได้`
+      : `ซึ่งเป็นความสนใจ${NOUN(dim)}ที่ยังไม่โดดเด่นในผลแบบประเมินครั้งนี้`
+  );
+  if (helpers.length) {
+    sentences.push(`${mainIsMine ? "ส่วน" : "แต่"}${helpers.map((x) => `ความสนใจ${NOUN(x.code)}อาจช่วยในเรื่อง${joinTh(x.phrases.slice(0, 2))}`).join(" และ")}`);
   }
-  // ข้อความปิดท้ายแสดงครั้งเดียวต่อระดับ (หลายเป้าหมายระดับเดียวกันไม่ต้องอ่านซ้ำ)
-  const paragraphs = showClosing ? [first, CLOSING[a.level]] : [first];
-  // แนวทาง: คำแนะนำของสาขา + ทักษะที่ยังไม่ได้พูดถึงในผลการวิเคราะห์
-  const mentioned = links.flatMap((x) => x.phrases.slice(0, SHOWN));
-  const restSkills = f.skills.split(/,\s*/).filter((x) => !mentioned.includes(x));
+  // สิ่งที่ควรสำรวจ — ใช้ลักษณะงานจริงของสาขา (วลีแรกที่เป็นงาน ไม่ใช่ "ความสนใจ…")
+  const work = [...(main?.phrases || []), ...f.traits.split(/\s+และ|\s+/)].find((x) => x && !/^(ความสนใจ|พื้นฐาน|และ)/.test(x) && x.length > 3);
+  if (work) {
+    sentences.push(
+      {
+        high: `ลองหาโอกาสทำงานที่ต้องใช้${work}จริง เพื่อดูว่าความสนใจนี้ชัดเจนขึ้นเมื่อได้ลงมือทำหรือไม่`,
+        medium: `ลองทำงานที่ต้องใช้${work}หลาย ๆ แบบ เพื่อสำรวจว่าคุณชอบงานลักษณะนี้มากน้อยเพียงใด`,
+        low: `หากสนใจสาขานี้จริง ลองหาโอกาสทำงานที่ต้องใช้${work} เพื่อสำรวจว่าคุณชอบงานลักษณะนี้มากน้อยเพียงใด`,
+      }[a.level]
+    );
+  }
+  // ประโยคที่ 2 แบบ "ซึ่ง…" ต่อท้ายประโยคแรก
+  const analysis = (mainIsMine ? sentences : [`${sentences[0]} ${sentences[1]}`, ...sentences.slice(2)]).join(" ");
 
   return (
     <div className={`rounded-xl border px-4 py-4 ${meta.box}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="text-[12.5px] text-gray-500">
-            {SOURCE_TH[a.source]}: {a.source === "text" ? `“${a.input.slice(0, 60)}${a.input.length > 60 ? "…" : ""}”` : a.input}
-          </div>
+          {a.source === "text" && <div className="text-[12.5px] text-gray-500">จากข้อความเป้าหมายของคุณ</div>}
           <div className="text-[16px] font-semibold text-gray-900">{f.name}</div>
         </div>
-        <span className={`shrink-0 rounded-full bg-white px-3 py-1 text-[14px] font-bold ${meta.cls}`}>สอดคล้อง{meta.label}</span>
+        <span className={`shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[14px] font-bold ${meta.cls}`}>
+          <span aria-hidden>{meta.icon}</span>สอดคล้อง{meta.label}
+        </span>
       </div>
-
-      <div className="mt-3 grid sm:grid-cols-2 gap-2 text-[13.5px]">
-        <div className="rounded-lg bg-white/80 px-3 py-2">
-          <div className="text-gray-500">ผล RIASEC ของคุณ</div>
-          <div className="font-semibold text-gray-800">
-            {codes.join(" / ")} · {RIASEC_ORDER.filter((c) => denseRank(scores, c) <= 3).sort((x, y) => scores[y] - scores[x]).map((c) => `${c} ${scores[c]}`).join(" · ")}
-          </div>
-        </div>
-        <div className="rounded-lg bg-white/80 px-3 py-2">
-          <div className="text-gray-500">สาขานี้เน้นด้าน (จากไฟล์ข้อมูลคณะ)</div>
-          <div className="font-semibold text-gray-800">
-            {dimLabel(data, dim)} — คุณได้ {scores[dim]}/{MAX_SCORE} ({rankText(dim)})
-          </div>
-        </div>
-      </div>
+      <p className="mt-1.5 text-[13px] text-gray-600">
+        <span className="text-gray-500">ที่มาของระดับ: </span>
+        {levelWhy}
+      </p>
 
       <Block title="ผลการวิเคราะห์ของคุณ">
-        {paragraphs.map((t) => (
-          <p key={t}>{t}</p>
-        ))}
+        <p>{analysis}</p>
+        <p className="text-[12.5px] text-gray-500 leading-6">{SCOPE_NOTE}</p>
       </Block>
 
       <Block title="แนวทางไปสู่เป้าหมาย">
-        <p>
-          {f.advice}
-          {restSkills.length > 0 && ` พร้อมฝึก${joinTh(restSkills)}`}
-        </p>
+        <ul className="list-disc pl-5">
+          <li>{f.advice}</li>
+        </ul>
+        <p className="text-[13px] text-gray-500">ดูวิชาที่ควรเน้น การเตรียมสอบ/Portfolio และมหาวิทยาลัยที่เปิดสอนเพิ่มเติมได้ใน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</p>
       </Block>
 
-      {alternatives.length > 0 && (
-        <Block title="สาขาทางเลือกเพิ่มเติม">
+      <Block title="สาขาทางเลือกเพิ่มเติม">
+        {alternatives.length > 0 ? (
           <ul className="space-y-2">
             {alternatives.map((x) => (
               <li key={x.row.name} className="rounded-lg bg-white/80 px-3 py-2">
                 <div className="font-semibold text-gray-800">{x.row.name}</div>
                 <div className="text-[13.5px] text-gray-600 leading-6">
-                  งานใกล้กับเป้าหมาย: {x.work.join(", ")} — ข้อมูลแนะแนวแนะนำสาขานี้คู่กับ{nm(f.name)}สำหรับผู้ที่สนใจ{nounList(x.dims)}
+                  เกี่ยวข้องกับงานด้าน{joinTh(x.shared)}เช่นเดียวกับเป้าหมาย เช่น {x.work.slice(0, 2).join(", ")}
+                  {x.differs.length > 0 && <> · ต่างจากเป้าหมายตรงที่ต้องฝึก{joinTh(x.differs)}</>}
                 </div>
               </li>
             ))}
           </ul>
-        </Block>
-      )}
+        ) : (
+          <p className="text-[13.5px] text-gray-500">ยังไม่มีข้อมูลสาขาทางเลือกที่เชื่อมโยงได้ชัดเจน ลองปรึกษาครูแนะแนวเพื่อสำรวจทางเลือกเพิ่มเติม</p>
+        )}
+      </Block>
     </div>
   );
 }
@@ -734,11 +719,10 @@ export default function ResultPage() {
           </p>
         ) : (
           <div className="grid gap-4">
-            <GoalHeader goal={myGoal} focus={advice.focus} onEdit={() => navigate("/studentgoal")} />
+            <GoalHeader goal={myGoal} onEdit={() => navigate("/studentgoal")} />
             {analyses.map((a, i) => (
-              <AlignmentCard key={a.faculty.name} a={a} data={data} latest={latest} scores={scores} rankText={rankText} alternatives={altsByCard[i]} showClosing={analyses.findIndex((x) => x.level === a.level) === i} />
+              <AlignmentCard key={a.faculty.name} a={a} data={data} latest={latest} scores={scores} alternatives={altsByCard[i]} />
             ))}
-            <p className="text-[13px] text-gray-500">วิชาที่ควรเน้น การเตรียมสอบ/Portfolio และมหาวิทยาลัยที่เปิดสอน ดูต่อได้ใน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</p>
           </div>
         )}
         <details className="mt-3 text-[12.5px] text-gray-500">

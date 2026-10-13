@@ -54,6 +54,21 @@ assert.equal(an[0].rank, 3); assert.deepEqual(an[0].tied, ["I"]); assert.equal(a
 // 9) เท่ากันที่อันดับ 1 → สูง
 an = run("คะแนนเท่ากันอันดับ 1", res({ R: 20, I: 30, A: 46, S: 46, E: 40, C: 15 }), { faculty_name: "คณะศิลปกรรมศาสตร์", career_field: "", goal_text: "" });
 assert.equal(an[0].level, "high");
+// 10) ไม่เชื่อมแบบฝืน: "การสื่อสารด้วยภาพ" เป็นงานด้าน A ไม่ถูกยกให้ด้าน S, "สุขภาพ" ไม่ใช่ "ภาพ"
+const vis = data.faculties.find((f) => f.name === "ศิลปกรรมศาสตร์ (ทัศนศิลป์)");
+const linksSIE = R.interestLinks(data, SIE, vis);
+assert.ok(!linksSIE.some((x) => x.code === "S" && x.phrases.some((p) => p.includes("ภาพ"))), "S ต้องไม่ได้ 'การสื่อสารด้วยภาพ'");
+assert.ok(!linksSIE.some((x) => x.mine), "SIE ไม่มีด้านเด่นที่เชื่อมกับทัศนศิลป์ได้จริง");
+const pub = data.faculties.find((f) => f.name === "สาธารณสุขศาสตร์");
+assert.ok(!R.interestLinks(data, SIE, pub).some((x) => x.code === "A"), "'ความสนใจสุขภาพ' ไม่ใช่ด้าน A");
+// 11) รหัสหลักหลายแบบ (C = A = 36 ที่อันดับ 3 → SIC / SIA): ด้านที่เสมอกันนับเป็นความสนใจเด่นเท่ากัน
+const MULTI = res({ R: 20, I: 40, A: 36, S: 46, E: 30, C: 36 });
+assert.ok(MULTI.alternativeCodes.length > 0);
+an = run("รหัสหลายแบบ " + [MULTI.code, ...MULTI.alternativeCodes].join("/"), MULTI, { faculty_name: "การออกแบบกราฟิก", career_field: "", goal_text: "" });
+assert.notEqual(an[0].level, "low", "A เสมออันดับ 3 ต้องไม่ถูกนับว่าไม่ใช่ความสนใจเด่น");
+assert.ok(R.interestLinks(data, MULTI, an[0].faculty).filter((x) => x.mine).map((x) => x.code).includes("A"));
+// 12) สาขาทางเลือก: มีเหตุผล (งานร่วม) และบอกส่วนที่ต่าง
+an[0].alternatives.forEach((x) => { assert.ok(x.shared.length && x.work.length); assert.ok(Array.isArray(x.differs)); });
 console.log("\nผ่านทุกกรณี ✓");
 
 // ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====

@@ -251,8 +251,10 @@ const workUnits = (f) => [...f.careers, ...skillUnits(f)];
 
 // คำบอกลักษณะงานเฉพาะทาง ใช้ช่วยหาว่าสองสาขาทำงานคล้ายกันหรือไม่ (ข้อความที่แสดงมาจากไฟล์ทั้งหมด)
 // ไม่ใส่คำกว้าง ๆ ที่แทบทุกสาขามี เช่น ครู/สอน/วิจัย/ผู้จัดการ/ระบบ
+// "สี" ต้องเป็นคำเดี่ยว (ไม่ใช่ส่วนหนึ่งของ "เสี่ยง") — label ใช้ตอนแสดงผล
+const COLOR_KW = Object.assign(/สี(?=$|[\s,/]|และ)/, { label: "สี" });
 const WORK_KW = [
-  "วาด", "ภาพประกอบ", "ศิลปะ", "ออกแบบ", "กราฟิก", /สี(?=$|[\s,/]|และ)/, "องค์ประกอบ", "3 มิติ", "วัสดุ", "สเก็ตช์", "ร่างแบบ", "เขียนแบบ",
+  "วาด", "ภาพประกอบ", "ศิลปะ", "ออกแบบ", "กราฟิก", COLOR_KW, "องค์ประกอบ", "3 มิติ", "วัสดุ", "สเก็ตช์", "ร่างแบบ", "เขียนแบบ",
   "ภายใน", "ผลิตภัณฑ์", "บรรจุภัณฑ์", "แบรนด์", "วิดีโอ", "ตัดต่อ", "เล่าเรื่อง", "คอนเทนต์", "ภาพยนตร์", "แอนิเมชัน", "ถ่ายภาพ", "ดนตรี",
   "แสดง", "ข่าว", "แปล", "ภาษา", "เด็ก", "เกม", "ซอฟต์แวร์", "เขียนโปรแกรม", "ข้อมูล", "สถิติ", "AI", "ผู้ป่วย", "เภสัช", "แพทย์", /(?<!โรง)พยาบาล/,
   "สุขภาพ", "ฟื้นฟู", "กายภาพ", "รังสี", "ห้องปฏิบัติการ", "ชีว", "เคมี", "กฎหมาย", "บัญชี", "ภาษี", "การเงิน", "ธนาคาร", "การลงทุน", "การตลาด",
@@ -260,12 +262,13 @@ const WORK_KW = [
   "เครื่องจักร", "ยานยนต์", "การบิน", "โลจิสติกส์", "โรงแรม", "ท่องเที่ยว", "อีเวนต์", "ประชาสัมพันธ์", "ความปลอดภัย", "UX", "หน้าจอ", "อัญมณี", "เครือข่าย",
 ];
 const kwHit = (k, text) => (typeof k === "string" ? text.includes(k) : k.test(text));
-const kwKey = (k) => String(k);
+const KW_LABEL = { ออกแบบ: "การออกแบบ", ชีว: "ชีววิทยา", โภชนา: "โภชนาการ", แสดง: "การแสดง", แปล: "การแปล", เขียนโปรแกรม: "การเขียนโปรแกรม" };
+const kwLabel = (k) => (typeof k === "string" ? KW_LABEL[k] || k : k.label || String(k));
 
 // ---------- ความสนใจของนักเรียน ↔ สิ่งที่สาขาต้องการ ----------
 // คำช่วยจับคู่ด้าน RIASEC กับวลีในไฟล์คณะ (คุณลักษณะที่คณะต้องการ + ทักษะที่ควรพัฒนา)
 const DIM_KW = {
-  A: ["สร้างสรรค์", "จินตนาการ", "ออกแบบ", "ศิลปะ", "ผลงาน", "แสดงออก", "วาด", "เล่าเรื่อง", "องค์ประกอบ", "ดนตรี", "การแสดง", /สี(?=$|[\s,/]|และ)/],
+  A: ["สร้างสรรค์", "จินตนาการ", "ออกแบบ", "ศิลปะ", "ผลงาน", "แสดงออก", "วาด", /(?<!สุข|กาย|ส)ภาพ/, "เล่าเรื่อง", "องค์ประกอบ", "ดนตรี", "การแสดง", COLOR_KW],
   I: ["วิเคราะห์", "ตรรกะ", "แก้ปัญหา", "วิทยาศาสตร์", "ค้นคว้า", "ทดลอง", "คำนวณ", "คณิตศาสตร์", "ช่างสังเกต", "วิจัย"],
   S: ["สื่อสาร", "ดูแล", "ช่วยเหลือ", "เข้าใจผู้", "ผู้อื่น", "สอน", "ผู้เรียน", "ผู้ป่วย", "ชุมชน", "ทำงานร่วม", "เป็นทีม", "เป็นคณะ", "บริการ", "สัมภาษณ์"],
   E: ["ผู้นำ", "นำเสนอ", "โน้มน้าว", "ตัดสินใจ", "บริหาร", "เจรจา", "ธุรกิจ", "การตลาด", "แบรนด์", "การจัดการ"],
@@ -273,25 +276,25 @@ const DIM_KW = {
   R: ["ลงมือ", "ปฏิบัติ", "เครื่องมือ", "ช่าง", "ภาคสนาม", "ตัดเย็บ", "โมเดล", "วัสดุ", "เครื่องจักร", "ร่างกาย"],
 };
 
-// วลีของสาขาที่เชื่อมกับความสนใจเด่นแต่ละด้านของนักเรียน (ด้านหลักของสาขามาก่อน, แต่ละวลีนับให้ด้านเดียว)
-// → [{ code, phrases }] เฉพาะด้านที่มีวลีตรงกัน
+// วลีของสาขา (คุณลักษณะที่คณะต้องการ + ทักษะที่ควรพัฒนา) จัดให้ "ด้านที่วลีนั้นสื่อถึงจริง" เพียงด้านเดียว
+// โดยพิจารณาทั้ง 6 ด้าน (ด้านหลักของสาขาก่อน) แล้วจึงดูว่าด้านนั้นเป็นความสนใจเด่นของนักเรียนหรือไม่
+// → "การสื่อสารด้วยภาพ" เป็นของด้าน A (ภาพ) ไม่ถูกยกให้ด้าน S เพียงเพราะมีคำว่า "สื่อสาร"
+// คืน [{ code, phrases, mine }] — mine = ด้านนี้เป็นความสนใจเด่นของนักเรียน (อันดับ ≤ 3 แบบนับคะแนนเท่ากัน)
 export const interestLinks = (data, result, faculty) => {
-  const dims = topDims(result).sort((a, b) => (a === faculty.dim ? -1 : b === faculty.dim ? 1 : result.scores[b] - result.scores[a]));
+  const mine = topDims(result);
+  const order = [faculty.dim, ...RIASEC_ORDER.filter((c) => c !== faculty.dim).sort((a, b) => result.scores[b] - result.scores[a])];
   const units = [...traitUnits(faculty), ...skillUnits(faculty)];
-  const used = new Set();
-  return dims
-    .map((code) => {
-      const phrases = [];
-      units.forEach((u) => {
-        // ไม่นับวลีที่ซ้อนกับวลีที่เลือกแล้ว (เช่น "การคิดวิเคราะห์" กับ "การคิดวิเคราะห์เชิงเหตุผล")
-        const overlap = [...used].some((x) => x.includes(u) || u.includes(x));
-        if (overlap || !DIM_KW[code].some((k) => kwHit(k, u))) return;
-        phrases.push(u);
-        used.add(u);
-      });
-      return { code, phrases };
-    })
-    .filter((x) => x.phrases.length);
+  const groups = new Map();
+  const used = [];
+  units.forEach((u) => {
+    // ไม่นับวลีที่ซ้อนกับวลีที่เลือกแล้ว (เช่น "การคิดวิเคราะห์" กับ "การคิดวิเคราะห์เชิงเหตุผล")
+    if (used.some((x) => x.includes(u) || u.includes(x))) return;
+    const owner = order.find((c) => DIM_KW[c].some((k) => kwHit(k, u)));
+    if (!owner) return;
+    used.push(u);
+    groups.set(owner, [...(groups.get(owner) || []), u]);
+  });
+  return order.filter((c) => groups.has(c)).map((code) => ({ code, phrases: groups.get(code), mine: mine.includes(code) }));
 };
 
 // สาขาทางเลือกเพิ่มเติม — แสดงเฉพาะสาขาที่มีข้อมูลรองรับครบทั้งสองข้อ:
@@ -320,13 +323,16 @@ export const relatedAlternatives = (data, result, goalFaculty, excludeNames = []
   return [...found.values()]
     .map((x) => {
       const kws = goalKw.filter((k) => workUnits(x.row).some((u) => kwHit(k, u)));
+      const units = workUnits(x.row);
       return {
         row: x.row,
         codes: x.codes,
         dims: RIASEC_ORDER.filter((c) => x.dims.has(c)),
-        shared: kws.map(kwKey),
-        // งานของสาขาทางเลือกที่ใกล้กับเป้าหมาย (ข้อความจากไฟล์)
-        work: workUnits(x.row).filter((u) => kws.some((k) => kwHit(k, u))).slice(0, 3),
+        // ลักษณะงานที่เหมือนเป้าหมาย (คำ) และอาชีพ/ทักษะของสาขาทางเลือกที่มีคำนั้น (ข้อความจากไฟล์)
+        shared: kws.map(kwLabel),
+        work: units.filter((u) => kws.some((k) => kwHit(k, u))).slice(0, 3),
+        // ส่วนที่ต่างจากเป้าหมาย: ทักษะของสาขาทางเลือกที่ไม่เกี่ยวกับงานร่วม (ช่วยให้นักเรียนเปรียบเทียบ)
+        differs: skillUnits(x.row).filter((u) => !kws.some((k) => kwHit(k, u))).slice(0, 2),
       };
     })
     .filter((x) => x.work.length > 0)
@@ -402,7 +408,7 @@ export const riasecAdvice = (data, result, excludeNames = []) => {
     )
   );
   // สาขาที่อยู่กลุ่มด้านเด่นอันดับต้นของนักเรียนมาก่อน (ไม่ใช้ลำดับในไฟล์)
-  const w = (dim) => (result.code.indexOf(dim) >= 0 ? 3 - result.code.indexOf(dim) : 0);
+  const w = (dim) => Math.max(0, 4 - denseRank(result.scores, dim));
   rows.sort((a, b) => w(b.row.dim) - w(a.row.dim));
   return {
     strengths: result.code.split("").map((c) => ({ code: c, traits: data.dimensions[c].traits, rank: denseRank(result.scores, c), tied: tiedWith(result.scores, c) })),
@@ -430,8 +436,11 @@ const careerFacultyRows = (data, career, within = data.faculties) => {
 // 4.1 ใต้ผล RIASEC: อาชีพของรหัส (ตาราง 120 รหัส) มาก่อน แล้วจึงอาชีพของสาขาที่รหัสแนะนำ
 // เรียงตามความสัมพันธ์: อยู่ในรายการของรหัสโดยตรง + สาขาที่อาชีพนั้นอยู่ตรงกับด้านอันดับสูงของนักเรียน
 export const careersForResult = (data, result, limit = 3) => {
-  const weight = (dim) => (result.code.indexOf(dim) >= 0 ? 3 - result.code.indexOf(dim) : 0);
-  const recommended = facultiesForCode(data, result.code).flatMap((f) => f.rows);
+  // น้ำหนักตามอันดับแบบนับคะแนนเท่ากัน (ด้านที่เสมอกันได้น้ำหนักเท่ากัน)
+  const weight = (dim) => Math.max(0, 4 - denseRank(result.scores, dim));
+  // คะแนนเท่ากัน → รหัสทางเลือกมีน้ำหนักเท่ารหัสหลัก (ลำดับรหัสหลักมาจากการเรียงตามหกเหลี่ยม ไม่ใช่ความต่างของความสนใจ)
+  const codes = [result.code, ...(result.alternativeCodes || [])];
+  const recommended = [...new Set(codes.flatMap((c) => facultiesForCode(data, c).flatMap((f) => f.rows)))];
   const cand = new Map();
   const add = (career, base, via) => {
     const near = careerFacultyRows(data, career, recommended);
@@ -441,7 +450,7 @@ export const careersForResult = (data, result, limit = 3) => {
     const cur = cand.get(career);
     if (!cur || score > cur.score) cand.set(career, { title: career, score, faculty: best, source: base >= 10 ? "code" : "faculty" });
   };
-  data.codes[result.code].careers.forEach((c) => add(c, 10));
+  codes.forEach((code) => data.codes[code].careers.forEach((c) => add(c, 10)));
   recommended.forEach((r) => r.careers.forEach((c) => add(c, 0, r)));
   return [...cand.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 };
