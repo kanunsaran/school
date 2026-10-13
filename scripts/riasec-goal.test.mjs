@@ -69,6 +69,18 @@ assert.notEqual(an[0].level, "low", "A เสมออันดับ 3 ต้�
 assert.ok(R.interestLinks(data, MULTI, an[0].faculty).filter((x) => x.mine).map((x) => x.code).includes("A"));
 // 12) สาขาทางเลือก: มีเหตุผล (งานร่วม) และบอกส่วนที่ต่าง
 an[0].alternatives.forEach((x) => { assert.ok(x.shared.length && x.work.length); assert.ok(Array.isArray(x.differs)); });
+// 13) กรณีจากผู้ตรวจ: S=42 C=39 I=36 A=36 → I และ A อันดับ 3 ร่วมกัน, รหัส SCI / SCA, คำแนะนำแยกตามรหัส
+const CASE = res({ R: 20, I: 36, A: 36, S: 42, E: 25, C: 39 });
+assert.deepEqual([CASE.code, ...CASE.alternativeCodes], ["SCI", "SCA"]);
+assert.equal(R.denseRank(CASE.scores, "I"), 3); assert.equal(R.denseRank(CASE.scores, "A"), 3);
+assert.deepEqual(R.tiedWith(CASE.scores, "I"), ["A"]);
+assert.deepEqual(R.topDims(CASE), ["I", "A", "S", "C"]);
+const advSCI = R.riasecAdvice(data, { ...CASE, code: "SCI", alternativeCodes: [] });
+const advSCA = R.riasecAdvice(data, { ...CASE, code: "SCA", alternativeCodes: [] });
+const names = (a) => a.explore.map((x) => x.row.name);
+console.log("SCI →", names(advSCI).join(", "), "| SCA →", names(advSCA).join(", "));
+assert.ok(names(advSCI).every((n) => R.facultiesForCode(data, "SCI").some((f) => f.rows.some((r) => r.name === n))), "คำแนะนำ SCI ต้องมาจากรหัส SCI เท่านั้น");
+assert.ok(names(advSCA).every((n) => R.facultiesForCode(data, "SCA").some((f) => f.rows.some((r) => r.name === n))), "คำแนะนำ SCA ต้องมาจากรหัส SCA เท่านั้น");
 console.log("\nผ่านทุกกรณี ✓");
 
 // ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====
@@ -95,15 +107,16 @@ console.log("SCI ลักษณะงาน:", bSCI.workStyles[0].meaning, "| �
 console.log("SCI อาชีพ:", R.careersForResult(data, SCI).map((c) => `${c.title} (${c.faculty?.name})`).join(", "));
 assert.ok(bSCI.activities.length > 0 && bSCI.skills.length > 0);
 
-// 3) สอดคล้องต่ำแต่ยังอยากเรียน — จุดเด่นที่ต่อยอดได้ต้องมาจากคำที่อยู่ทั้งสองฝั่ง
+// 3) ความเชื่อมโยงความสนใจ ↔ สาขา: วลีต้องมาจากไฟล์ของสาขา และด้านที่ได้ต้องตรงกับความหมายของวลี (ไม่ฝืนจับคู่)
 const graphic = data.faculties.find((f) => f.name === "การออกแบบกราฟิก");
-const tr = R.transferableStrengths(data, SCI, graphic);
-console.log("SCI → การออกแบบกราฟิก จุดเด่นต่อยอด:", tr.map((x) => `${x.code}:${x.phrase}`).join(", "));
-tr.forEach((x) => { assert.ok(data.dimensions[x.code].traits.includes(x.word)); assert.ok(`${graphic.traits} ${graphic.skills}`.includes(x.phrase)); });
-// ไม่ฝืนจับคู่: ถ้าไม่มีคำร่วมต้องได้รายการว่าง
+const tr = R.interestLinks(data, SCI, graphic);
+console.log("SCI → การออกแบบกราฟิก:", tr.map((x) => `${x.code}${x.mine ? "*" : ""}:${x.phrases.join("/")}`).join("  "));
+tr.forEach((x) => x.phrases.forEach((p) => assert.ok(`${graphic.traits} ${graphic.skills}`.includes(p))));
+assert.ok(!tr.some((x) => x.code === "S" && x.phrases.some((p) => p.includes("ภาพ"))));
+// ไม่มีด้านเด่นที่เชื่อมได้จริง → ไม่มีรายการของนักเรียน (mine)
 const vet = data.faculties.find((f) => f.name === "สัตวแพทยศาสตร์");
 const E1 = res({ R: 10, I: 10, A: 30, S: 10, E: 50, C: 40 });
-console.log("ECA → สัตวแพทย์ จุดเด่นต่อยอด:", JSON.stringify(R.transferableStrengths(data, E1, vet)));
+console.log("ECA → สัตวแพทย์:", JSON.stringify(R.interestLinks(data, E1, vet).filter((x) => x.mine)));
 
 // 5) คะแนนเท่ากันหลายด้าน — อันดับเท่ากัน ไม่อ้างว่าด้านใดเด่นกว่า
 const T = res({ R: 20, I: 40, A: 40, S: 40, E: 20, C: 10 });

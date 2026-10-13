@@ -475,20 +475,3 @@ export const careersForGoal = (data, result, goalRows, careerText, limit = 3) =>
   return out;
 };
 
-// ---------- จุดเด่นที่นำไปต่อยอดได้ ----------
-// จับคู่เฉพาะคำที่ปรากฏทั้งใน "ลักษณะเด่น" ของด้านเด่นนักเรียน และใน "คุณลักษณะที่คณะต้องการ"/"ทักษะที่ควรพัฒนา" ของสาขา
-// (ไม่มีคำตรงกัน = ไม่แสดง เพื่อไม่ฝืนจับคู่) — รายการคำด้านล่างใช้ช่วยค้นเท่านั้น ข้อความที่แสดงมาจากไฟล์ทั้งหมด
-const SHARED_WORDS = ["สื่อสาร", "วิเคราะห์", "ละเอียด", "รอบคอบ", "ระบบ", "ขั้นตอน", "ช่วยเหลือ", "ดูแล", "เข้าใจ", "สอน", "จินตนาการ", "แสดงออก", "โน้มน้าว", "ลงมือ", "เครื่องมือ", "ค้นคว้า", "ตั้งคำถาม", "ข้อมูล", "ธรรมชาติ", "สัตว์", "กฎเกณฑ์", "แข่งขัน"];
-export const transferableStrengths = (data, result, faculty) => {
-  const facultyText = `${faculty.traits} ${faculty.skills}`;
-  const phrases = facultyText.split(/[\s,]+|และ/).filter(Boolean);
-  const out = [];
-  result.code.split("").forEach((c) => {
-    SHARED_WORDS.forEach((w) => {
-      if (!data.dimensions[c].traits.includes(w) || !facultyText.includes(w)) return;
-      const phrase = phrases.find((p) => p.includes(w)) || w;
-      if (!out.some((x) => x.phrase === phrase)) out.push({ code: c, word: w, phrase });
-    });
-  });
-  return out;
-};

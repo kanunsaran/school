@@ -28,6 +28,7 @@ const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂�
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
+const nounListTh = (list, dims) => list.map((c) => `ด้าน ${c} (${dims[c].nameTh})`).join(" และ ");
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
 const ROADMAP = [
@@ -394,8 +395,16 @@ export default function ResultPage() {
     );
   }, [analyses]);
   // ส่วน B: คำแนะนำจากผล RIASEC (ไม่รวมสาขาที่อยู่ในเป้าหมาย เพื่อไม่ให้ซ้ำกับส่วน A)
-  const goalNames = useMemo(() => analyses.map((a) => a.faculty.name), [analyses]);
-  const viewResult = useMemo(() => (latest && !latest.legacy ? (code === latest.code ? latest : { ...latest, code, alternativeCodes: [] }) : null), [latest, code]);
+  // ตัดสาขาของ "ทุกเป้าหมาย" ออก (ไม่ใช่เฉพาะเป้าหมายที่กำลังเลือกดู) ให้ตรงกับข้อความในส่วน B
+  const goalNames = useMemo(
+    () =>
+      ready
+        ? (myGoals || []).flatMap((g) => goalTargets(data, { faculty_name: g.faculty_name, goal_text: g.goal_text }).slice(0, 1).flatMap((t) => t.match.rows.map((r) => r.name)))
+        : [],
+    [ready, data, myGoals]
+  );
+  // คำแนะนำส่วน B ใช้ "รหัสที่เลือกดู" เท่านั้น (คะแนนเท่ากัน → นักเรียนเลือกดูทีละรหัส ไม่ปนกัน)
+  const viewResult = useMemo(() => (latest && !latest.legacy ? { ...latest, code, alternativeCodes: [] } : null), [latest, code]);
   const bAdvice = useMemo(() => (ready ? riasecAdvice(data, viewResult, goalNames) : null), [ready, data, viewResult, goalNames]);
   const resultCareers = useMemo(() => (ready ? careersForResult(data, viewResult) : []), [ready, data, viewResult]);
   const goalCareers = useMemo(
@@ -431,8 +440,11 @@ export default function ResultPage() {
   }
 
   const { scores, ranked } = latest;
-  const top3 = latest.code.split("");
+  // ความสนใจเด่น = อันดับ 1–3 แบบนับคะแนนเท่ากัน (I = A ที่อันดับ 3 → แสดงทั้งคู่) เรียงคะแนนมากไปน้อย
+  const topDims = ranked.filter((c) => denseRank(scores, c) <= 3);
   const allCodes = [latest.code, ...latest.alternativeCodes];
+  // ด้านที่ทำให้รหัสเป็นได้หลายแบบ (อยู่ในบางรหัสแต่ไม่ครบทุกรหัส)
+  const swingDims = RIASEC_ORDER.filter((c) => allCodes.some((x) => x.includes(c)) && !allCodes.every((x) => x.includes(c)));
   const dims = data.dimensions;
   // ลำดับแบบคะแนนเท่ากันได้อันดับเดียวกัน — ไม่บอกว่าด้านใดเด่นกว่าถ้าคะแนนเท่ากันจริง
   const rankText = (c) => {
@@ -440,15 +452,15 @@ export default function ResultPage() {
     return `อันดับ ${denseRank(scores, c)}${t.length ? ` เท่ากับ ${t.join(", ")}` : ""}`;
   };
   const groups = [];
-  top3.forEach((c) => {
+  topDims.forEach((c) => {
     const g = groups.find((x) => scores[x[0]] === scores[c]);
     g ? g.push(c) : groups.push([c]);
   });
   const nameOf = (c) => `${dims[c].nameEn} (${dims[c].nameTh})`;
   const interest = groups
-    .map((g, i) => `${i === 0 ? "คุณสนใจด้าน " : i === 1 ? " รองลงมาคือ " : " และ "}${joinTh(g.map(nameOf))}${g.length > 1 ? " ซึ่งคะแนนเท่ากัน" : ""}${i === 0 ? " มากที่สุด" : ""}`)
+    .map((g, i) => `${i === 0 ? "คุณสนใจด้าน " : i === 1 ? " รองลงมาคือ " : " ตามด้วย "}${g.map(nameOf).join(" และ ")}${g.length > 1 ? " ซึ่งคะแนนเท่ากัน" : ""}${i === 0 ? " มากที่สุด" : ""}`)
     .join("");
-  const summary = `รหัส ${latest.code} หมายถึง "${data.codes[latest.code].meaning}" — ${interest}`;
+  const summary = `${interest}${latest.hasTie ? "" : ` — รหัส ${latest.code} หมายถึง "${data.codes[latest.code].meaning}"`}`;
 
   return (
     <Shell>
@@ -457,9 +469,11 @@ export default function ResultPage() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
           <div className="min-w-0">
             <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
-            <p className="text-[34px] font-bold text-black mt-1 tracking-wider">{latest.code}</p>
+            <p className="text-[34px] font-bold text-black mt-1 tracking-wider">
+              {allCodes.join(" / ")}
+            </p>
             <ul className="mt-1 space-y-0.5 text-[14.5px] text-gray-700">
-              {top3.map((c) => (
+              {topDims.map((c) => (
                 <li key={c}>
                   <b>{c}</b> {dims[c].nameEn} ({dims[c].nameTh}) <span className="text-gray-400">• {rankText(c)} • {scores[c]}/{MAX_SCORE}</span>
                 </li>
@@ -467,7 +481,7 @@ export default function ResultPage() {
             </ul>
           </div>
           <div className="flex gap-2 flex-wrap md:flex-col md:items-end">
-            {top3.map((c) => (
+            {topDims.map((c) => (
               <span key={c} className="inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1.5 text-[13.5px] font-medium shadow-sm">
                 <span>{EMOJI[c]}</span>
                 {dims[c].nameTh}
@@ -486,7 +500,8 @@ export default function ResultPage() {
         )}
         {latest.hasTie && (
           <div className="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-[14px] text-amber-900">
-            มีด้านที่ได้คะแนนเท่ากัน รหัสของคุณจึงอาจเป็น <b>{allCodes.join(" หรือ ")}</b> ก็ได้ (ระบบเรียง {latest.code} ตามลำดับหกเหลี่ยม R-I-A-S-E-C) ลองอ่านคำแนะนำของทุกรหัสแล้วดูว่าแบบไหนตรงกับตัวคุณที่สุด
+            {swingDims.map((c) => `ด้าน ${c}`).join(" และ ")} ได้คะแนนเท่ากัน ({scores[swingDims[0]]}) จึงเป็นอันดับ {denseRank(scores, swingDims[0])} ร่วมกัน รหัสของคุณจึงเป็นได้ทั้ง{" "}
+            <b>{allCodes.join(" และ ")}</b> — ลำดับที่แสดงมาจากการเรียงตามหกเหลี่ยม R-I-A-S-E-C เท่านั้น ไม่ได้แปลว่าคุณสนใจด้านหนึ่งมากกว่าอีกด้าน
           </div>
         )}
         {latest.lowDifferentiation && (
@@ -557,111 +572,112 @@ export default function ResultPage() {
         </div>
       </div>
 
-      {/* ⑤ ความหมายของแต่ละด้าน */}
+      {/* ⑤ จุดเด่นของคุณ — ความหมายของด้านที่เด่น (นับคะแนนเท่ากัน) + ด้านอื่นแบบย่อ */}
       <div className={CARD}>
-        <SectionHeader emoji="📖" title="ความหมายของแต่ละด้าน" subtitle="ด้านที่มีสีคือ 3 ด้านที่คุณสนใจมากที่สุด" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {ranked.map((c) => {
-            const i = top3.indexOf(c);
-            const bg = ["bg-pink-200/60", "bg-sky-200/60", "bg-yellow-200/60"][i] || "bg-gray-50/60";
+        <SectionHeader
+          emoji="⭐"
+          title="จุดเด่นของคุณ"
+          subtitle={latest.hasTie ? "ความสนใจอันดับ 1–3 (รวมด้านที่คะแนนเท่ากัน) และความหมายของแต่ละด้าน" : "ความสนใจ 3 อันดับแรก และความหมายของแต่ละด้าน"}
+        />
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${topDims.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"} gap-3`}>
+          {topDims.map((c) => {
+            const r = denseRank(scores, c);
             return (
-              <div key={c} className={`p-3 rounded-xl ${bg}`}>
-                <p className="font-medium text-[14.5px]">
-                  {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh}) <span className="text-gray-500 font-normal">{scores[c]}/{MAX_SCORE}</span>
-                </p>
-                <p className="text-[13.5px] mt-0.5 text-gray-700">{dims[c].traits}</p>
+              <div key={c} className={`rounded-xl p-4 ${["bg-pink-200/60", "bg-sky-200/60", "bg-yellow-200/60"][r - 1] || "bg-white/70"}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[22px]">{["🥇", "🥈", "🥉"][r - 1] || "🏅"}</span>
+                  <span className="text-[13px] text-gray-600">
+                    {rankText(c)} • {scores[c]}/{MAX_SCORE}
+                  </span>
+                </div>
+                <div className="text-[15px] font-semibold mt-1">
+                  {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh})
+                </div>
+                <div className="text-[13.5px] text-gray-700 mt-1 leading-6">{dims[c].traits}</div>
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* ⑥ จุดเด่น */}
-      <div className={CARD}>
-        <SectionHeader emoji="⭐" title="จุดเด่นของคุณ" subtitle={latest.hasTie ? "3 ด้านที่ได้คะแนนสูงสุด (มีด้านที่คะแนนเท่ากัน)" : "3 ด้านที่ได้คะแนนสูงสุด"} />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {top3.map((c) => (
-            <div key={c} className="bg-white/70 rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[22px]">{["🥇", "🥈", "🥉"][denseRank(scores, c) - 1] || "🏅"}</span>
-                <span className="text-[13px] text-gray-500">
-                  {rankText(c)} • {scores[c]}/{MAX_SCORE} • {scorePercent(scores[c])}%
-                </span>
-              </div>
-              <div className="text-[15px] font-semibold mt-1">
-                {c} – {dims[c].nameTh}
-              </div>
-              <div className="text-[13.5px] text-gray-600 mt-1 leading-6">{dims[c].traits}</div>
-            </div>
-          ))}
-        </div>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-[13.5px] text-gray-600">ความหมายของด้านอื่น ๆ</summary>
+          <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {ranked
+              .filter((c) => !topDims.includes(c))
+              .map((c) => (
+                <div key={c} className="p-3 rounded-xl bg-gray-50/70">
+                  <p className="font-medium text-[14px]">
+                    {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh}) <span className="text-gray-500 font-normal">{scores[c]}/{MAX_SCORE}</span>
+                  </p>
+                  <p className="text-[13px] mt-0.5 text-gray-600">{dims[c].traits}</p>
+                </div>
+              ))}
+          </div>
+        </details>
       </div>
 
       {/* ===== ส่วน B: คำแนะนำจากผลแบบประเมิน RIASEC (ไม่ขึ้นกับเป้าหมาย) ===== */}
       <GroupLabel>คำแนะนำจากผล RIASEC</GroupLabel>
 
       {latest.hasTie && (
-        <div className="flex flex-wrap items-center gap-2 text-[14px]">
-          <span className="text-gray-600">ดูคำแนะนำของรหัส:</span>
-          {allCodes.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setViewCode(c)}
-              className={`px-3 py-1 rounded-full border text-[14px] font-semibold ${c === code ? "!bg-pink-500 text-white border-pink-500" : "bg-white text-gray-700 border-gray-200"}`}
-            >
-              {c}
-            </button>
-          ))}
+        <div className={CARD}>
+          <p className="text-[14px] text-gray-700">
+            รหัสของคุณเป็นได้ {allCodes.length} แบบ เพราะ{swingDims.map((c) => `ด้าน ${c}`).join(" และ ")} ได้คะแนนเท่ากัน — เลือกรหัสเพื่อดูคำแนะนำของแบบนั้น
+          </p>
+          <div role="radiogroup" aria-label="เลือกรหัสที่ต้องการดูคำแนะนำ" className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {allCodes.map((c) => {
+              const uses = swingDims.filter((d) => c.includes(d));
+              const on = c === code;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setViewCode(c)}
+                  className={`rounded-xl border px-3.5 py-2.5 text-left ${on ? "!bg-pink-500 border-pink-500 text-white" : "bg-white border-gray-200 text-gray-800 hover:border-pink-300"}`}
+                >
+                  <span className="text-[16px] font-bold tracking-wider">{c}</span>
+                  <span className={`ml-2 text-[12.5px] ${on ? "text-white/90" : "text-gray-500"}`}>ใช้{nounListTh(uses, dims)}</span>
+                  <span className={`block text-[13px] mt-0.5 ${on ? "text-white/90" : "text-gray-600"}`}>{data.codes[c].meaning}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
       {bAdvice && (
         <div className={CARD}>
-          <SectionHeader emoji="💡" title="เข้าใจความสนใจของตัวเอง" subtitle={`จากคะแนนทั้ง 6 ด้านและรหัส ${code} — บอกความสนใจ ไม่ได้วัดความสามารถ`} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <AdviceBox n="1" title="จุดเด่นจากผลแบบประเมิน" source="คู่มือมิติ RIASEC">
-              <li className="list-none leading-6">{interest}</li>
-              {latest.lowDifferentiation && <li className="list-none text-sky-800">คะแนนทุกด้านใกล้กัน — ยังสนใจได้หลายทาง ควรลองทำกิจกรรมหลายแบบ</li>}
-            </AdviceBox>
-
-            <AdviceBox n="2" title="ลักษณะงานหรือกิจกรรมที่คุณอาจสนใจ" source="ความหมายของรหัส (ตาราง 120 รหัส)">
-              {bAdvice.workStyles.map((w) => (
-                <li key={w.code} className="list-none leading-6">
-                  <b>{w.code}</b>: {w.meaning}
+          <SectionHeader emoji="💡" title={`คำแนะนำสำหรับรหัส ${code}`} subtitle="ช่วยสำรวจความสนใจ ไม่ได้วัดความสามารถ — ไม่รวมสาขาที่คุณตั้งเป็นเป้าหมายไว้แล้ว (ดูในส่วนเป้าหมายด้านล่าง)" />
+          <div className="grid grid-cols-1 gap-3">
+            {!latest.hasTie && (
+              <AdviceBox n="1" title="ลักษณะงานหรือกิจกรรมที่คุณอาจสนใจ" source="ความหมายของรหัส (ตาราง 120 รหัส)">
+                <li className="list-none leading-6">
+                  <b>{code}</b>: {data.codes[code].meaning}
                 </li>
-              ))}
-            </AdviceBox>
+                {latest.lowDifferentiation && <li className="list-none text-sky-800">คะแนนทุกด้านใกล้กัน — ยังสนใจได้หลายทาง ควรลองทำกิจกรรมหลายแบบ</li>}
+              </AdviceBox>
+            )}
 
-            <AdviceBox n="3" title="กิจกรรมที่ลองทำเพื่อสำรวจตัวเอง" source="คำแนะนำสำหรับนักเรียน ของสาขาที่ตรงกับรหัส">
-              {bAdvice.activities.map((x) => (
-                <FacultyItem key={x.faculty} name={x.faculty} multi>
-                  {x.text}
-                </FacultyItem>
-              ))}
-              <li className="list-none text-[12.5px] text-gray-500">ลองทำแล้วสังเกตว่ากิจกรรมแบบไหนทำให้อยากเรียนรู้ต่อ</li>
-            </AdviceBox>
-
-            <AdviceBox n="4" title="ทักษะที่ต่อยอดจากความสนใจนี้" source="ทักษะที่ควรพัฒนา ของสาขาที่ตรงกับรหัส">
-              {bAdvice.skills.map((x) => (
-                <FacultyItem key={x.faculty} name={x.faculty} multi>
-                  {x.text}
-                </FacultyItem>
-              ))}
-            </AdviceBox>
-
-            <AdviceBox n="5" title="สาขาและอาชีพที่ควรสำรวจ" source="คณะที่แนะนำ / อาชีพตัวอย่าง ของรหัส, หลักสูตรจาก myTCAS" wide>
+            <AdviceBox n={latest.hasTie ? "1" : "2"} title="สาขาที่ควรสำรวจ — ลองทำอะไร และใช้ทักษะอะไร" source="คณะที่แนะนำของรหัส, คำแนะนำสำหรับนักเรียน, ทักษะที่ควรพัฒนา">
               <li className="list-none">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {bAdvice.explore.map(({ row }) => {
+                  {bAdvice.explore.slice(0, 6).map(({ row }) => {
                     const rank = denseRank(scores, row.dim);
                     return (
-                      <div key={row.name} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2 min-w-0">
+                      <div key={row.name} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2 min-w-0 text-[13px] leading-6">
                         <div className="text-[14px] font-semibold text-gray-800">{row.name}</div>
                         <div className="text-[12.5px] text-gray-500">
                           กลุ่ม {dimLabel(data, row.dim)} • ด้านนี้ของคุณ{rank <= 3 ? `อยู่${rankText(row.dim)}` : ` ${scores[row.dim]}/${MAX_SCORE}`}
                         </div>
-                        {row.universities.length > 0 && <div className="text-[12.5px] text-gray-600 mt-0.5">🏫 {row.universities.join(", ")}</div>}
+                        <div className="mt-1">
+                          <span className="text-gray-500">ลองทำ: </span>
+                          {row.advice}
+                        </div>
+                        <div>
+                          <span className="text-gray-500">ทักษะที่ใช้: </span>
+                          {row.skills}
+                        </div>
                         <a href={row.links[0] || MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-[12.5px] text-sky-600 hover:underline">
                           {row.links[0] ? "ดูหลักสูตรใน myTCAS ↗" : "ค้นหาหลักสูตรใน myTCAS ↗"}
                         </a>
@@ -669,10 +685,14 @@ export default function ResultPage() {
                     );
                   })}
                 </div>
+                {bAdvice.explore.length === 0 && <p className="text-gray-500">สาขาที่รหัสนี้แนะนำอยู่ในเป้าหมายของคุณแล้ว</p>}
               </li>
+            </AdviceBox>
+
+            <AdviceBox n={latest.hasTie ? "2" : "3"} title={`อาชีพที่สัมพันธ์กับรหัส ${code}`} source="อาชีพตัวอย่างของรหัส / อาชีพที่เกี่ยวข้องของสาขา">
               <li className="list-none">
-                <div className="text-[13.5px] font-semibold text-gray-800 mb-1.5">อาชีพที่สัมพันธ์กับผล RIASEC ของคุณ</div>
                 <CareerList items={resultCareers} data={data} />
+                <p className="mt-1.5 text-[12.5px] text-gray-500">เป็นตัวอย่างอาชีพที่สัมพันธ์กับความสนใจแบบนี้ ไม่ได้ยืนยันว่าคุณเหมาะกับอาชีพนั้นแน่นอน</p>
               </li>
             </AdviceBox>
           </div>
@@ -750,6 +770,7 @@ export default function ResultPage() {
                   <div>
                     <b>{f.subjects.join(", ")}</b>
                   </div>
+                  <div className="text-[12.5px] text-gray-500">คำแนะนำทั่วไป — วิชาที่ใช้สอบจริงและสัดส่วนคะแนนดูใน “ข้อกำหนดการรับเข้าจริง” (ข้อ 4)</div>
                   <div className="text-gray-600">สายการเรียน: {f.track}</div>
                 </FacultyItem>
               ))}
@@ -775,7 +796,10 @@ export default function ResultPage() {
             <AdviceBox n="4" title="การเตรียมสอบ / Portfolio และการสมัคร" source="สิ่งที่ควรเตรียมสอบ, มหาวิทยาลัยตัวอย่าง, หลักสูตรจาก myTCAS">
               {advice.perFaculty.map((f) => (
                 <FacultyItem key={f.name} name={f.name} multi={advice.perFaculty.length > 1}>
-                  <div>{f.exam}</div>
+                  <div>
+                    <span className="text-gray-500">คำแนะนำทั่วไปจากข้อมูลแนะแนว: </span>
+                    {f.exam}
+                  </div>
                   {/portfolio|แฟ้มสะสมผลงาน/i.test(`${f.exam} ${f.advice}`) && (
                     <div className="text-pink-700">สาขานี้ใช้ Portfolio — เริ่มเก็บผลงานที่เกี่ยวข้องตั้งแต่ตอนนี้</div>
                   )}

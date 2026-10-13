@@ -220,7 +220,7 @@ export default function AdmissionInfo({ facultyName, university, gpax = null }) 
   const year = rounds.list[0]?.type?.split("_")[1];
   return (
     <div className={box}>
-      <div className="text-[14px] font-semibold text-gray-800">เกณฑ์รับเข้าจริง — {university}</div>
+      <div className="text-[14px] font-semibold text-gray-800">ข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS) — {university}</div>
       {programs.length > 1 ? (
         <select
           value={selected.id}
