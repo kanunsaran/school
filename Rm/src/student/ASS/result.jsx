@@ -347,7 +347,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
 // หลักสูตรตัวอย่าง 1 รายการ + ลิงก์ค้นหาเพิ่มเติมบน myTCAS (แสดงทุกครั้ง)
 // เลือก: (1) มหาวิทยาลัยในเป้าหมายของนักเรียน ถ้ามีหลักสูตรของสาขานี้ในข้อมูล (2) ไม่มี → หลักสูตรแรกในข้อมูลแนะแนว
 // (ระบบยังไม่มีข้อมูลความโดดเด่นของมหาวิทยาลัย จึงไม่จัดอันดับและไม่อ้างว่าดีที่สุด) • หลักสูตรทุกรายการตรวจชื่อกับ myTCAS แล้ว
-function ProgramPick({ faculty, goalUni }) {
+function ProgramPick({ faculty, goalUni, compact = false }) {
   const items = (faculty.programs || [])
     .map((pg, k) => {
       const [uni, ...rest] = pg.split(":");
@@ -356,6 +356,25 @@ function ProgramPick({ faculty, goalUni }) {
     .filter((x) => x.link);
   const fromGoal = goalUni ? items.find((x) => x.uni === fullUniName(goalUni)) : null;
   const pick = fromGoal || items[0] || null;
+  if (compact) {
+    return (
+      <div className="text-[13.5px]">
+        {pick ? (
+          <>
+            <a href={pick.link} target="_blank" rel="noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-700">
+              ดูหลักสูตร{faculty.name}ของ{pick.uni}บน myTCAS ↗
+            </a>
+            <div className="text-[11.5px] text-gray-400">{fromGoal ? "มหาวิทยาลัยเดียวกับในเป้าหมายของคุณ" : "ตัวอย่างจากข้อมูลแนะแนว ไม่ได้หมายความว่าดีที่สุด"}</div>
+          </>
+        ) : (
+          <div className="text-gray-500">ยังไม่มีหลักสูตรตัวอย่างที่ตรวจสอบแล้ว</div>
+        )}
+        <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-[12.5px] text-gray-500 underline underline-offset-2 hover:text-sky-700">
+          ค้นหาหลักสูตรอื่นบน myTCAS ↗
+        </a>
+      </div>
+    );
+  }
   return (
     <div className="mt-1.5 space-y-1.5">
       {pick ? (
@@ -773,28 +792,30 @@ export default function ResultPage() {
                 <p className="text-gray-600">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {explore.map(({ row, code, links }) => {
+                  {explore.map(({ row, code, links }, i) => {
+                    // เหตุผล = วลีของสาขานี้เอง (คุณลักษณะในข้อมูลแนะแนว) ที่เชื่อมกับความสนใจเด่น — ใช้ด้านหลักของสาขาก่อน
                     const link = links.find((l) => l.code === row.dim) || links[0];
                     return (
-                      <div key={row.name} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2.5 min-w-0 leading-6">
-                        <div className="text-[14.5px] font-semibold text-gray-800">{row.name}</div>
-                        <p className="mt-1">
-                          สาขานี้อาจเป็นอีกทางเลือกให้คุณสำรวจ เพราะเกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]} ({link.code}) ของคุณ
-                          ลองศึกษาลักษณะการเรียนและการทำงานจริงเพิ่มเติม เพื่อดูว่าตรงกับสิ่งที่คุณสนใจหรือไม่
-                        </p>
-                        <p className="mt-1 text-[12.5px] text-gray-500">
-                          ข้อมูลแนะแนวของโรงเรียน: แนะนำสาขานี้สำหรับรหัส {code}
-                          {latest.hasTie ? (code === latest.code ? " (รหัสหลัก)" : " (รหัสทางเลือก)") : ""}
-                        </p>
-                        <div className="mt-1">
-                          <span className="text-gray-500">สิ่งที่ได้เรียน/ฝึก: </span>
-                          {row.skills}
+                      <div key={row.name} className="rounded-lg bg-white/80 border border-gray-100 px-3.5 py-3 min-w-0 leading-6">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-[15px] font-semibold text-gray-900">
+                            {i + 1}. {row.name}
+                          </div>
+                          <span className="shrink-0 rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
                         </div>
-                        <div>
-                          <span className="text-gray-500">วิชาที่ควรเตรียม: </span>
-                          {row.subjects.join(", ")}
-                        </div>
-                        <ProgramPick faculty={row} goalUni={myGoal?.university_name} />
+                        <p className="mt-1 text-gray-700">
+                          สาขานี้อาจเป็นทางเลือกที่น่าสำรวจสำหรับคุณ เนื่องจากเกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 3))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
+                        </p>
+                        <div className="mt-1.5 font-medium text-gray-800">สิ่งที่ควรศึกษาเพิ่มเติม</div>
+                        <p className="text-gray-700">
+                          {/* ไม่ซ้ำกับวลีที่ใช้ในเหตุผลด้านบน */}
+                          {row.skills
+                            .split(/,\s*/)
+                            .filter((x) => !link.phrases.slice(0, 3).includes(x))
+                            .join(", ") || row.skills}
+                        </p>
+                        <div className="mt-1.5 font-medium text-gray-800">หลักสูตรแนะนำ</div>
+                        <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
                       </div>
                     );
                   })}
@@ -802,8 +823,8 @@ export default function ResultPage() {
               )}
               {explore.length > 0 && (
                 <p className="mt-1.5 text-[12.5px] text-gray-500">
-                  เป็นสาขาที่เกี่ยวข้องกับ “ความสนใจ” — ไม่ได้หมายความว่ามีคุณสมบัติเข้าศึกษาได้ ก่อนตัดสินใจควรอ่านรายวิชาในหลักสูตรและตรวจเกณฑ์รับเข้า • วิชาที่ควรเตรียมเป็นคำแนะนำทั่วไป ไม่ใช่วิชาสอบที่ทุกหลักสูตรกำหนด •
-                  ชื่อหลักสูตรตรวจกับข้อมูล myTCAS เมื่อ {thaiDate(dataSources.sources.find((x) => x.id === "mytcas")?.checkedAt)}
+                  เป็นสาขาที่เกี่ยวข้องกับความสนใจ ไม่ได้หมายความว่ามีคุณสมบัติเข้าศึกษาได้ • ที่มา: ข้อมูลแนะแนวของโรงเรียน และหลักสูตรที่ตรวจชื่อกับ myTCAS เมื่อ{" "}
+                  {thaiDate(dataSources.sources.find((x) => x.id === "mytcas")?.checkedAt)}
                 </p>
               )}
             </li>
@@ -811,15 +832,8 @@ export default function ResultPage() {
 
           <AdviceBox n="3" title="อาชีพตัวอย่าง" wide>
             <li className="list-none">
-              <CareerList
-                items={resultCareers.map((c) => ({
-                  ...c,
-                  reason: `ทักษะที่เกี่ยวข้อง: ${c.faculty.skills} • เป็นอาชีพที่เกี่ยวข้องของสาขา${c.faculty.name}ที่แนะนำด้านบน จึงนำมาเป็นตัวอย่างให้ลองศึกษาลักษณะงานจริง`,
-                }))}
-              />
-              <p className="mt-1.5 text-[12.5px] text-gray-500">
-                ข้อมูลแนะแนวยังไม่มีคำอธิบายลักษณะงานรายอาชีพ จึงแสดงทักษะของสาขาที่เกี่ยวข้องแทน • เป็นตัวอย่างงานให้ลองศึกษาเพิ่มเติม ไม่ได้ยืนยันว่าคุณเหมาะกับอาชีพนั้นหรือจะประสบความสำเร็จแน่นอน
-              </p>
+              <CareerList items={resultCareers.map((c) => ({ ...c, reason: `อาชีพในสาขา${c.faculty.name}` }))} />
+              <p className="mt-1.5 text-[12.5px] text-gray-500">อาชีพเหล่านี้เป็นตัวอย่างที่เกี่ยวข้องกับสาขาข้างต้น ไม่ใช่การทำนายอาชีพที่เหมาะกับคุณโดยเฉพาะ</p>
             </li>
           </AdviceBox>
         </div>
