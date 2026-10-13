@@ -470,6 +470,7 @@ export const personalAdvice = (data, result, analyses = []) => {
       careers: f.careers, // อาชีพที่เกี่ยวข้อง
       programs: f.programs, // หลักสูตรที่พบใน myTCAS
       link: f.links[0] || null,
+      links: f.links, // ลิงก์หลักสูตรเรียงคู่กับ programs
     })),
     toExplore,
   };

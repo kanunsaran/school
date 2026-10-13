@@ -344,6 +344,45 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
   );
 }
 
+// หลักสูตรตัวอย่าง 1 รายการ + ลิงก์ค้นหาเพิ่มเติมบน myTCAS (แสดงทุกครั้ง)
+// เลือก: (1) มหาวิทยาลัยในเป้าหมายของนักเรียน ถ้ามีหลักสูตรของสาขานี้ในข้อมูล (2) ไม่มี → หลักสูตรแรกในข้อมูลแนะแนว
+// (ระบบยังไม่มีข้อมูลความโดดเด่นของมหาวิทยาลัย จึงไม่จัดอันดับและไม่อ้างว่าดีที่สุด) • หลักสูตรทุกรายการตรวจชื่อกับ myTCAS แล้ว
+function ProgramPick({ faculty, goalUni }) {
+  const items = (faculty.programs || [])
+    .map((pg, k) => {
+      const [uni, ...rest] = pg.split(":");
+      return { uni: fullUniName(uni.trim()), name: rest.join(":").trim(), link: faculty.links?.[k] };
+    })
+    .filter((x) => x.link);
+  const fromGoal = goalUni ? items.find((x) => x.uni === fullUniName(goalUni)) : null;
+  const pick = fromGoal || items[0] || null;
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      {pick ? (
+        <div className="rounded-lg bg-sky-50/60 border border-sky-100 px-3 py-2">
+          <div className="text-[12px] text-gray-500">หลักสูตรตัวอย่าง</div>
+          <div className="font-medium text-gray-800">{pick.uni}</div>
+          <div className="text-[13px] text-gray-600">{pick.name}</div>
+          <a href={pick.link} target="_blank" rel="noreferrer" className="text-[13px] text-sky-600 underline underline-offset-2 hover:text-sky-700">
+            ดูรายละเอียดหลักสูตรบน myTCAS ↗
+          </a>
+          <div className="text-[11.5px] text-gray-400 mt-0.5">
+            {fromGoal ? "มหาวิทยาลัยเดียวกับในเป้าหมายของคุณ" : "ตัวอย่างจากข้อมูลแนะแนว — ไม่ได้หมายความว่าเป็นมหาวิทยาลัยที่ดีที่สุด"}
+          </div>
+        </div>
+      ) : (
+        <div className="text-[13px] text-gray-500">ยังไม่มีหลักสูตรตัวอย่างที่ตรวจสอบแล้วในข้อมูล</div>
+      )}
+      <div className="text-[13px] text-gray-600">
+        อยากเปรียบเทียบมหาวิทยาลัยอื่น?{" "}
+        <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-700">
+          ค้นหาหลักสูตรเพิ่มเติมบน myTCAS ↗
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // อาชีพตัวอย่าง (≤ 3) พร้อมเหตุผลสั้น ๆ — เหตุผลมาจากข้อมูลสาขาของอาชีพนั้น
 function CareerList({ items }) {
   if (!items.length) return <p className="text-[13px] text-gray-500">ยังไม่มีข้อมูลอาชีพที่เกี่ยวข้อง</p>;
@@ -755,20 +794,7 @@ export default function ResultPage() {
                           <span className="text-gray-500">วิชาที่ควรเตรียม: </span>
                           {row.subjects.join(", ")}
                         </div>
-                        {row.links.length ? (
-                          <div className="mt-1">
-                            <span className="text-gray-500">หลักสูตรใน myTCAS: </span>
-                            {row.links.slice(0, 2).map((l, k) => (
-                              <a key={l} href={l} target="_blank" rel="noreferrer" className="block text-sky-600 hover:underline">
-                                {row.programs[k] || "ดูหลักสูตร"} ↗
-                              </a>
-                            ))}
-                          </div>
-                        ) : (
-                          <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="mt-1 block text-sky-600 hover:underline">
-                            ค้นหาหลักสูตรเพิ่มเติมใน myTCAS ↗
-                          </a>
-                        )}
+                        <ProgramPick faculty={row} goalUni={myGoal?.university_name} />
                       </div>
                     );
                   })}
@@ -886,29 +912,7 @@ export default function ResultPage() {
                     <span className="text-gray-500">คำแนะนำทั่วไปจากข้อมูลแนะแนว: </span>
                     {f.exam}
                   </div>
-                  {f.programs.length > 0 && (
-                    <div className="text-[13px] text-gray-600">
-                      หลักสูตรใน myTCAS (กดเพื่อเปิดหน้าหลักสูตร):
-                      <ul className="mt-0.5 space-y-0.5">
-                        {f.programs.slice(0, 3).map((pg, k) => (
-                          <li key={pg}>
-                            {f.links?.[k] ? (
-                              <a href={f.links[k]} target="_blank" rel="noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-700">
-                                {pg} ↗
-                              </a>
-                            ) : (
-                              pg
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {f.programs.length === 0 && (
-                    <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline text-[13px]">
-                      ค้นหาหลักสูตรเพิ่มเติมใน myTCAS ↗
-                    </a>
-                  )}
+                  <ProgramPick faculty={f} goalUni={myGoal?.university_name} />
                   <div className="mt-2">
                     <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} />
                   </div>
