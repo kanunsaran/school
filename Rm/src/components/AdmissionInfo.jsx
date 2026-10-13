@@ -145,7 +145,7 @@ function Round({ r, labels, gpax, defaultOpen }) {
   );
 }
 
-export default function AdmissionInfo({ facultyName, university, gpax = null }) {
+export default function AdmissionInfo({ facultyName, university, gpax = null, hideTitle = false }) {
   const [data, setData] = useState(null);
   const [pid, setPid] = useState(null);
   // มหาวิทยาลัยที่เลือกดูในกล่องนี้ (ค่าเริ่มต้น = มหาวิทยาลัยในเป้าหมาย) — ดูอย่างเดียว ไม่บันทึกเป้าหมาย
@@ -195,7 +195,7 @@ export default function AdmissionInfo({ facultyName, university, gpax = null }) 
   const select = "w-full h-9 rounded-lg border border-gray-200 bg-white px-2 text-[13px] outline-none focus:border-pink-400";
   const header = (
     <>
-      <div className="text-[14px] font-semibold text-gray-800">ข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS)</div>
+      {!hideTitle && <div className="text-[14px] font-semibold text-gray-800">ข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS)</div>}
       <label className="mt-1.5 block">
         <span className="text-[12.5px] text-gray-500">มหาวิทยาลัย</span>
         <select

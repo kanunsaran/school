@@ -945,7 +945,7 @@ export default function ResultPage() {
             </AdviceBox>
 
 
-            <AdviceBox n="3" title="การเตรียมสอบ / Portfolio และการสมัคร">
+            <AdviceBox n="3" title="การเตรียมสอบ / Portfolio และการสมัคร" wide>
               {advice.perFaculty.map((f) => (
                 <FacultyItem key={f.name} name={f.name} multi={advice.perFaculty.length > 1}>
                   <div>
@@ -956,7 +956,7 @@ export default function ResultPage() {
                   <details className="mt-2" open={Boolean(myGoal?.university_name)}>
                     <summary className="cursor-pointer select-none text-[13.5px] font-medium text-sky-700">ดูข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS)</summary>
                     <div className="mt-2">
-                      <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} />
+                      <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} hideTitle />
                     </div>
                   </details>
                 </FacultyItem>
