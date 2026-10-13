@@ -5,7 +5,8 @@ import Header from "../../Header";
 import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
-import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY, ONET_TITLE_TH } from "../../data/guidanceTexts.js";
+import { careerEmoji } from "../../utils/careerEmoji.js";
+import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY } from "../../data/guidanceTexts.js";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
 import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
@@ -124,9 +125,9 @@ function AdviceBox({ n, title, source, wide, children }) {
     <div className={`bg-white/70 rounded-xl p-4 min-w-0 flex flex-col ${wide ? "lg:col-span-2" : ""}`}>
       <div className="flex items-center gap-2 mb-2">
         <span className="h-6 w-6 rounded-full bg-pink-500 text-white text-[12.5px] font-bold flex items-center justify-center shrink-0">{n}</span>
-        <h3 className="text-[15px] font-semibold text-gray-800">{title}</h3>
+        <h3 className="text-[16px] font-semibold text-gray-800">{title}</h3>
       </div>
-      <ul className="space-y-2 text-[13.5px] text-gray-700 flex-1">{children}</ul>
+      <ul className="space-y-2 text-[15px] text-gray-700 flex-1">{children}</ul>
       {source && <div className="mt-2 pt-2 border-t border-gray-100 text-[11.5px] text-gray-400">ที่มา: ไฟล์ข้อมูลคณะ–อาชีพ • {source}</div>}
     </div>
   );
@@ -145,8 +146,6 @@ function FacultyItem({ name, multi, children }) {
 const CARD = "bg-white/60 border border-white/60 backdrop-blur-xl p-5 rounded-2xl shadow-sm";
 const thaiDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "");
 
-// ชื่อมิติแบบสั้น เช่น "S – นักช่วยเหลือ"
-const dimLabel = (data, c) => `${c} – ${data.dimensions[c].nameTh}`;
 
 function Shell({ children }) {
   return (
@@ -203,8 +202,8 @@ function GoalHeader({ goal, onEdit }) {
 function Block({ title, children }) {
   return (
     <div className="mt-4">
-      <div className="text-[14.5px] font-semibold text-gray-800">{title}</div>
-      <div className="text-[14px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
+      <div className="text-[15.5px] font-semibold text-gray-800">{title}</div>
+      <div className="text-[15px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
     </div>
   );
 }
@@ -238,24 +237,14 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
 
   return (
     <div className={`rounded-2xl border px-4 py-4 sm:px-5 ${meta.box}`}>
-      <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${meta.cls}`}>{meta.label}</span>
-      <div className="mt-1.5 text-[18px] font-bold text-gray-900">{f.name}</div>
-      <div className="text-[13.5px] text-gray-600">
-        ด้าน {dim} — {DIM_EN[dim]} ({TRAIT_NOUN[dim]}) · {dimMine ? "หนึ่งในความสนใจเด่นของคุณ" : "ยังไม่ใช่ความสนใจเด่นจากแบบประเมินครั้งนี้"}
-        {a.reason === "recommended" && (
-          <span className="block text-[12.5px] text-emerald-700">
-            ข้อมูลแนะแนวของโรงเรียนแนะนำสาขานี้สำหรับรหัส {a.viaCode}
-            {a.viaCode !== latest.code ? " (รหัสทางเลือกของคุณ)" : ""}
-          </span>
-        )}
-        {a.source === "text" && <span className="block text-[12.5px] text-gray-500">จากข้อความเป้าหมายของคุณ</span>}
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[13px] text-gray-500">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
+          <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
+        </div>
+        <span className={`shrink-0 rounded-full border px-3 py-1 text-[14px] font-semibold ${meta.cls}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
       </div>
-
-      <div className="mt-3 rounded-xl bg-gray-50/80 px-3.5 py-2.5 text-[13.5px] leading-6">
-        <span className="font-semibold text-gray-800">ระดับความสอดคล้อง: {LEVEL_TH[a.displayLevel]}</span>
-        <span className="text-gray-500"> (เกณฑ์เบื้องต้นของระบบ)</span>
-        <div className="text-gray-700">{LEVEL_WHY[a.kind]}</div>
-      </div>
+      <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
 
       <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
         <p>
@@ -270,7 +259,6 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
             ลองศึกษารายวิชาและลักษณะการเรียนจริง และทดลองกิจกรรมด้าน{TRAIT_NOUN[dim]} ({dim}) เพื่อสำรวจว่าคุณชอบและอยากพัฒนาทักษะด้านใดเพิ่ม
           </p>
         )}
-        <p className="text-[12.5px] text-gray-500">การเชื่อมโยงนี้สะท้อนความสนใจ ไม่ใช่การยืนยันความพร้อมในการเรียนหรือโอกาสสอบติด</p>
       </Block>
 
       <Block title="สิ่งที่ลองทำได้">
@@ -283,17 +271,20 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
       </Block>
 
       {alternatives.length > 0 && (
-        <div className="mt-4 space-y-2.5">
-          {alternatives.map((x) => (
-            <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
-              <div className="text-[14.5px] font-semibold text-gray-800">สาขาทางเลือก: {x.row.name}</div>
-              <p className="text-[13.5px] text-gray-700 leading-6">
-                เหมาะสำหรับการสำรวจเพิ่มเติม หากสนใจงานด้าน{joinTh(x.shared)}
-                {x.differs.length > 0 ? ` โดยมีส่วนที่แตกต่างจาก${nm(f.name)}คือการเรียนด้าน${joinTh(x.differs)}` : ""}
-              </p>
-            </div>
-          ))}
-        </div>
+        <details className="mt-4">
+          <summary className="cursor-pointer select-none text-[14.5px] font-semibold text-gray-800">สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
+          <div className="mt-2 space-y-2">
+            {alternatives.slice(0, 2).map((x) => (
+              <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
+                <div className="text-[15px] font-semibold text-gray-800">{x.row.name}</div>
+                <p className="text-[14.5px] text-gray-700 leading-7">
+                  เหมาะสำหรับการสำรวจเพิ่มเติม หากสนใจงานด้าน{joinTh(x.shared)}
+                  {x.differs.length > 0 ? ` โดยมีส่วนที่แตกต่างจาก${nm(f.name)}คือการเรียนด้าน${joinTh(x.differs)}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
       <details className="mt-3 text-[12.5px] text-gray-500">
@@ -324,26 +315,17 @@ function StudyBeforeDeciding({ faculty, skip = [] }) {
   const skills = faculty.skills.split(/,\s*/).filter((x) => !skip.includes(x));
   const o = onet.faculties[faculty.name];
   return (
-    <ul className="mt-0.5 space-y-1 text-[13.5px] text-gray-700">
+    <ul className="mt-0.5 space-y-0.5 text-[14.5px] text-gray-700">
       {skills.length > 0 && (
         <li>
-          <span className="text-gray-500">ทักษะที่สาขานี้ใช้: </span>
+          <span className="text-gray-500">ทักษะ: </span>
           {skills.join(", ")}
         </li>
       )}
       {o?.knowledge?.length > 0 && (
         <li>
-          <span className="text-gray-500">ความรู้หลักที่งานด้านนี้ใช้: </span>
+          <span className="text-gray-500">ความรู้ที่ใช้: </span>
           {o.knowledge.slice(0, 3).map((k) => KNOWLEDGE_TH[k] || k).join(", ")}
-        </li>
-      )}
-      {o && (
-        <li className="text-[11.5px] text-gray-400 leading-5">
-          อ้างอิงอาชีพตัวแทน:{" "}
-          <a href={o.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-sky-700">
-            {ONET_TITLE_TH[o.code] || o.title} (O*NET)
-          </a>
-          {o.interest && ` • O*NET จัดอาชีพนี้ในกลุ่มความสนใจ ${o.interest}`} • ตรวจเมื่อ {thaiDate(onet.checkedAt)}
         </li>
       )}
     </ul>
@@ -407,15 +389,21 @@ function ProgramPick({ faculty, goalUni, compact = false }) {
 
 // อาชีพตัวอย่าง (≤ 3) พร้อมเหตุผลสั้น ๆ — เหตุผลมาจากข้อมูลสาขาของอาชีพนั้น
 function CareerList({ items }) {
-  if (!items.length) return <p className="text-[13px] text-gray-500">ยังไม่มีข้อมูลอาชีพที่เกี่ยวข้อง</p>;
+  if (!items.length) return <p className="text-[14px] text-gray-500">ยังไม่มีข้อมูลอาชีพที่เกี่ยวข้อง</p>;
   return (
-    <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-      {items.map((c) => (
-        <div key={c.title} className={`rounded-lg px-3 py-2 border ${c.source === "goal" ? "bg-pink-50 border-pink-200" : "bg-white/80 border-gray-100"}`}>
-          <div className="text-[14px] font-semibold text-gray-800">{c.title}</div>
-          {c.reason && <div className="text-[12.5px] text-gray-600 leading-5 mt-0.5">{c.reason}</div>}
-        </div>
-      ))}
+    <div className="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      {items.map((c) => {
+        const e = careerEmoji(c.title, c.faculty?.dim);
+        return (
+          <div key={c.title} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 border ${c.source === "goal" ? "bg-pink-50 border-pink-200" : "bg-white/80 border-gray-100"}`}>
+            <img src={e.src} alt="" width={44} height={44} className="h-11 w-11 shrink-0" />
+            <div className="min-w-0">
+              <div className="text-[15.5px] font-semibold text-gray-800">{c.title}</div>
+              {c.reason && <div className="text-[13px] text-gray-500 leading-5">{c.reason}</div>}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -599,6 +587,7 @@ export default function ResultPage() {
         </div>
 
         <p className="text-[15.5px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
+        <p className="mt-1.5 text-[13px] text-gray-400">ผลนี้บอก “ความสนใจ” ไม่ได้วัดความสามารถ และไม่ได้ตัดสินว่าคุณเหมาะกับสาขาหรืออาชีพใด</p>
 
         {location.state?.saveFailed && (
           <div className="mt-3 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-[14px] text-red-800">
@@ -640,37 +629,32 @@ export default function ResultPage() {
               );
             })}
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-[13px]">
-            <div className="rounded-xl bg-white/70 px-3 py-2">
-              <div className="text-gray-500">ความแตกต่างของคะแนน</div>
-              <div className="font-semibold text-gray-800">{latest.differentiation} คะแนน</div>
-              <div className="text-[12px] text-gray-500">
-                สูงสุด {atScore(maxScore)} {maxScore} − ต่ำสุด {atScore(minScore)} {minScore}
+          <details className="mt-4 text-[13px] text-gray-600">
+            <summary className="cursor-pointer select-none">รายละเอียดการคิดคะแนน</summary>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-[13px]">
+              <div className="rounded-xl bg-white/70 px-3 py-2">
+                <div className="text-gray-500">ความแตกต่างของคะแนน</div>
+                <div className="font-semibold text-gray-800">{latest.differentiation} คะแนน</div>
+                <div className="text-[12px] text-gray-500">
+                  สูงสุด {atScore(maxScore)} {maxScore} − ต่ำสุด {atScore(minScore)} {minScore}
+                </div>
+              </div>
+              <div className="rounded-xl bg-white/70 px-3 py-2" title={CONSISTENCY_META[latest.consistency].text}>
+                <div className="text-gray-500">ความสอดคล้องของ 2 อันดับแรก</div>
+                <div className="font-semibold text-gray-800">{CONSISTENCY_META[latest.consistency].label}</div>
               </div>
             </div>
-            <div className="rounded-xl bg-white/70 px-3 py-2" title={CONSISTENCY_META[latest.consistency].text}>
-              <div className="text-gray-500">ความสอดคล้องของ 2 อันดับแรก</div>
-              <div className="font-semibold text-gray-800">{CONSISTENCY_META[latest.consistency].label}</div>
-            </div>
-          </div>
-          <p className="text-[12.5px] text-gray-500 mt-2">{CONSISTENCY_META[latest.consistency].text}</p>
-          <p className="text-[12px] text-gray-400 mt-1">
-            ร้อยละ = คะแนน ÷ {MAX_SCORE} × 100 • ด้านที่คะแนนเท่ากันได้อันดับร่วมกัน และอันดับถัดไปจะข้ามตามจำนวนด้านที่เท่ากัน (เช่น อันดับร่วม 3 สองด้าน → ด้านถัดไปเป็นอันดับ 5)
-          </p>
+            <p className="text-[12.5px] text-gray-500 mt-2">{CONSISTENCY_META[latest.consistency].text}</p>
+            <p className="text-[12px] text-gray-400 mt-1">
+              ร้อยละ = คะแนน ÷ {MAX_SCORE} × 100 • ด้านที่คะแนนเท่ากันได้อันดับร่วมกัน และอันดับถัดไปจะข้ามตามจำนวนด้านที่เท่ากัน (เช่น อันดับร่วม 3 สองด้าน → ด้านถัดไปเป็นอันดับ 5)
+            </p>
+          </details>
         </div>
 
         {/* ④ ภาพรวม RIASEC */}
         <div className={`md:w-1/2 min-w-0 ${CARD}`}>
           <SectionHeader emoji="🕸️" title="ภาพรวม RIASEC" subtitle="เรียงตามหกเหลี่ยม R-I-A-S-E-C ด้านที่อยู่ติดกันมีความสนใจคล้ายกัน" />
           <RadarChart scores={scores} />
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-2 gap-y-1.5 mt-3 text-[12.5px] text-gray-600">
-            {RIASEC_ORDER.map((c) => (
-              <div key={c} className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${colorMap[c][0]} ${colorMap[c][1]}`} />
-                {dimLabel(data, c)}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
@@ -717,82 +701,71 @@ export default function ResultPage() {
       {/* ===== ส่วน B: นำผลความสนใจไปสำรวจต่อ (ไม่ขึ้นกับเป้าหมาย) ===== */}
       <GroupLabel>คำแนะนำจากผล RIASEC</GroupLabel>
       <div className={CARD}>
-        <SectionHeader
-          emoji="💡"
-          title="เข้าใจความสนใจของตัวเอง"
-          subtitle="ช่วยสำรวจทางเลือกจากความสนใจ — ไม่ได้ตัดสินว่าคุณเหมาะกับสาขาใดแน่นอน"
-        />
+        <SectionHeader emoji="💡" title="เข้าใจความสนใจของตัวเอง" subtitle="ลองทำกิจกรรม ดูสาขา และอาชีพที่เกี่ยวข้องกับความสนใจของคุณ" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" wide>
             <li className="list-none">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                 {activities.map((x) => {
                   const g = DIM_ACTIVITY[x.dim];
                   return (
-                    <div key={x.dim} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2.5 leading-6">
-                      <div className="text-[12.5px] font-semibold text-pink-600">
-                        {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]} ({x.dim}){x.forGoal ? " · ด้านที่สาขาเป้าหมายใช้" : ""}
+                    <div key={x.dim} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 leading-7 text-[15px]">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[13.5px] font-semibold text-pink-600">
+                          {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]}
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11.5px] ${x.text ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                          {x.text ? "ข้อมูลโรงเรียน" : "คำแนะนำทั่วไป"}
+                        </span>
                       </div>
-                      <div className="font-medium text-gray-900">กิจกรรม: {x.text || g.act}</div>
-                      {!x.text && (
-                        <div>
-                          <span className="text-gray-500">วิธีลงมือทำ: </span>
-                          {g.how}
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-gray-500">ได้สำรวจ: </span>
-                        {g.skill}
-                      </div>
-                      <div>
-                        <span className="text-gray-500">ลองถามตัวเอง: </span>
-                        {g.question}
-                      </div>
-                      {x.text ? (
-                        <details className="mt-0.5 text-[11.5px] text-gray-400">
-                          <summary className="cursor-pointer">ที่มา: ข้อมูลแนะแนวของโรงเรียน (ดูข้อความต้นฉบับ)</summary>
-                          <span className="text-gray-500">คำแนะนำของสาขา{x.faculty.name}: “{x.faculty.advice}”</span>
-                        </details>
-                      ) : (
-                        <div className="mt-0.5 text-[11.5px] text-gray-400">ที่มา: คำแนะนำทั่วไปของระบบ (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว)</div>
-                      )}
+                      <div className="mt-1 font-semibold text-gray-900">{x.text || g.act}</div>
+                      <div className="mt-1 text-gray-700">💭 {g.question}</div>
+                      <details className="mt-1 text-[13.5px] text-gray-500">
+                        <summary className="cursor-pointer select-none">รายละเอียด</summary>
+                        {!x.text && <div>วิธีลงมือทำ: {g.how}</div>}
+                        <div>ได้สำรวจ: {g.skill}</div>
+                        {x.forGoal && <div>เป็นด้านที่สาขาเป้าหมายของคุณใช้</div>}
+                        {x.text ? (
+                          <div className="text-gray-400">ข้อความต้นฉบับ (สาขา{x.faculty.name}): “{x.faculty.advice}”</div>
+                        ) : (
+                          <div className="text-gray-400">คำแนะนำทั่วไปของระบบ ยังไม่ผ่านการตรวจสอบจากครูแนะแนว</div>
+                        )}
+                      </details>
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-1.5 text-[12.5px] text-gray-500">กิจกรรมเป็นตัวอย่างที่ลงมือทำได้จริง เลือกทำเฉพาะที่สนใจ — คำตอบของคำถามใช้สำรวจความสนใจ ไม่ได้ตัดสินว่าคุณเก่งหรือไม่เก่งด้านนั้น</p>
             </li>
           </AdviceBox>
 
           <AdviceBox n="2" title="สาขาที่ควรสำรวจ" wide>
             <li className="list-none">
               {latest.lowDifferentiation && (
-                <p className="mb-2 rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-sky-900">
-                  คะแนนทุกด้านของคุณใกล้กัน สาขาด้านล่างเป็นเพียงตัวอย่างให้เริ่มสำรวจ — แนะนำให้ลองกิจกรรมหลายด้านก่อนตัดสินใจ
-                </p>
+                <p className="mb-2 rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-sky-900">คะแนนทุกด้านของคุณใกล้กัน สาขาด้านล่างเป็นเพียงตัวอย่างให้เริ่มสำรวจ</p>
               )}
               {explore.length === 0 ? (
                 <p className="text-gray-600">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {explore.map(({ row, code, links }, i) => {
                     // เหตุผล = วลีของสาขานี้เอง (คุณลักษณะในข้อมูลแนะแนว) ที่เชื่อมกับความสนใจเด่น — ใช้ด้านหลักของสาขาก่อน
                     const link = links.find((l) => l.code === row.dim) || links[0];
                     return (
-                      <div key={row.name} className="rounded-lg bg-white/80 border border-gray-100 px-3.5 py-3 min-w-0 leading-6">
+                      <div key={row.name} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 min-w-0 leading-7 text-[15px]">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="text-[15px] font-semibold text-gray-900">
+                          <div className="text-[16px] font-semibold text-gray-900">
                             {i + 1}. {row.name}
                           </div>
                           <span className="shrink-0 rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
                         </div>
                         <p className="mt-1 text-gray-700">
-                          สาขานี้อาจเป็นทางเลือกที่น่าสำรวจสำหรับคุณ เนื่องจากเกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 3))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
+                          เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
                         </p>
-                        <div className="mt-1.5 font-medium text-gray-800">สิ่งที่ควรศึกษาเพิ่มเติมก่อนตัดสินใจ</div>
-                        <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 3)} />
-                        <div className="mt-1.5 font-medium text-gray-800">หลักสูตรแนะนำ</div>
-                        <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
+                        <div className="mt-1.5 text-[14px] font-semibold text-gray-800">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
+                        <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
+                        <div className="mt-1.5">
+                          <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
+                        </div>
                       </div>
                     );
                   })}
@@ -802,29 +775,18 @@ export default function ResultPage() {
                 href={MYTCAS_HOME}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14px] font-medium text-sky-700 hover:bg-sky-50"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14.5px] font-medium text-sky-700 hover:bg-sky-50"
               >
                 🔎 ค้นหาหลักสูตรและมหาวิทยาลัยอื่นบน myTCAS ↗
               </a>
-              {explore.length > 0 && (
-                <p className="mt-1.5 text-[12.5px] text-gray-500">
-                  เป็นสาขาที่เกี่ยวข้องกับความสนใจ ไม่ได้หมายความว่ามีคุณสมบัติเข้าศึกษาได้ • ที่มา: ข้อมูลแนะแนวของโรงเรียน และหลักสูตรที่ตรวจชื่อกับ myTCAS เมื่อ{" "}
-                  {thaiDate(dataSources.sources.find((x) => x.id === "mytcas")?.checkedAt)}
-                </p>
-              )}
             </li>
           </AdviceBox>
 
           <AdviceBox n="3" title="อาชีพตัวอย่าง" wide>
             <li className="list-none">
-              <CareerList items={resultCareers.map((c) => ({ ...c, reason: `อาชีพในสาขา${c.faculty.name}` }))} />
-              <p className="mt-1.5 text-[12.5px] text-gray-500">อาชีพเหล่านี้เป็นตัวอย่างที่เกี่ยวข้องกับสาขาข้างต้น ไม่ใช่การทำนายอาชีพที่เหมาะกับคุณโดยเฉพาะ</p>
+              <CareerList items={resultCareers.map((c) => ({ ...c, reason: `ในสาขา${c.faculty.name}` }))} />
             </li>
           </AdviceBox>
-        </div>
-        <div className="mt-3 pt-2 border-t border-gray-100 text-[11.5px] text-gray-400 space-y-0.5">
-          <p>สาขา วิชาที่ควรเตรียม และอาชีพ: ข้อมูลแนะแนวของโรงเรียน • หลักสูตร: myTCAS (ทปอ.)</p>
-          <p>กิจกรรม: ข้อมูลแนะแนวของโรงเรียนเป็นหลัก ด้านที่ไม่มีข้อมูลใช้คำแนะนำทั่วไปของระบบ (ติดป้ายไว้ทุกข้อ)</p>
         </div>
       </div>
 
@@ -888,8 +850,8 @@ export default function ResultPage() {
                   <div>
                     <b>{f.subjects.join(", ")}</b>
                   </div>
-                  <div className="text-[12.5px] text-gray-500">คำแนะนำทั่วไป — วิชาที่ใช้สอบจริงและสัดส่วนคะแนนดูใน “ข้อกำหนดการรับเข้าจริง” (ข้อ 3)</div>
-                  <div className="text-gray-600">สายการเรียนที่ข้อมูลแนะแนวแนะนำ: {f.track} <span className="text-[12px] text-gray-500">(ไม่ใช่ข้อกำหนด — ตรวจกับเกณฑ์ของหลักสูตร)</span></div>
+                  <div className="text-gray-600">สายการเรียนที่แนะนำ: {f.track}</div>
+                  <div className="text-[13px] text-gray-400">คำแนะนำทั่วไป ไม่ใช่ข้อกำหนด — วิชาสอบจริงดูในข้อ 3</div>
                 </FacultyItem>
               ))}
             </AdviceBox>
@@ -898,7 +860,6 @@ export default function ResultPage() {
               {advice.perFaculty.map((f) => (
                 <FacultyItem key={f.name} name={f.name} multi={advice.perFaculty.length > 1}>
                   <div>{f.skills}</div>
-                  <div className="text-[12.5px] text-gray-500">ทักษะที่ควรฝึก — ไม่ใช่คุณสมบัติที่ใช้คัดเลือก</div>
                 </FacultyItem>
               ))}
             </AdviceBox>
@@ -964,18 +925,6 @@ export default function ResultPage() {
         </details>
       </div>
 
-      <div className="text-[13px] text-gray-500 px-1">
-        <p>ผลนี้เป็นแนวทางเบื้องต้น ควรใช้ร่วมกับ:</p>
-        <ul className="mt-1.5 space-y-1 list-disc pl-5">
-          <li>ความสนใจส่วนตัว</li>
-          <li>ความสามารถและผลการเรียน</li>
-          <li>การปรึกษาครูแนะแนว</li>
-        </ul>
-        <p className="mt-2 text-[12px] text-gray-400">
-          วิธีคิดคะแนน: รวมคะแนนรายด้าน ด้านละ 10 ข้อ (10–50) ตามแนวคิด RIASEC ของ John Holland • เกณฑ์รับเข้าดึงจาก myTCAS ตอนเปิดดู
-        </p>
-      </div>
-
       <details className="px-1 text-[12px] text-gray-500">
         <summary className="cursor-pointer select-none">แหล่งข้อมูลและวันที่ตรวจสอบ (สำหรับครู/ผู้ตรวจ)</summary>
         <ul className="mt-1.5 space-y-1 pl-4 list-disc">
@@ -995,6 +944,9 @@ export default function ResultPage() {
             </li>
           ))}
           <li>แหล่งอ้างอิงที่ระบุในไฟล์ข้อมูลของโรงเรียน: {data.sources.map((s) => s.name).join(", ")}</li>
+          <li>ความรู้ที่ใช้ของแต่ละสาขา: อาชีพตัวแทนจาก O*NET OnLine (กระทรวงแรงงานสหรัฐฯ) ตรวจเมื่อ {thaiDate(onet.checkedAt)}</li>
+          <li>วิธีคิดคะแนน: รวมคะแนนรายด้าน ด้านละ 10 ข้อ (10–50) ตามแนวคิด RIASEC ของ John Holland</li>
+          <li>รูปอิโมจิอาชีพ: Microsoft Fluent Emoji (MIT License)</li>
         </ul>
       </details>
 

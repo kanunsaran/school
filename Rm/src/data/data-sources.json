@@ -38,6 +38,13 @@
    "use": "ชื่อหลักสูตร มหาวิทยาลัย ลิงก์หลักสูตร (ตรวจด้วยสคริปต์) และเกณฑ์รับเข้า (ดึงตอนเปิดดู)",
    "checkedAt": "2026-10-14",
    "checked": "198 ลิงก์หลักสูตร ตรงกับ courses.json"
+  },
+  {
+   "id": "fluent-emoji",
+   "name": "Microsoft Fluent Emoji (3D)",
+   "url": "https://github.com/microsoft/fluentui-emoji",
+   "use": "รูปประกอบอาชีพ (เก็บไว้ในเว็บที่ public/emoji/fluent — MIT License)",
+   "checkedAt": "2026-10-14"
   }
  ]
 }
