@@ -429,8 +429,6 @@ export default function ResultPage() {
   const [myGoals, setMyGoals] = useState(undefined);
   const [goalIdx, setGoalIdx] = useState(0);
   const myGoal = myGoals === undefined ? undefined : myGoals[goalIdx] || myGoals[0] || null;
-  // คำอธิบายรหัสทางเลือก (เปิดดูเมื่อต้องการ — ไม่บังคับให้นักเรียนเลือกว่ารหัสไหนตรงกว่า)
-  const [altOpen, setAltOpen] = useState(null);
 
   // GPAX ที่นักเรียนบันทึกไว้ (ใช้แนะนำขั้นตอนถัดไปเท่านั้น ไม่เกี่ยวกับผล RIASEC)
   const [grades, setGrades] = useState(undefined);
@@ -561,7 +559,7 @@ export default function ResultPage() {
     grades === null || grades?.gpax == null
       ? "บันทึกเกรดในหน้าเป้าหมาย เพื่อเทียบกับ GPAX ขั้นต่ำในเกณฑ์รับเข้า"
       : grades && `เทียบ GPAX ของคุณ (${Number(grades.gpax).toFixed(2)}) กับ GPAX ขั้นต่ำของแต่ละรอบในส่วนเกณฑ์รับเข้า`,
-    latest.hasTie && `อ่านคำอธิบายรหัสทางเลือก (${latest.alternativeCodes.join(", ")}) ด้านบน แล้วลองกิจกรรมของด้านที่คะแนนเท่ากันทั้งสองด้าน`,
+    latest.hasTie && `${joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน ลองกิจกรรมของทั้งสองด้านเพื่อดูว่าชอบแบบไหนมากกว่า`,
     latest.lowDifferentiation && "คะแนนแต่ละด้านใกล้กัน ลองกิจกรรมหลายแบบก่อนตัดสินใจเลือกสาขา",
     "ปรึกษาครูแนะแนวเมื่อยังไม่แน่ใจ หรืออยากได้มุมมองเพิ่มเติม",
   ].filter(Boolean);
@@ -582,71 +580,32 @@ export default function ResultPage() {
     <Shell>
       {/* ① รหัสฮอลแลนด์ + สรุปความสนใจ */}
       <div className={`w-full ${CARD} py-6 px-5 md:px-8`}>
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
-          <div className="min-w-0 max-w-3xl">
-            <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
-            <p className="text-[34px] font-bold text-black mt-1 tracking-wider">{latest.code}</p>
-            <div className="mt-1 space-y-1 text-[14.5px] text-gray-700 leading-7">
-              {topDims.map((c) => (
-                <p key={c}>
-                  <b className="font-semibold text-gray-800">{dims[c].nameTh}:</b> {dims[c].traits}
-                </p>
-              ))}
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap md:flex-col md:items-end shrink-0">
-            {topDims.map((c) => (
-              <span key={c} className="inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1.5 text-[13.5px] font-medium shadow-sm">
-                <span>{EMOJI[c]}</span>
-                {dims[c].nameTh}
-              </span>
-            ))}
-          </div>
+        <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
+        <div className="mt-1 flex flex-wrap items-end gap-x-3 gap-y-1">
+          <p className="text-[36px] leading-tight font-bold text-black tracking-wider">{latest.code}</p>
+          {latest.hasTie && latest.alternativeCodes.length <= 2 && (
+            <p className="pb-1.5 text-[14px] text-gray-400" title="มีด้านที่คะแนนเท่ากัน รหัสจึงเขียนได้หลายแบบ (ผลชุดเดียวกัน)">
+              หรือ {latest.alternativeCodes.join(", ")}
+            </p>
+          )}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {topDims.map((c) => (
+            <span key={c} className="inline-flex items-center gap-1.5 bg-white/80 rounded-full px-3.5 py-1.5 text-[14px] font-medium shadow-sm">
+              <span>{EMOJI[c]}</span>
+              {dims[c].nameTh}
+            </span>
+          ))}
         </div>
 
-        {/* ② สรุปความสนใจ */}
-        <p className="text-[15px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
+        <p className="text-[15.5px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
 
-        {sum.near.length > 0 && (
-          <p className="mt-2 text-[13px] text-gray-500">
-            ด้าน{joinTh(sum.near.map((c) => PLAIN[c]))}ได้คะแนนห่างจากกลุ่มที่เด่นเพียง {sum.nearGap} คะแนน จึงเป็นความสนใจที่ไม่ควรมองข้ามเช่นกัน
-          </p>
-        )}
-        {latest.hasTie && (
-          <p className="mt-2 text-[13px] text-gray-500">
-            {latest.alternativeCodes.length > 2 ? (
-              <>{joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนได้อีก {latest.alternativeCodes.length} แบบ ({latest.alternativeCodes.join(", ")}) — เป็นผลชุดเดียวกัน ไม่ต้องเลือก</>
-            ) : (
-              <>
-                {joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนเป็น {latest.alternativeCodes.join(", ")} ได้ด้วย (ผลชุดเดียวกัน ไม่ต้องเลือก){" "}
-                {latest.alternativeCodes.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    aria-expanded={altOpen === c}
-                    onClick={() => setAltOpen(altOpen === c ? null : c)}
-                    className="ml-1 bg-transparent !p-0 text-pink-600 underline underline-offset-2 hover:text-pink-700"
-                  >
-                    {altOpen === c ? `ซ่อนคำอธิบาย ${c}` : `ดูคำอธิบาย ${c}`}
-                  </button>
-                ))}
-              </>
-            )}
-            {altOpen && (
-              <span className="block mt-1 text-gray-700">
-                {altOpen}: {data.codes[altOpen].meaning} • {latest.code}: {data.codes[latest.code].meaning}
-              </span>
-            )}
-          </p>
-        )}
         {location.state?.saveFailed && (
           <div className="mt-3 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-[14px] text-red-800">
             บันทึกผลลงระบบไม่สำเร็จ (ครูจะยังไม่เห็นผลนี้) — ตรวจสอบอินเทอร์เน็ตแล้วทำแบบทดสอบอีกครั้ง หรือแจ้งครูแนะแนว
           </div>
         )}
-        {latest.lowDifferentiation && (
-          <p className="mt-2 text-[13px] text-sky-800">คะแนนทุกด้านของคุณใกล้เคียงกัน แปลว่ายังสนใจได้หลายทาง ลองทำกิจกรรมหลายแบบก่อนตัดสินใจ</p>
-        )}
+        {latest.lowDifferentiation && <p className="mt-2 text-[13px] text-sky-800">คะแนนทุกด้านของคุณใกล้เคียงกัน ลองทำกิจกรรมหลายแบบก่อนตัดสินใจ</p>}
       </div>
 
       {/* ===== ผลการวิเคราะห์ ===== */}
