@@ -48,6 +48,8 @@ const ONET_WORK = {
   E: "บริหาร เจรจา การตลาด หรือการขาย หรือนำและให้คำปรึกษาผู้คนในเรื่องการเมืองและกฎหมาย",
   C: "ทำตามขั้นตอนและระเบียบเพื่อจัดระบบข้อมูล มักอยู่ในบริบทธุรกิจ",
 };
+// คำเรียกด้านความสนใจแบบภาษาพูด (ใช้ในประโยคสรุป)
+const PLAIN = { R: "การลงมือทำงานจริง", I: "การคิดวิเคราะห์และค้นหาคำตอบ", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "การเป็นผู้นำ", C: "การทำงานอย่างเป็นระบบ" };
 const DIM_EN = { R: "Realistic", I: "Investigative", A: "Artistic", S: "Social", E: "Enterprising", C: "Conventional" };
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
@@ -484,7 +486,6 @@ export default function ResultPage() {
     const t = tiedWith(scores, c);
     return `${rankLabel(scores, c)}${t.length ? ` (กับ ${t.join(", ")})` : ""}`;
   };
-  const scoreText = (c) => `${rankText(c)} · ${scores[c]}/${MAX_SCORE} คะแนน · ${scorePercent(scores[c])}%`;
   const maxScore = Math.max(...RIASEC_ORDER.map((c) => scores[c]));
   const minScore = Math.min(...RIASEC_ORDER.map((c) => scores[c]));
   const atScore = (v) => RIASEC_ORDER.filter((c) => scores[c] === v).join("/");
@@ -494,7 +495,6 @@ export default function ResultPage() {
     g ? g.push(c) : groups.push([c]);
   });
   // สรุปจากคะแนนจริง: 2 กลุ่มอันดับแรก = ความสนใจหลัก, กลุ่มถัดไปในอันดับ 1–3 = ความสนใจรอง (คะแนนเท่ากันอยู่กลุ่มเดียวกัน)
-  const nounOf = (c) => `${TRAIT_NOUN[c]} (${c})`;
   const mainGroups = groups.slice(0, groups[0].length > 1 ? 1 : 2);
   const restGroups = groups.slice(mainGroups.length);
   // ขั้นตอนถัดไปตามสถานะจริงของนักเรียน (ไม่ใช้รายการเดียวกันกับทุกคน)
@@ -512,32 +512,30 @@ export default function ResultPage() {
     latest.lowDifferentiation && "คะแนนแต่ละด้านใกล้กัน ลองกิจกรรมหลายแบบก่อนตัดสินใจเลือกสาขา",
     "ปรึกษาครูแนะแนวเมื่อยังไม่แน่ใจ หรืออยากได้มุมมองเพิ่มเติม",
   ].filter(Boolean);
+  // สรุปเป็นภาษาง่าย ไม่ใส่ตัวอักษรย่อ — ด้านที่คะแนนเท่ากันพูดว่า "พอ ๆ กัน"
+  const plain = (list) => joinTh(list.map((c) => PLAIN[c]));
+  const restFlat = restGroups.flat();
   const summary =
-    `คุณมีความสนใจด้าน${joinTh(mainGroups.flat().map(nounOf))} เป็นหลัก` +
-    (restGroups.length ? ` พร้อมกับความสนใจด้าน${joinTh(restGroups.flat().map(nounOf))}${restGroups.flat().length > 1 && restGroups.length === 1 ? " ซึ่งคะแนนเท่ากัน" : ""}` : "") +
-    " ใช้ผลนี้เป็นจุดเริ่มต้นในการสำรวจรูปแบบการเรียนและการทำงานที่คุณสนใจได้";
+    `คุณเป็นคนที่สนใจ${plain(mainGroups.flat())}เป็นหลัก` +
+    (restFlat.length ? ` และยังสนใจ${plain(restFlat)}${restFlat.length > 1 && restGroups.length === 1 ? "พอ ๆ กัน" : "ด้วย"}` : "");
 
   return (
     <Shell>
       {/* ① รหัสฮอลแลนด์ + สรุปความสนใจ */}
       <div className={`w-full ${CARD} py-6 px-5 md:px-8`}>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-          <div className="min-w-0">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
+          <div className="min-w-0 max-w-3xl">
             <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
-            <p className="text-[34px] font-bold text-black mt-1 tracking-wider">
-              {latest.code}
-              <span className="ml-2 align-middle text-[13px] font-medium tracking-normal text-gray-500">รหัสหลัก</span>
-            </p>
-            <p className="text-[14.5px] text-gray-700">“{data.codes[latest.code].meaning}”</p>
-            <ul className="mt-2 space-y-0.5 text-[14px] text-gray-700">
+            <p className="text-[34px] font-bold text-black mt-1 tracking-wider">{latest.code}</p>
+            <div className="mt-1 space-y-1 text-[14.5px] text-gray-700 leading-7">
               {topDims.map((c) => (
-                <li key={c}>
-                  <b>{c}</b> {dims[c].nameEn} ({dims[c].nameTh}) <span className="text-gray-400">{" · "}{scoreText(c)}</span>
-                </li>
+                <p key={c}>
+                  <b className="font-semibold text-gray-800">{dims[c].nameTh}:</b> {dims[c].traits}
+                </p>
               ))}
-            </ul>
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap md:flex-col md:items-end">
+          <div className="flex gap-2 flex-wrap md:flex-col md:items-end shrink-0">
             {topDims.map((c) => (
               <span key={c} className="inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1.5 text-[13.5px] font-medium shadow-sm">
                 <span>{EMOJI[c]}</span>
@@ -548,45 +546,28 @@ export default function ResultPage() {
         </div>
 
         {/* ② สรุปความสนใจ */}
-        <p className="text-[15px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">{summary}</p>
-        <div className="mt-2 rounded-xl bg-white/60 px-4 py-3 text-[13.5px] text-gray-700 leading-6">
-          <div className="font-medium text-gray-800">ลักษณะงานที่สัมพันธ์กับความสนใจเด่นของคุณ</div>
-          <ul className="mt-1 space-y-0.5">
-            {topDims.map((c) => (
-              <li key={c}>
-                <b>{c}</b> — {ONET_WORK[c]}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1 text-[12px] text-gray-500">
-            สรุปจากนิยามของ O*NET OnLine • RIASEC บอก “ความสนใจ” ไม่ได้วัดความสามารถ ผลการเรียน หรือคุณสมบัติการรับเข้าศึกษา
-          </p>
-        </div>
+        <p className="text-[15px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
 
         {latest.hasTie && (
-          <div className="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-[14px] text-amber-900 leading-6">
-            <b>รหัสทางเลือก: {latest.alternativeCodes.join(", ")}</b> — {joinTh(swingDims.map((c) => `ด้าน ${c} (${TRAIT_NOUN[c]})`))} ได้คะแนนเท่ากัน
-            รหัสจึงเขียนได้ทั้ง {[latest.code, ...latest.alternativeCodes].join(" และ ")} ซึ่งต่างกันแค่ตัวอักษรนี้ ทั้งหมดมาจากผลชุดเดียวกัน ไม่ต้องเลือกว่าแบบไหนตรงกว่า
-            ระบบใช้ {latest.code} เป็นรหัสหลักตามกติกาเรียงลำดับหกเหลี่ยม R-I-A-S-E-C และใช้ทุกรหัสในการหาสาขาที่ควรสำรวจ
-            <div className="mt-2 flex flex-wrap gap-2">
-              {latest.alternativeCodes.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-expanded={altOpen === c}
-                  onClick={() => setAltOpen(altOpen === c ? null : c)}
-                  className="rounded-lg border border-amber-200 bg-white px-3 py-1 text-[13.5px] text-amber-900 hover:bg-amber-100"
-                >
-                  {altOpen === c ? `ซ่อนคำอธิบายรหัส ${c}` : `ดูคำอธิบายรหัส ${c}`}
-                </button>
-              ))}
-            </div>
+          <p className="mt-2 text-[13px] text-gray-500">
+            {joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนเป็น {latest.alternativeCodes.join(", ")} ได้ด้วย (ผลชุดเดียวกัน ไม่ต้องเลือก){" "}
+            {latest.alternativeCodes.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-expanded={altOpen === c}
+                onClick={() => setAltOpen(altOpen === c ? null : c)}
+                className="ml-1 bg-transparent !p-0 text-pink-600 underline underline-offset-2 hover:text-pink-700"
+              >
+                {altOpen === c ? `ซ่อนคำอธิบาย ${c}` : `ดูคำอธิบาย ${c}`}
+              </button>
+            ))}
             {altOpen && (
-              <p className="mt-2 text-gray-800">
-                <b>{altOpen}</b> — “{data.codes[altOpen].meaning}”
-              </p>
+              <span className="block mt-1 text-gray-700">
+                {altOpen}: {data.codes[altOpen].meaning} • {latest.code}: {data.codes[latest.code].meaning}
+              </span>
             )}
-          </div>
+          </p>
         )}
         {location.state?.saveFailed && (
           <div className="mt-3 rounded-xl bg-red-50 border border-red-100 px-4 py-3 text-[14px] text-red-800">
@@ -594,9 +575,7 @@ export default function ResultPage() {
           </div>
         )}
         {latest.lowDifferentiation && (
-          <div className="mt-3 rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 text-[14px] text-sky-900">
-            คะแนนทั้ง 6 ด้านของคุณใกล้เคียงกันมาก (ต่างกันสูงสุด {latest.differentiation} คะแนน) แปลว่าคุณยังสนใจหลายด้านพอ ๆ กัน ควรสำรวจตัวเองเพิ่ม เช่น ลองทำกิจกรรมหลายแบบหรือปรึกษาครูแนะแนว
-          </div>
+          <p className="mt-2 text-[13px] text-sky-800">คะแนนทุกด้านของคุณใกล้เคียงกัน แปลว่ายังสนใจได้หลายทาง ลองทำกิจกรรมหลายแบบก่อนตัดสินใจ</p>
         )}
       </div>
 
@@ -681,7 +660,10 @@ export default function ResultPage() {
                 <div className="text-[15px] font-semibold mt-1">
                   {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh})
                 </div>
-                <div className="text-[13.5px] text-gray-700 mt-1 leading-6">{dims[c].traits}</div>
+                <div className="text-[13.5px] text-gray-700 mt-1 leading-6">
+                  <span className="text-gray-500">งานที่เกี่ยวข้อง: </span>
+                  {ONET_WORK[c]}
+                </div>
               </div>
             );
           })}
