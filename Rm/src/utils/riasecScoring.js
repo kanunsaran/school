@@ -374,6 +374,54 @@ export const exploreFaculties = (data, result, excludeNames = [], limit = 3) => 
     .slice(0, limit);
 };
 
+// ---------- ระดับความสอดคล้อง (เกณฑ์เบื้องต้นของระบบ) ----------
+// แปลงจากข้อค้นพบที่ตรวจสอบได้ — ไม่ใช่เกณฑ์มาตรฐานทางจิตวิทยา และไม่ได้วัดความสามารถ/โอกาสสอบติด
+//  สูง     = ตาราง 120 รหัสของโรงเรียนแนะนำสาขานี้สำหรับรหัสของนักเรียน (recommended)
+//  ปานกลาง = ไม่อยู่ในรายการแนะนำ แต่ด้านหลักของสาขาอยู่ในความสนใจเด่น อันดับ 1–3 รวมคะแนนเท่ากัน (main)
+//  ต่ำ     = ด้านหลักของสาขาไม่อยู่ในความสนใจเด่น (partial / none)
+export const levelOfKind = (kind) => ({ recommended: "high", main: "medium", partial: "low", none: "low" })[kind] || null;
+
+// ---------- คำแนะนำของสาขาแบบแยกเป็นข้อ ----------
+// ข้อความในไฟล์เป็นประโยคยาวคั่นด้วยช่องว่าง → แยกเป็นข้อ และตัดข้อที่เป็นการเตรียมสอบ (ดูเกณฑ์รับเข้าจริงแทน)
+const GLUE_START = /^(เช่น|และ|หรือ|ให้|เพื่อ|ที่|ด้วย|ตาม|กับ|ของ|ตั้งแต่|เบื้องต้น|แล้ว|โดย|คณิต|ฟิสิกส์|เคมี|ชีว)/;
+const GLUE_END = /(เช่น|และ|หรือ|ให้|ด้วย|กับ|ของ)$/;
+export const adviceSteps = (text) => {
+  const out = [];
+  String(text || "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .forEach((tok) => {
+      const prev = out[out.length - 1];
+      if (prev && (tok === "ๆ" || /^[A-Za-z0-9(/]/.test(tok) || GLUE_START.test(tok) || GLUE_END.test(prev) || tok.length < 5)) out[out.length - 1] = `${prev} ${tok}`;
+      else out.push(tok);
+    });
+  return out.filter((x) => !/(?<!ตรวจ)สอบ|TPAT|TGAT|A-Level|PAT\d/.test(x));
+};
+
+// ---------- กิจกรรมเพื่อสำรวจตัวเอง ----------
+// ด้านละ 1 กิจกรรม สำหรับความสนใจเด่น (อันดับ 1–3 รวมคะแนนเท่ากัน) + ด้านหลักของเป้าหมายที่ยังไม่ใช่ความสนใจเด่น (extraDims)
+// ใช้ข้อมูลโรงเรียนก่อน: ข้อ "คำแนะนำสำหรับนักเรียน" ของสาขาด้านนั้นที่ตาราง 120 รหัสแนะนำสำหรับรหัสของนักเรียน
+// เลือกเฉพาะข้อที่เป็นการลงมือทำ (ลอง/เข้าร่วม/ฝึก…) ไม่เอาการเตรียมสอบ/การเรียนวิชา/การเก็บพอร์ต
+// ไม่ใช้สาขาที่เป็นเป้าหมาย (กิจกรรมของสาขาเป้าหมายอยู่ในการ์ดเป้าหมายแล้ว) • ไม่พบ = faculty null (หน้าเว็บใช้คำแนะนำทั่วไปของระบบ)
+const ACTIVITY_LIKE = /^(ลอง|เข้าร่วม|ฝึก(?!ภาษา)|ทำ|อาสา|รับบทบาท|ส่งผลงาน|หาโอกาส|เรียนหลักสูตร|ลงมือ)/;
+export const exploreActivities = (data, result, excludeNames = [], extraDims = []) => {
+  const codes = [result.code, ...(result.alternativeCodes || [])];
+  const recommended = [...new Set(codes.flatMap((c) => facultiesForCode(data, c).flatMap((f) => f.rows)))].filter((r) => !excludeNames.includes(r.name));
+  const dims = [...topDims(result).sort((a, b) => result.scores[b] - result.scores[a]), ...extraDims.filter((d) => !topDims(result).includes(d))];
+  const used = new Set();
+  return dims.map((dim) => {
+    const pool = recommended.filter((r) => r.dim === dim);
+    for (const f of pool) {
+      const step = adviceSteps(f.advice).find((x) => ACTIVITY_LIKE.test(x) && !used.has(x));
+      if (step) {
+        used.add(step);
+        return { dim, text: step, faculty: f, forGoal: extraDims.includes(dim) && !topDims(result).includes(dim) };
+      }
+    }
+    return { dim, text: null, faculty: null, forGoal: extraDims.includes(dim) && !topDims(result).includes(dim) };
+  });
+};
+
 // วิเคราะห์ความสอดคล้องของเป้าหมาย 1 รายการกับผล RIASEC (รองรับคะแนนเท่ากัน)
 export const analyzeTarget = (data, result, target) => {
   const evaluated = target.match.rows.map((f) => alignResult(data, f, result));
@@ -390,6 +438,7 @@ export const analyzeTarget = (data, result, target) => {
     // ข้อค้นพบที่ตรวจสอบได้จากข้อมูล (ใช้แสดงผลแทนการตัดสินระดับ)
     links: interestLinks(data, result, best.faculty).filter((x) => x.mine),
     kind: findingKind(data, result, best),
+    displayLevel: levelOfKind(findingKind(data, result, best)),
     alternatives: relatedAlternatives(data, result, best.faculty, target.match.rows.map((r) => r.name)),
   };
 };

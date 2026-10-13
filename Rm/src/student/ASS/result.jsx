@@ -2,14 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header";
-import { getGoals } from "../../callapi/callapi_user.jsx";
+import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
+import dataSources from "../../data/data-sources.json";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
 import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
 import AdmissionInfo from "../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, rankLabel, exploreFaculties, careersForGoal,
+  denseRank, tiedWith, rankLabel, exploreFaculties, exploreActivities, adviceSteps, careersForGoal,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -28,18 +29,26 @@ const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂�
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
-// กิจกรรมสำรวจตัวเองตามด้านความสนใจ — ข้อความแนะนำทั่วไปของระบบ (ไม่ได้มาจากไฟล์ข้อมูลคณะ และไม่ผูกกับสาขาใด)
-// ใช้ช่วยให้นักเรียนสังเกตว่าชอบกิจกรรมลักษณะไหน ไม่ใช่การเตรียมสอบหรือหลักฐานว่าต้องเลือกสาขาใด
+// กิจกรรมทั่วไปตามด้านความสนใจ — ข้อความของระบบ ใช้เฉพาะเมื่อข้อมูลแนะแนวของโรงเรียนไม่มีกิจกรรมของด้านนั้น
+// (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว) • คำถามทบทวนตัวเองใช้กับทุกกิจกรรมของด้านนั้น
 const DIM_ACTIVITY = {
-  R: { act: "ลองซ่อม ประกอบ หรือทำโมเดล/ชิ้นงานง่าย ๆ ด้วยมือตัวเอง", skill: "การใช้เครื่องมือ การลงมือทำ", observe: "ชอบทำงานกับสิ่งของที่จับต้องได้และเห็นผลงานเป็นชิ้นเป็นอันหรือไม่" },
-  I: { act: "ลองตั้งคำถามจากเรื่องที่สงสัย แล้วค้นคว้าหรือทดลองหาคำตอบ เช่น ทำโครงงานเล็ก ๆ", skill: "การค้นคว้า การคิดวิเคราะห์", observe: "สนุกกับการหาเหตุผลและคำตอบเชิงลึกหรือไม่" },
-  A: { act: "ลองสร้างผลงานของตัวเอง เช่น วาดภาพ ทำคลิป เขียนเรื่อง หรือออกแบบโปสเตอร์", skill: "ความคิดสร้างสรรค์ การสื่อสารผ่านผลงาน", observe: "ชอบได้แสดงความคิดของตัวเองผ่านผลงานหรือไม่" },
-  S: { act: "ลองเข้าร่วมกิจกรรมจิตอาสา หรือติวหนังสือ/อธิบายบทเรียนให้เพื่อน", skill: "การสื่อสาร การรับฟัง การช่วยเหลือผู้อื่น", observe: "ชอบดูแล ช่วยเหลือ หรือถ่ายทอดความรู้ให้คนอื่นหรือไม่" },
-  E: { act: "ลองรับหน้าที่นำกลุ่ม เช่น เป็นหัวหน้าโครงการ จัดงาน หรือขายของในงานโรงเรียน", skill: "การวางแผน การโน้มน้าว การตัดสินใจ", observe: "ชอบเป็นผู้นำและผลักดันให้งานสำเร็จหรือไม่" },
-  C: { act: "ลองดูแลข้อมูลหรืองานของกลุ่ม เช่น ทำตารางงาน หรือบันทึกรายรับ–รายจ่ายของชมรม", skill: "ความละเอียด การจัดระเบียบข้อมูล", observe: "รู้สึกพอใจเมื่องานเป็นระบบและถูกต้องหรือไม่" },
+  R: { act: "ลองซ่อม ประกอบ หรือทำชิ้นงาน/โมเดลง่าย ๆ ด้วยมือตัวเอง", how: "เลือกของใช้ที่ชำรุดเล็กน้อยหรือชุดประกอบง่าย ๆ ทำให้เสร็จ 1 ชิ้น แล้วจดว่าติดปัญหาตรงไหน", skill: "การใช้เครื่องมือ การลงมือทำ", question: "คุณชอบทำงานกับสิ่งของที่จับต้องได้และเห็นผลงานเป็นชิ้นเป็นอันหรือไม่?" },
+  I: { act: "ลองค้นหาคำตอบของเรื่องที่สงสัย", how: "ตั้งคำถาม 1 ข้อ หาข้อมูลจากแหล่งที่น่าเชื่อถืออย่างน้อย 2 แหล่ง แล้วสรุปสั้น ๆ ด้วยภาษาตัวเอง", skill: "การค้นคว้า การคิดวิเคราะห์", question: "คุณสนุกกับการหาเหตุผลและคำตอบเชิงลึกหรือไม่?" },
+  A: { act: "ลองสร้างผลงานของตัวเอง", how: "ทำโปสเตอร์ ภาพประกอบ คลิปสั้น หรืองานเขียน 1 ชิ้นในหัวข้อที่สนใจ แล้วให้เพื่อนลองดู", skill: "ความคิดสร้างสรรค์ การสื่อสารผ่านผลงาน", question: "คุณชอบได้ถ่ายทอดความคิดของตัวเองผ่านผลงานหรือไม่?" },
+  S: { act: "ลองช่วยติวหนังสือหรือร่วมกิจกรรมอาสา", how: "อธิบายบทเรียนที่ถนัดให้เพื่อนหรือน้อง หรือร่วมกิจกรรมจิตอาสาของโรงเรียน 1 ครั้ง", skill: "การสื่อสาร การรับฟัง การช่วยเหลือผู้อื่น", question: "คุณชอบช่วยเหลือ ดูแล หรือถ่ายทอดความรู้ให้คนอื่นหรือไม่?" },
+  E: { act: "ลองรับหน้าที่นำกลุ่มหรือจัดงานเล็ก ๆ", how: "อาสาเป็นหัวหน้างานกลุ่ม หรือวางแผนกิจกรรม/ขายของในงานโรงเรียน ตั้งเป้าหมายแล้วติดตามผล", skill: "การวางแผน การโน้มน้าว การตัดสินใจ", question: "คุณชอบเป็นผู้นำและผลักดันให้งานสำเร็จหรือไม่?" },
+  C: { act: "ลองจัดระบบข้อมูลหรืองานของกลุ่ม", how: "ทำตารางงาน จัดหมวดหมู่ไฟล์ หรือบันทึกรายรับ–รายจ่ายของชมรมให้เป็นระบบ 1 เดือน", skill: "ความละเอียด การจัดระเบียบข้อมูล", question: "คุณรู้สึกพอใจเมื่องานเป็นระบบและถูกต้องหรือไม่?" },
+};
+// ลักษณะงานของแต่ละด้าน — แปลสรุปจากนิยามของ O*NET OnLine (Interests, 1.B.1) ตรวจเมื่อ 14 ต.ค. 2569
+const ONET_WORK = {
+  R: "ออกแบบ สร้าง หรือซ่อมอุปกรณ์ วัสดุ หรือโครงสร้าง งานที่ใช้กำลังกาย หรือทำงานกลางแจ้ง",
+  I: "ศึกษาและค้นคว้าเกี่ยวกับวัตถุ สิ่งมีชีวิต โรค หรือพฤติกรรมของมนุษย์",
+  A: "สร้างสรรค์ผลงานภาพ การแสดง งานเขียน อาหาร หรือดนตรี หรือนำหลักศิลปะไปใช้ออกแบบ",
+  S: "ช่วยเหลือ สอน ให้คำแนะนำ หรือให้บริการผู้อื่น",
+  E: "บริหาร เจรจา การตลาด หรือการขาย หรือนำและให้คำปรึกษาผู้คนในเรื่องการเมืองและกฎหมาย",
+  C: "ทำตามขั้นตอนและระเบียบเพื่อจัดระบบข้อมูล มักอยู่ในบริบทธุรกิจ",
 };
 const DIM_EN = { R: "Realistic", I: "Investigative", A: "Artistic", S: "Social", E: "Enterprising", C: "Conventional" };
-const traitWords = (f, n = 2) => f.traits.split(/\s+และ|\s+/).map((x) => x.replace(/^และ/, "")).filter((x) => x.length > 2).slice(0, n);
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
 // แนวทางทั่วไป ม.4–ม.6 (ไม่ใช่ข้อกำหนดตายตัว และระบบไม่ได้ติดตามว่าทำแล้วหรือยัง)
@@ -53,26 +62,19 @@ const roadmapFor = (goalName) => [
 ];
 
 // ข้อค้นพบความเชื่อมโยงระหว่างความสนใจกับสาขาเป้าหมาย (findingKind ใน riasecScoring.js) — เงื่อนไขตรวจสอบได้จากข้อมูล ไม่ใช่การให้คะแนน
+const LEVEL_TH = { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" };
+// เหตุผลของระดับ = เงื่อนไขที่ใช้จริงใน levelOfKind / findingKind (riasecScoring.js)
+const LEVEL_WHY = {
+  recommended: "ตาราง 120 รหัสในข้อมูลแนะแนวของโรงเรียนแนะนำสาขานี้สำหรับรหัสของคุณ",
+  main: "สาขานี้ไม่อยู่ในรายการแนะนำของรหัสคุณ แต่ด้านหลักของสาขาเป็นหนึ่งในความสนใจเด่นของคุณ (อันดับ 1–3 รวมคะแนนเท่ากัน)",
+  partial: "ด้านหลักของสาขายังไม่อยู่ในความสนใจเด่นของคุณ แต่มีคุณลักษณะบางข้อของสาขาที่เชื่อมกับความสนใจเด่น",
+  none: "ด้านหลักของสาขายังไม่อยู่ในความสนใจเด่นของคุณ และยังไม่พบคุณลักษณะของสาขาที่เชื่อมกับความสนใจเด่น",
+};
 const FINDING_META = {
   recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", box: "bg-white/70 border-emerald-100" },
   main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "text-pink-700 bg-pink-50 border-pink-200", box: "bg-white/70 border-pink-100" },
   partial: { label: "เชื่อมโยงบางด้าน", cls: "text-amber-700 bg-amber-50 border-amber-200", box: "bg-white/70 border-amber-100" },
   none: { label: "ยังไม่พบความเชื่อมโยงชัดเจน", cls: "text-gray-600 bg-gray-50 border-gray-200", box: "bg-white/70 border-gray-200" },
-};
-// แตกคำแนะนำของสาขา (ประโยคยาวคั่นด้วยช่องว่าง) เป็นข้อ ๆ — ตัดข้อที่เป็นการเตรียมสอบออก (ดูในเกณฑ์รับเข้าจริงแทน)
-const GLUE_START = /^(เช่น|และ|หรือ|ให้|เพื่อ|ที่|ด้วย|ตาม|กับ|ของ|ตั้งแต่|เบื้องต้น|แล้ว|โดย|คณิต|ฟิสิกส์|เคมี|ชีว)/;
-const GLUE_END = /(เช่น|และ|หรือ|ให้|ด้วย|กับ|ของ)$/;
-const adviceSteps = (text) => {
-  const out = [];
-  String(text || "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .forEach((tok) => {
-      const prev = out[out.length - 1];
-      if (prev && (tok === "ๆ" || /^[A-Za-z0-9(/]/.test(tok) || GLUE_START.test(tok) || GLUE_END.test(prev) || tok.length < 5)) out[out.length - 1] = `${prev} ${tok}`;
-      else out.push(tok);
-    });
-  return out.filter((x) => !/(?<!ตรวจ)สอบ|TPAT|TGAT|A-Level|PAT\d/.test(x));
 };
 const CONSISTENCY_META = {
   high: { label: "สูง", text: "ความสนใจ 2 อันดับแรกอยู่ติดกันบนหกเหลี่ยม RIASEC จึงไปในทิศทางเดียวกันชัดเจน" },
@@ -273,13 +275,25 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
         {a.source === "text" && <span className="block text-[12.5px] text-gray-500">จากข้อความเป้าหมายของคุณ</span>}
       </div>
 
+      <div className="mt-3 rounded-xl bg-gray-50/80 px-3.5 py-2.5 text-[13.5px] leading-6">
+        <span className="font-semibold text-gray-800">ระดับความสอดคล้อง: {LEVEL_TH[a.displayLevel]}</span>
+        <span className="text-gray-500"> (เกณฑ์เบื้องต้นของระบบ)</span>
+        <div className="text-gray-700">{LEVEL_WHY[a.kind]}</div>
+      </div>
+
       <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
         <p>
           {link
             ? `สาขานี้เน้น${joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน${TRAIT_NOUN[link.code]}ของคุณ`
-            : `สาขานี้เน้น${f.traits} ซึ่งยังไม่ตรงกับความสนใจเด่นจากแบบประเมินครั้งนี้ แต่ความสนใจเปลี่ยนแปลงได้เมื่อได้ลองทำจริง`}
+            : `สาขานี้เน้น${f.traits} ซึ่งยังไม่ตรงกับความสนใจเด่นจากแบบประเมินครั้งนี้`}
           {" "}ลองทำกิจกรรมจริงตามข้อด้านล่าง แล้วสังเกตว่าคุณสนุกกับงานลักษณะนี้มากน้อยเพียงใด
         </p>
+        {a.displayLevel === "low" && (
+          <p>
+            ความสนใจที่โดดเด่นของคุณอาจแตกต่างจากลักษณะการเรียนหรือการทำงานบางส่วนของสาขานี้ แต่ไม่ได้หมายความว่าคุณเรียนสาขานี้ไม่ได้ หากสาขานี้ยังเป็นเป้าหมาย
+            ลองศึกษารายวิชาและลักษณะการเรียนจริง และทดลองกิจกรรมด้าน{TRAIT_NOUN[dim]} ({dim}) เพื่อสำรวจว่าคุณชอบและอยากพัฒนาทักษะด้านใดเพิ่ม
+          </p>
+        )}
         <p className="text-[12.5px] text-gray-500">การเชื่อมโยงนี้สะท้อนความสนใจ ไม่ใช่การยืนยันความพร้อมในการเรียนหรือโอกาสสอบติด</p>
       </Block>
 
@@ -319,7 +333,10 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
             {a.links.length ? `คุณลักษณะของสาขาที่เชื่อมได้: ${a.links.map((l) => `${l.phrases.slice(0, 2).join(", ")} (${l.code})`).join(" · ")}` : "ไม่พบคุณลักษณะของสาขาที่เชื่อมกับความสนใจเด่น"}
           </Finding>
         </ul>
-        <p className="mt-1.5">ความสนใจเด่น = อันดับ 1–3 (ด้านที่คะแนนเท่ากันนับเป็นอันดับร่วม) • ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม • ความพร้อมด้านวิชาการและเกณฑ์รับเข้าดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”</p>
+        <p className="mt-1.5">
+          ระดับ (เกณฑ์เบื้องต้นของระบบ ไม่ใช่เกณฑ์มาตรฐานทางจิตวิทยา): สูง = ข้อแรกเป็นจริง • ปานกลาง = ข้อแรกไม่จริงแต่ข้อสองจริง • ต่ำ = ข้อสองไม่จริง • ความสนใจเด่น = อันดับ 1–3 (คะแนนเท่ากันนับเป็นอันดับร่วม) •
+          ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม และไม่ได้ทำนายความสำเร็จในการเรียน • ความพร้อมด้านวิชาการและเกณฑ์รับเข้าดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”
+        </p>
       </details>
     </div>
   );
@@ -351,6 +368,14 @@ export default function ResultPage() {
   const myGoal = myGoals === undefined ? undefined : myGoals[goalIdx] || myGoals[0] || null;
   // คำอธิบายรหัสทางเลือก (เปิดดูเมื่อต้องการ — ไม่บังคับให้นักเรียนเลือกว่ารหัสไหนตรงกว่า)
   const [altOpen, setAltOpen] = useState(null);
+
+  // GPAX ที่นักเรียนบันทึกไว้ (ใช้แนะนำขั้นตอนถัดไปเท่านั้น ไม่เกี่ยวกับผล RIASEC)
+  const [grades, setGrades] = useState(undefined);
+  useEffect(() => {
+    const studentId = getCurrentUser()?.user_id;
+    if (!studentId) return setGrades(null);
+    getStudentGrades(studentId).then(setGrades).catch(() => setGrades(null));
+  }, []);
 
   useEffect(() => {
     const studentId = getCurrentUser()?.user_id;
@@ -396,6 +421,12 @@ export default function ResultPage() {
   );
   // สาขาที่ควรสำรวจ (≤ 3) — ใช้รหัสหลัก + รหัสทางเลือกจากคะแนนเท่ากัน ตามเกณฑ์ใน exploreFaculties
   const explore = useMemo(() => (ready ? exploreFaculties(data, latest, goalNames) : []), [ready, data, latest, goalNames]);
+  // กิจกรรมเพื่อสำรวจตัวเอง: ความสนใจเด่น + ด้านหลักของเป้าหมายที่ยังไม่ใช่ความสนใจเด่น (ไม่ใช้สาขาเป้าหมาย — อยู่ในการ์ดเป้าหมายแล้ว)
+  const activities = useMemo(() => {
+    if (!ready) return [];
+    const goalDims = analyses.filter((a) => a.displayLevel === "low").map((a) => a.faculty.dim);
+    return exploreActivities(data, latest, goalNames, goalDims);
+  }, [ready, data, latest, goalNames, analyses]);
   // อาชีพตัวอย่าง (≤ 3) — มาจาก "สาขาที่ควรสำรวจ" ที่แสดงจริง สาขาละ 1 อาชีพ (คอลัมน์อาชีพที่เกี่ยวข้องของสาขา)
   // เลือกอาชีพที่อยู่ในรายการอาชีพตัวอย่างของรหัสด้วยก่อน (ถ้ามี) • ไม่มีสาขาที่ควรสำรวจ = ไม่แสดงอาชีพ
   const resultCareers = useMemo(() => {
@@ -466,6 +497,21 @@ export default function ResultPage() {
   const nounOf = (c) => `${TRAIT_NOUN[c]} (${c})`;
   const mainGroups = groups.slice(0, groups[0].length > 1 ? 1 : 2);
   const restGroups = groups.slice(mainGroups.length);
+  // ขั้นตอนถัดไปตามสถานะจริงของนักเรียน (ไม่ใช้รายการเดียวกันกับทุกคน)
+  const goalA = analyses[0] || null;
+  const nextSteps = [
+    !hasGoal(myGoal) && "ตั้งเป้าหมายคณะ/สาขาที่สนใจในหน้าเป้าหมาย เพื่อให้ระบบเทียบกับผลนี้และแสดงเกณฑ์รับเข้าจริง",
+    hasGoal(myGoal) && !goalA && `ยังไม่พบ “${myGoal.faculty_name || myGoal.goal_text}” ในข้อมูลของระบบ — ลองเลือกชื่อคณะจากรายการในหน้าเป้าหมาย หรือปรึกษาครูแนะแนว`,
+    goalA && !myGoal.university_name && "เลือกมหาวิทยาลัยในเป้าหมาย (หรือในกล่องเกณฑ์รับเข้าด้านล่าง) เพื่อดูจำนวนที่รับ วิชาสอบ และเกณฑ์ Portfolio จริง",
+    goalA && `อ่านรายวิชาและลักษณะการเรียนของหลักสูตร${nm(goalA.faculty.name)}จากลิงก์ myTCAS แล้วดูว่าตรงกับสิ่งที่คาดไว้หรือไม่`,
+    goalA?.displayLevel === "low" && `ทดลองกิจกรรมด้าน${TRAIT_NOUN[goalA.faculty.dim]}ที่สาขาเป้าหมายใช้ (ดูในกิจกรรมเพื่อสำรวจตัวเอง) แล้วทบทวนว่าอยากพัฒนาด้านนี้ต่อหรือไม่`,
+    grades === null || grades?.gpax == null
+      ? "บันทึกเกรดในหน้าเป้าหมาย เพื่อเทียบกับ GPAX ขั้นต่ำในเกณฑ์รับเข้า"
+      : grades && `เทียบ GPAX ของคุณ (${Number(grades.gpax).toFixed(2)}) กับ GPAX ขั้นต่ำของแต่ละรอบในส่วนเกณฑ์รับเข้า`,
+    latest.hasTie && `อ่านคำอธิบายรหัสทางเลือก (${latest.alternativeCodes.join(", ")}) ด้านบน แล้วลองกิจกรรมของด้านที่คะแนนเท่ากันทั้งสองด้าน`,
+    latest.lowDifferentiation && "คะแนนแต่ละด้านใกล้กัน ลองกิจกรรมหลายแบบก่อนตัดสินใจเลือกสาขา",
+    "ปรึกษาครูแนะแนวเมื่อยังไม่แน่ใจ หรืออยากได้มุมมองเพิ่มเติม",
+  ].filter(Boolean);
   const summary =
     `คุณมีความสนใจด้าน${joinTh(mainGroups.flat().map(nounOf))} เป็นหลัก` +
     (restGroups.length ? ` พร้อมกับความสนใจด้าน${joinTh(restGroups.flat().map(nounOf))}${restGroups.flat().length > 1 && restGroups.length === 1 ? " ซึ่งคะแนนเท่ากัน" : ""}` : "") +
@@ -503,6 +549,19 @@ export default function ResultPage() {
 
         {/* ② สรุปความสนใจ */}
         <p className="text-[15px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">{summary}</p>
+        <div className="mt-2 rounded-xl bg-white/60 px-4 py-3 text-[13.5px] text-gray-700 leading-6">
+          <div className="font-medium text-gray-800">ลักษณะงานที่สัมพันธ์กับความสนใจเด่นของคุณ</div>
+          <ul className="mt-1 space-y-0.5">
+            {topDims.map((c) => (
+              <li key={c}>
+                <b>{c}</b> — {ONET_WORK[c]}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-[12px] text-gray-500">
+            สรุปจากนิยามของ O*NET OnLine • RIASEC บอก “ความสนใจ” ไม่ได้วัดความสามารถ ผลการเรียน หรือคุณสมบัติการรับเข้าศึกษา
+          </p>
+        </div>
 
         {latest.hasTie && (
           <div className="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-[14px] text-amber-900 leading-6">
@@ -655,25 +714,37 @@ export default function ResultPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" wide>
             <li className="list-none">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                {topDims.map((c) => (
-                  <div key={c} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2.5 leading-6">
-                    <div className="text-[12.5px] font-semibold text-pink-600">
-                      {EMOJI[c]} ด้าน{TRAIT_NOUN[c]} ({c})
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {activities.map((x) => {
+                  const g = DIM_ACTIVITY[x.dim];
+                  return (
+                    <div key={x.dim} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2.5 leading-6">
+                      <div className="text-[12.5px] font-semibold text-pink-600">
+                        {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]} ({x.dim}){x.forGoal ? " · ด้านที่สาขาเป้าหมายใช้" : ""}
+                      </div>
+                      <div className="font-medium text-gray-900">{x.text || g.act}</div>
+                      {!x.text && (
+                        <div>
+                          <span className="text-gray-500">วิธีลงมือทำ: </span>
+                          {g.how}
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-gray-500">ได้สำรวจ: </span>
+                        {g.skill}
+                      </div>
+                      <div>
+                        <span className="text-gray-500">ทบทวนตัวเอง: </span>
+                        {g.question}
+                      </div>
+                      <div className="mt-0.5 text-[11.5px] text-gray-400">
+                        {x.text ? "ที่มา: ข้อมูลแนะแนวของโรงเรียน" : "ที่มา: คำแนะนำทั่วไปของระบบ (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว)"}
+                      </div>
                     </div>
-                    <div className="text-gray-900">{DIM_ACTIVITY[c].act}</div>
-                    <div>
-                      <span className="text-gray-500">ทักษะที่ได้ฝึก: </span>
-                      {DIM_ACTIVITY[c].skill}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">สิ่งที่ควรสังเกต: </span>
-                      {DIM_ACTIVITY[c].observe}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <p className="mt-1.5 text-[12.5px] text-gray-500">กิจกรรมเหล่านี้ช่วยสำรวจความสนใจ ไม่ใช่ข้อพิสูจน์ว่าต้องเลือกสาขาใด</p>
+              <p className="mt-1.5 text-[12.5px] text-gray-500">ช่วยสำรวจความสนใจ ไม่จำเป็นว่าทุกคนที่ได้ด้านนี้ต้องชอบ และไม่ใช่ข้อพิสูจน์ว่าต้องเลือกสาขาใด</p>
             </li>
           </AdviceBox>
 
@@ -697,6 +768,10 @@ export default function ResultPage() {
                           {latest.hasTie ? (code === latest.code ? " (รหัสหลัก)" : " (รหัสทางเลือก)") : ""}
                         </p>
                         <div className="mt-1">
+                          <span className="text-gray-500">สิ่งที่ได้เรียน/ฝึก: </span>
+                          {row.skills}
+                        </div>
+                        <div>
                           <span className="text-gray-500">วิชาที่ควรเตรียม: </span>
                           {row.subjects.join(", ")}
                         </div>
@@ -721,7 +796,8 @@ export default function ResultPage() {
               )}
               {explore.length > 0 && (
                 <p className="mt-1.5 text-[12.5px] text-gray-500">
-                  วิชาที่ควรเตรียมเป็นคำแนะนำทั่วไป ไม่ใช่วิชาสอบที่ทุกหลักสูตรกำหนด • ชื่อหลักสูตรตรงกับข้อมูล myTCAS ปีการศึกษา 2570 ส่วนเกณฑ์รับสมัครให้ดูจากประกาศของแต่ละหลักสูตร
+                  เป็นสาขาที่เกี่ยวข้องกับ “ความสนใจ” — ไม่ได้หมายความว่ามีคุณสมบัติเข้าศึกษาได้ ก่อนตัดสินใจควรอ่านรายวิชาในหลักสูตรและตรวจเกณฑ์รับเข้า • วิชาที่ควรเตรียมเป็นคำแนะนำทั่วไป ไม่ใช่วิชาสอบที่ทุกหลักสูตรกำหนด •
+                  ชื่อหลักสูตรตรวจกับข้อมูล myTCAS เมื่อ {thaiDate(dataSources.sources.find((x) => x.id === "mytcas")?.checkedAt)}
                 </p>
               )}
             </li>
@@ -729,14 +805,21 @@ export default function ResultPage() {
 
           <AdviceBox n="3" title="อาชีพตัวอย่าง" wide>
             <li className="list-none">
-              <CareerList items={resultCareers.map((c) => ({ ...c, reason: `อาชีพในสาขา${c.faculty.name} — งานที่เน้น${joinTh(traitWords(c.faculty))}` }))} />
-              <p className="mt-1.5 text-[12.5px] text-gray-500">เป็นตัวอย่างงานให้ลองศึกษาเพิ่มเติม ไม่ได้ยืนยันว่าคุณเหมาะกับอาชีพนั้นหรือจะประสบความสำเร็จแน่นอน</p>
+              <CareerList
+                items={resultCareers.map((c) => ({
+                  ...c,
+                  reason: `ทักษะที่เกี่ยวข้อง: ${c.faculty.skills} • เป็นอาชีพที่เกี่ยวข้องของสาขา${c.faculty.name}ที่แนะนำด้านบน จึงนำมาเป็นตัวอย่างให้ลองศึกษาลักษณะงานจริง`,
+                }))}
+              />
+              <p className="mt-1.5 text-[12.5px] text-gray-500">
+                ข้อมูลแนะแนวยังไม่มีคำอธิบายลักษณะงานรายอาชีพ จึงแสดงทักษะของสาขาที่เกี่ยวข้องแทน • เป็นตัวอย่างงานให้ลองศึกษาเพิ่มเติม ไม่ได้ยืนยันว่าคุณเหมาะกับอาชีพนั้นหรือจะประสบความสำเร็จแน่นอน
+              </p>
             </li>
           </AdviceBox>
         </div>
         <div className="mt-3 pt-2 border-t border-gray-100 text-[11.5px] text-gray-400 space-y-0.5">
           <p>สาขา วิชาที่ควรเตรียม และอาชีพ: ข้อมูลแนะแนวของโรงเรียน • หลักสูตร: myTCAS (ทปอ.)</p>
-          <p>กิจกรรมเพื่อสำรวจตัวเอง: คำแนะนำทั่วไปของระบบตามด้านความสนใจ</p>
+          <p>กิจกรรม: ข้อมูลแนะแนวของโรงเรียนเป็นหลัก ด้านที่ไม่มีข้อมูลใช้คำแนะนำทั่วไปของระบบ (ติดป้ายไว้ทุกข้อ)</p>
         </div>
       </div>
 
@@ -866,6 +949,17 @@ export default function ResultPage() {
         </div>
       )}
 
+      {/* ===== แนวทางดำเนินการต่อ — ปรับตามสถานะของนักเรียน ===== */}
+      <GroupLabel>แนวทางดำเนินการต่อ</GroupLabel>
+      <div className={CARD}>
+        <SectionHeader emoji="👣" title="ขั้นตอนถัดไปที่แนะนำ" subtitle="เลือกทำตามที่เหมาะกับคุณ — ระบบไม่ได้ตัดสินใจแทน" />
+        <ol className="space-y-1.5 text-[14px] text-gray-700 list-decimal pl-5">
+          {nextSteps.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ol>
+      </div>
+
       {/* ===== แผนการเตรียมตัว ===== */}
       <GroupLabel>แผนการเตรียมตัว</GroupLabel>
       <div className={CARD}>
@@ -895,10 +989,31 @@ export default function ResultPage() {
           <li>การปรึกษาครูแนะแนว</li>
         </ul>
         <p className="mt-2 text-[12px] text-gray-400">
-          วิธีคิดคะแนน: รวมคะแนนรายด้าน ด้านละ 10 ข้อ (10–50) ตามแนวคิด RIASEC ของ John Holland • แหล่งอ้างอิงในไฟล์ข้อมูลของงานแนะแนว:{" "}
-          {data.sources.map((s) => s.name).join(", ")} • เกณฑ์รับเข้าดึงจาก myTCAS ตอนเปิดดู
+          วิธีคิดคะแนน: รวมคะแนนรายด้าน ด้านละ 10 ข้อ (10–50) ตามแนวคิด RIASEC ของ John Holland • เกณฑ์รับเข้าดึงจาก myTCAS ตอนเปิดดู
         </p>
       </div>
+
+      <details className="px-1 text-[12px] text-gray-500">
+        <summary className="cursor-pointer select-none">แหล่งข้อมูลและวันที่ตรวจสอบ (สำหรับครู/ผู้ตรวจ)</summary>
+        <ul className="mt-1.5 space-y-1 pl-4 list-disc">
+          {dataSources.sources.map((s) => (
+            <li key={s.id}>
+              <b>{s.name}</b> — {s.use}
+              {s.url && (
+                <>
+                  {" "}
+                  <a href={s.url} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline break-all">
+                    {s.url}
+                  </a>
+                </>
+              )}
+              {s.checkedAt && ` • ตรวจเมื่อ ${thaiDate(s.checkedAt)}`}
+              {s.checked && ` (${s.checked})`}
+            </li>
+          ))}
+          <li>แหล่งอ้างอิงที่ระบุในไฟล์ข้อมูลของโรงเรียน: {data.sources.map((s) => s.name).join(", ")}</li>
+        </ul>
+      </details>
 
       <div className="flex justify-end gap-2 flex-wrap print:hidden pb-2">
         <button className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-600 text-[14.5px] font-medium hover:bg-gray-50" onClick={() => window.print()}>

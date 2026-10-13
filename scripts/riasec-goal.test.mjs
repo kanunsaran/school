@@ -106,6 +106,36 @@ assert.equal(kind("พยาบาลศาสตร์"), "recommended");
 assert.equal(kind("การออกแบบกราฟิก"), "main"); // A อันดับร่วม 3 = ความสนใจเด่น
 assert.equal(kind("วิศวกรรมโยธา"), "partial");
 console.log("ข้อค้นพบ:", ["พยาบาลศาสตร์", "การออกแบบกราฟิก", "วิศวกรรมโยธา", "บัญชี"].map((f) => `${f}=${kind(f)}`).join(", "));
+// 15) กรณีทดสอบตามสเปก "ก่อนให้ครูแนะแนวทดลองใช้" (ตรรกะ — ส่วนหน้าเว็บทดสอบด้วย Playwright แยก)
+const level = (r, f) => { const t = R.goalTargets(data, { faculty_name: f })[0]; return t ? R.analyzeTarget(data, r, t).displayLevel : null; };
+const acts = (r, ex = [], extra = []) => R.exploreActivities(data, r, ex, extra);
+// (1) SCI
+const c1 = res({ R: 20, I: 38, A: 25, S: 46, E: 30, C: 40 });
+assert.equal(c1.code, "SCI");
+assert.ok(acts(c1).every((a) => a.text === null || !/(?<!ตรวจ)สอบ|TPAT/.test(a.text)), "กิจกรรมต้องไม่ใช่การเตรียมสอบ");
+// (2) SEC — กิจกรรม/สาขาต่างจาก SCI
+const c2 = res({ R: 20, I: 25, A: 22, S: 44, E: 40, C: 38 });
+assert.equal(c2.code, "SEC");
+assert.notDeepEqual(acts(c1).map((a) => a.text), acts(c2).map((a) => a.text));
+assert.notDeepEqual(R.exploreFaculties(data, c1).map((x) => x.row.name), R.exploreFaculties(data, c2).map((x) => x.row.name));
+// (3) คะแนนเสมอ: ทุกด้านที่เสมอในอันดับ 3 ได้กิจกรรม
+const c3 = res({ R: 35, I: 36, A: 36, S: 42, E: 35, C: 39 });
+assert.deepEqual(acts(c3).map((a) => a.dim).sort(), ["A", "C", "I", "S"]);
+// (4) สูง / (5) ต่ำ
+assert.equal(level(c1, "พยาบาลศาสตร์"), "high");
+assert.equal(level(c1, "คณะศิลปกรรมศาสตร์"), "low");
+// กรณีต่ำ: มีกิจกรรมด้านหลักของเป้าหมาย (A) ให้ลอง โดยไม่ใช้สาขาเป้าหมายเอง
+const lowActs = acts(c1, ["ศิลปกรรมศาสตร์ (ทัศนศิลป์)"], ["A"]);
+assert.ok(lowActs.some((a) => a.dim === "A" && a.forGoal));
+assert.ok(!lowActs.some((a) => a.faculty?.name === "ศิลปกรรมศาสตร์ (ทัศนศิลป์)"));
+// (6) ไม่มีเป้าหมาย
+assert.equal(R.hasGoal({ faculty_name: "", goal_text: "" }), false);
+// (7) ข้อมูลไม่ครบ: เป้าหมายที่ไม่มีในฐานข้อมูล → ไม่มีผลวิเคราะห์ (หน้าเว็บแจ้งว่าเปรียบเทียบไม่ได้)
+assert.equal(R.goalTargets(data, { faculty_name: "คณะเวทมนตร์ศาสตร์" }).length, 0);
+// (8) ไม่มีกิจกรรมของด้านนั้นในข้อมูลโรงเรียน → text = null (หน้าเว็บใช้คำแนะนำทั่วไปพร้อมป้าย)
+const flat = R.resultFromScores({ R: 30, I: 30, A: 30, S: 30, E: 30, C: 30 });
+assert.ok(acts(flat).some((a) => a.text === null));
+console.log("กรณีครูทดลองใช้ 1–8: SCI กิจกรรม", acts(c1).map((a) => `${a.dim}:${a.text ? "โรงเรียน" : "ทั่วไป"}`).join(","), "| SEC", acts(c2).map((a) => `${a.dim}:${a.text ? "โรงเรียน" : "ทั่วไป"}`).join(","));
 console.log("\nผ่านทุกกรณี ✓");
 
 // ===== ข้อ 7 ของสเปกปรับปรุง: คำแนะนำ RIASEC (ส่วน B), อาชีพ ≤ 3, คะแนนเท่ากัน =====

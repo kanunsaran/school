@@ -55,4 +55,14 @@ data.faculties.forEach((f) => {
 console.log(`ตรวจ ${data.faculties.length} สาขา, ${linkCount} ลิงก์, มหาวิทยาลัยตัวอย่าง ${data.faculties.reduce((a, f) => a + f.universities.length, 0)} รายการ`);
 console.log(problems.length ? problems.join("\n") : "ไม่พบข้อมูลที่ไม่ตรงกับต้นทาง ✓");
 if (notes.length) console.log(`\nข้อสังเกต (${notes.length}):\n${notes.join("\n")}`);
+// บันทึกวันที่ตรวจไว้ใน data-sources.json (หน้าเว็บแสดงให้ครู/นักเรียนตรวจย้อนกลับได้) — เฉพาะเมื่อไม่พบปัญหา
+if (!problems.length) {
+  const srcPath = new URL("../Rm/src/data/data-sources.json", import.meta.url);
+  const src = JSON.parse(fs.readFileSync(srcPath, "utf8"));
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+  src.sources.forEach((s) => {
+    if (s.id === "mytcas") Object.assign(s, { checkedAt: today, checked: `${linkCount} ลิงก์หลักสูตร ตรงกับ courses.json` });
+  });
+  fs.writeFileSync(srcPath, JSON.stringify(src, null, 1) + "\n");
+}
 process.exitCode = problems.length ? 1 : 0;
