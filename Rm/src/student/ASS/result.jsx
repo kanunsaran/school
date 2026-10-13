@@ -9,7 +9,7 @@ import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/
 import AdmissionInfo from "../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, rankLabel, exploreFaculties, careersForResult, careersForGoal, interestLinks,
+  denseRank, tiedWith, rankLabel, exploreFaculties, careersForGoal,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -28,6 +28,17 @@ const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂�
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
+// กิจกรรมสำรวจตัวเองตามด้านความสนใจ — ข้อความแนะนำทั่วไปของระบบ (ไม่ได้มาจากไฟล์ข้อมูลคณะ และไม่ผูกกับสาขาใด)
+// ใช้ช่วยให้นักเรียนสังเกตว่าชอบกิจกรรมลักษณะไหน ไม่ใช่การเตรียมสอบหรือหลักฐานว่าต้องเลือกสาขาใด
+const DIM_ACTIVITY = {
+  R: { act: "ลองซ่อม ประกอบ หรือทำโมเดล/ชิ้นงานง่าย ๆ ด้วยมือตัวเอง", skill: "การใช้เครื่องมือ การลงมือทำ", observe: "ชอบทำงานกับสิ่งของที่จับต้องได้และเห็นผลงานเป็นชิ้นเป็นอันหรือไม่" },
+  I: { act: "ลองตั้งคำถามจากเรื่องที่สงสัย แล้วค้นคว้าหรือทดลองหาคำตอบ เช่น ทำโครงงานเล็ก ๆ", skill: "การค้นคว้า การคิดวิเคราะห์", observe: "สนุกกับการหาเหตุผลและคำตอบเชิงลึกหรือไม่" },
+  A: { act: "ลองสร้างผลงานของตัวเอง เช่น วาดภาพ ทำคลิป เขียนเรื่อง หรือออกแบบโปสเตอร์", skill: "ความคิดสร้างสรรค์ การสื่อสารผ่านผลงาน", observe: "ชอบได้แสดงความคิดของตัวเองผ่านผลงานหรือไม่" },
+  S: { act: "ลองเข้าร่วมกิจกรรมจิตอาสา หรือติวหนังสือ/อธิบายบทเรียนให้เพื่อน", skill: "การสื่อสาร การรับฟัง การช่วยเหลือผู้อื่น", observe: "ชอบดูแล ช่วยเหลือ หรือถ่ายทอดความรู้ให้คนอื่นหรือไม่" },
+  E: { act: "ลองรับหน้าที่นำกลุ่ม เช่น เป็นหัวหน้าโครงการ จัดงาน หรือขายของในงานโรงเรียน", skill: "การวางแผน การโน้มน้าว การตัดสินใจ", observe: "ชอบเป็นผู้นำและผลักดันให้งานสำเร็จหรือไม่" },
+  C: { act: "ลองดูแลข้อมูลหรืองานของกลุ่ม เช่น ทำตารางงาน หรือบันทึกรายรับ–รายจ่ายของชมรม", skill: "ความละเอียด การจัดระเบียบข้อมูล", observe: "รู้สึกพอใจเมื่องานเป็นระบบและถูกต้องหรือไม่" },
+};
+const traitWords = (f, n = 2) => f.traits.split(/\s+และ|\s+/).map((x) => x.replace(/^และ/, "")).filter((x) => x.length > 2).slice(0, n);
 const joinTh = (arr) => (arr.length <= 1 ? arr.join("") : `${arr.slice(0, -1).join(" ")} และ${arr[arr.length - 1]}`);
 
 // แนวทางทั่วไป ม.4–ม.6 (ไม่ใช่ข้อกำหนดตายตัว และระบบไม่ได้ติดตามว่าทำแล้วหรือยัง)
@@ -317,13 +328,6 @@ function CareerList({ items }) {
     </div>
   );
 }
-// เหตุผลของอาชีพใต้ผล RIASEC: ลักษณะของสาขาที่อาชีพนั้นอยู่ ซึ่งเชื่อมกับความสนใจเด่น
-const careerReason = (data, result, c) => {
-  const f = c.faculty;
-  const link = f ? interestLinks(data, result, f).find((x) => x.mine) : null;
-  if (f && link) return `งานด้าน${f.name}ใช้${link.phrases[0]} ซึ่งสัมพันธ์กับความสนใจด้าน${TRAIT_NOUN[link.code]}`;
-  return `อาชีพตัวอย่างของรหัส ${c.code || result.code} ในข้อมูลแนะแนว`;
-};
 
 export default function ResultPage() {
   const navigate = useNavigate();
@@ -381,19 +385,19 @@ export default function ResultPage() {
   );
   // สาขาที่ควรสำรวจ (≤ 3) — ใช้รหัสหลัก + รหัสทางเลือกจากคะแนนเท่ากัน ตามเกณฑ์ใน exploreFaculties
   const explore = useMemo(() => (ready ? exploreFaculties(data, latest, goalNames) : []), [ready, data, latest, goalNames]);
-  // อาชีพตัวอย่าง (≤ 3) — ไม่รวมอาชีพของสาขาที่ตั้งเป็นเป้าหมายแล้ว (แสดงในส่วนเป้าหมาย)
-  const resultCareers = useMemo(
-    () => {
-      if (!ready) return [];
-      const list = careersForResult(data, latest, 12).filter((c) => !c.faculty || !goalNames.includes(c.faculty.name));
-      // เลือกจากสาขาที่ต่างกันก่อน (เหตุผลไม่ซ้ำกัน) แล้วจึงเติมให้ครบ 3 ถ้ามี
-      const picked = [];
-      list.forEach((c) => picked.length < 3 && !picked.some((p) => p.faculty && p.faculty === c.faculty) && picked.push(c));
-      list.forEach((c) => picked.length < 3 && !picked.includes(c) && picked.push(c));
-      return picked;
-    },
-    [ready, data, latest, goalNames]
-  );
+  // อาชีพตัวอย่าง (≤ 3) — มาจาก "สาขาที่ควรสำรวจ" ที่แสดงจริง สาขาละ 1 อาชีพ (คอลัมน์อาชีพที่เกี่ยวข้องของสาขา)
+  // เลือกอาชีพที่อยู่ในรายการอาชีพตัวอย่างของรหัสด้วยก่อน (ถ้ามี) • ไม่มีสาขาที่ควรสำรวจ = ไม่แสดงอาชีพ
+  const resultCareers = useMemo(() => {
+    if (!ready) return [];
+    const codeCareers = [latest.code, ...latest.alternativeCodes].flatMap((c) => data.codes[c].careers);
+    const inCode = (t) => codeCareers.some((c) => c === t || c.startsWith(t) || t.startsWith(c));
+    const out = [];
+    explore.forEach(({ row }) => {
+      const title = row.careers.find(inCode) || row.careers[0];
+      if (title && !out.some((x) => x.title === title)) out.push({ title, faculty: row });
+    });
+    return out.slice(0, 3);
+  }, [ready, data, latest, explore]);
   const goalCareers = useMemo(
     () => (ready && advice?.usesGoal ? careersForGoal(data, latest, advice.focus, "") : []),
     [ready, data, latest, advice]
@@ -439,7 +443,6 @@ export default function ResultPage() {
     return `${rankLabel(scores, c)}${t.length ? ` (กับ ${t.join(", ")})` : ""}`;
   };
   const scoreText = (c) => `${rankText(c)} · ${scores[c]}/${MAX_SCORE} คะแนน · ${scorePercent(scores[c])}%`;
-  const dimName = (c) => `${c} — ${dims[c].nameEn} (${dims[c].nameTh})`;
   const maxScore = Math.max(...RIASEC_ORDER.map((c) => scores[c]));
   const minScore = Math.min(...RIASEC_ORDER.map((c) => scores[c]));
   const atScore = (v) => RIASEC_ORDER.filter((c) => scores[c] === v).join("/");
@@ -459,33 +462,42 @@ export default function ResultPage() {
 
   return (
     <Shell>
-      {/* ① สรุปความสนใจของคุณ */}
+      {/* ① รหัสฮอลแลนด์ + สรุปความสนใจ */}
       <div className={`w-full ${CARD} py-6 px-5 md:px-8`}>
-        <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
-        <div className="mt-1 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
           <div className="min-w-0">
-            <p className="text-[13px] text-gray-500">รหัสหลัก</p>
-            <p className="text-[34px] leading-tight font-bold text-black tracking-wider">{latest.code}</p>
-            <p className="text-[15px] text-gray-800 mt-0.5">“{data.codes[latest.code].meaning}”</p>
+            <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
+            <p className="text-[34px] font-bold text-black mt-1 tracking-wider">
+              {latest.code}
+              <span className="ml-2 align-middle text-[13px] font-medium tracking-normal text-gray-500">รหัสหลัก</span>
+            </p>
+            <p className="text-[14.5px] text-gray-700">“{data.codes[latest.code].meaning}”</p>
+            <ul className="mt-2 space-y-0.5 text-[14px] text-gray-700">
+              {topDims.map((c) => (
+                <li key={c}>
+                  <b>{c}</b> {dims[c].nameEn} ({dims[c].nameTh}) <span className="text-gray-400">{" · "}{scoreText(c)}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="space-y-1 text-[14px] text-gray-700 md:text-right">
+          <div className="flex gap-2 flex-wrap md:flex-col md:items-end">
             {topDims.map((c) => (
-              <li key={c}>
-                <span className="font-medium">
-                  {EMOJI[c]} {dimName(c)}
-                </span>
-                <span className="block text-[13px] text-gray-500">{scoreText(c)}</span>
-              </li>
+              <span key={c} className="inline-flex items-center gap-1.5 bg-white/70 rounded-full px-3 py-1.5 text-[13.5px] font-medium shadow-sm">
+                <span>{EMOJI[c]}</span>
+                {dims[c].nameTh}
+              </span>
             ))}
-          </ul>
+          </div>
         </div>
 
-        <p className="text-[15px] mt-4 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">{summary}</p>
+        {/* ② สรุปความสนใจ */}
+        <p className="text-[15px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">{summary}</p>
 
         {latest.hasTie && (
           <div className="mt-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-[14px] text-amber-900 leading-6">
-            <b>หมายเหตุ:</b> คะแนน{swingDims.map((c) => ` ${c}`).join(" และ")} เท่ากัน ({scores[swingDims[0]]}/{MAX_SCORE}) จึงมี{" "}
-            {latest.alternativeCodes.join(", ")} เป็นรหัสทางเลือก — ระบบใช้ {latest.code} เป็นรหัสหลักตามกติกาเรียงลำดับหกเหลี่ยม R-I-A-S-E-C เมื่อคะแนนเท่ากัน ซึ่งไม่ได้แปลว่าคุณสนใจด้านหนึ่งมากกว่าอีกด้าน
+            <b>รหัสทางเลือก: {latest.alternativeCodes.join(", ")}</b> — {joinTh(swingDims.map((c) => `ด้าน ${c} (${TRAIT_NOUN[c]})`))} ได้คะแนนเท่ากัน
+            รหัสจึงเขียนได้ทั้ง {[latest.code, ...latest.alternativeCodes].join(" และ ")} ซึ่งต่างกันแค่ตัวอักษรนี้ ทั้งหมดมาจากผลชุดเดียวกัน ไม่ต้องเลือกว่าแบบไหนตรงกว่า
+            ระบบใช้ {latest.code} เป็นรหัสหลักตามกติกาเรียงลำดับหกเหลี่ยม R-I-A-S-E-C และใช้ทุกรหัสในการหาสาขาที่ควรสำรวจ
             <div className="mt-2 flex flex-wrap gap-2">
               {latest.alternativeCodes.map((c) => (
                 <button
@@ -532,8 +544,16 @@ export default function ResultPage() {
               return (
                 <div key={c}>
                   <div className="flex flex-wrap justify-between gap-x-2 text-[13.5px] mb-1">
-                    <span className="font-medium">{dimName(c)}</span>
-                    <span className="text-gray-600">{scoreText(c)}</span>
+                    <span>
+                      <b>{c}</b> {dims[c].nameEn} · {dims[c].nameTh}
+                    </span>
+                    <span>
+                      <span className="text-gray-400">{rankText(c)}</span>
+                      {" · "}
+                      <span className="font-semibold">
+                        {scores[c]}/{MAX_SCORE} คะแนน · {pct}%
+                      </span>
+                    </span>
                   </div>
                   <div className="w-full h-4 rounded-full bg-gray-200/50 overflow-hidden">
                     <div className={`h-full rounded-full transition-all duration-1000 bg-gradient-to-r ${from} ${to}`} style={{ width: animated ? `${pct}%` : 0 }} />
@@ -576,19 +596,25 @@ export default function ResultPage() {
         </div>
       </div>
 
-      {/* ⑤ ความหมายของแต่ละด้าน — ด้านที่เด่น (อันดับ 1–3 รวมคะแนนเท่ากัน) แสดงก่อน ด้านอื่นพับไว้ */}
+      {/* ⑤ จุดเด่นของคุณ — ความหมายของด้านที่เด่น (อันดับ 1–3 รวมคะแนนเท่ากัน) + ด้านอื่นแบบย่อ */}
       <div className={CARD}>
-        <SectionHeader emoji="📖" title="ความหมายของแต่ละด้าน" subtitle="ด้านที่มีสีคือความสนใจเด่นของคุณ (อันดับ 1–3 รวมด้านที่คะแนนเท่ากัน)" />
+        <SectionHeader emoji="⭐" title="จุดเด่นของคุณ" subtitle={latest.hasTie ? "ความสนใจอันดับ 1–3 (รวมด้านที่คะแนนเท่ากัน) และความหมายของแต่ละด้าน" : "ความสนใจ 3 อันดับแรก และความหมายของแต่ละด้าน"} />
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${topDims.length > 3 ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-3`}>
-          {topDims.map((c) => (
-            <div key={c} className={`rounded-xl p-3.5 ${["bg-pink-200/60", "bg-sky-200/60", "bg-yellow-200/60"][denseRank(scores, c) - 1] || "bg-white/70"}`}>
-              <div className="text-[14.5px] font-semibold">
-                {EMOJI[c]} {dimName(c)}
+          {topDims.map((c) => {
+            const r = denseRank(scores, c);
+            return (
+              <div key={c} className={`rounded-xl p-4 ${["bg-pink-200/60", "bg-sky-200/60", "bg-yellow-200/60"][r - 1] || "bg-white/70"}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[22px]">{["🥇", "🥈", "🥉"][r - 1] || "🏅"}</span>
+                  <span className="text-[13px] text-gray-600">{rankText(c)}</span>
+                </div>
+                <div className="text-[15px] font-semibold mt-1">
+                  {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh})
+                </div>
+                <div className="text-[13.5px] text-gray-700 mt-1 leading-6">{dims[c].traits}</div>
               </div>
-              <div className="text-[12.5px] text-gray-600">{rankText(c)}</div>
-              <div className="text-[13.5px] text-gray-700 mt-1 leading-6">{dims[c].traits}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <details className="mt-3">
           <summary className="cursor-pointer text-[13.5px] text-gray-600">ความหมายของด้านอื่น ๆ</summary>
@@ -598,7 +624,7 @@ export default function ResultPage() {
               .map((c) => (
                 <div key={c} className="p-3 rounded-xl bg-gray-50/70">
                   <p className="font-medium text-[14px]">
-                    {EMOJI[c]} {dimName(c)} <span className="text-gray-500 font-normal">· {rankText(c)}</span>
+                    {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh}) <span className="text-gray-500 font-normal">· {rankText(c)}</span>
                   </p>
                   <p className="text-[13px] mt-0.5 text-gray-600">{dims[c].traits}</p>
                 </div>
@@ -608,100 +634,99 @@ export default function ResultPage() {
       </div>
 
       {/* ===== ส่วน B: นำผลความสนใจไปสำรวจต่อ (ไม่ขึ้นกับเป้าหมาย) ===== */}
-      <GroupLabel>นำผลไปสำรวจต่อ</GroupLabel>
+      <GroupLabel>คำแนะนำจากผล RIASEC</GroupLabel>
       <div className={CARD}>
         <SectionHeader
           emoji="💡"
           title="เข้าใจความสนใจของตัวเอง"
-          subtitle={`จากรหัส ${[latest.code, ...latest.alternativeCodes].join(" / ")} — ไม่รวมสาขาที่คุณตั้งเป็นเป้าหมายแล้ว (ดูในส่วนเป้าหมายด้านล่าง)`}
+          subtitle="ช่วยสำรวจทางเลือกจากความสนใจ — ไม่ได้ตัดสินว่าคุณเหมาะกับสาขาใดแน่นอน"
         />
-        {explore.length === 0 ? (
-          <p className="text-[14px] text-gray-600">ยังไม่มีสาขาที่ข้อมูลแนะแนวแนะนำสำหรับรหัสของคุณซึ่งมีลักษณะเชื่อมกับความสนใจเด่น (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
-        ) : (
-          <div className="grid gap-4">
-            {/* ② กิจกรรมสำรวจตัวเอง */}
-            <section>
-              <h3 className="text-[15.5px] font-semibold text-gray-800">ลองทำกิจกรรมเพื่อสำรวจตัวเอง</h3>
-              <ol className="mt-2 grid grid-cols-1 lg:grid-cols-3 gap-2.5">
-                {explore.map(({ row, links }, i) => {
-                  const observe = links[0]?.phrases[0];
-                  return (
-                    <li key={row.name} className="rounded-xl bg-white/70 border border-gray-100 px-3.5 py-3 text-[13.5px] leading-6">
-                      <div className="text-gray-900">
-                        <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-pink-500 text-[11.5px] font-bold text-white">{i + 1}</span>
-                        {row.advice}
-                      </div>
-                      <div className="mt-1">
-                        <span className="text-gray-500">ทักษะที่ได้ฝึก: </span>
-                        {row.skills}
-                      </div>
-                      {observe && (
-                        <div>
-                          <span className="text-gray-500">สิ่งที่ควรสังเกต: </span>คุณสนุกกับ{observe}มากน้อยแค่ไหน และอยากทำต่อหรือไม่
-                        </div>
-                      )}
-                      <div className="mt-1 text-[12px] text-gray-400">คำแนะนำของสาขา{row.name} ในข้อมูลแนะแนว</div>
-                    </li>
-                  );
-                })}
-              </ol>
-            </section>
-
-            {/* ③ สาขาที่ควรสำรวจ (≤ 3) */}
-            <section>
-              <h3 className="text-[15.5px] font-semibold text-gray-800">สาขาที่ควรสำรวจ</h3>
-              <div className="mt-2 grid grid-cols-1 lg:grid-cols-3 gap-2.5">
-                {explore.map(({ row, code, links }) => (
-                  <div key={row.name} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 text-[13.5px] leading-6 min-w-0">
-                    <div className="text-[15px] font-semibold text-gray-900">{row.name}</div>
-                    <div className="text-[12.5px] text-gray-500">
-                      กลุ่ม {row.dim} — {dims[row.dim].nameTh} · ความสนใจ{rankText(row.dim)}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" wide>
+            <li className="list-none">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                {topDims.map((c) => (
+                  <div key={c} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2.5 leading-6">
+                    <div className="text-[12.5px] font-semibold text-pink-600">
+                      {EMOJI[c]} ด้าน{TRAIT_NOUN[c]} ({c})
                     </div>
-                    <div className="mt-1.5 font-medium text-gray-800">ทำไมระบบจึงแนะนำ</div>
-                    <p>
-                      ข้อมูลแนะแนวของโรงเรียนแนะนำสาขานี้สำหรับรหัส {code}
-                      {code !== latest.code ? " (รหัสทางเลือกของคุณ)" : ""} และลักษณะของสาขา{" "}
-                      {links.map((l) => `“${l.phrases.slice(0, 2).join(", ")}” สัมพันธ์กับความสนใจด้าน${TRAIT_NOUN[l.code]}`).join(" ส่วน ")}
-                    </p>
-                    <div className="mt-1.5 font-medium text-gray-800">วิชาที่ควรเน้น</div>
-                    <p>
-                      {row.subjects.join(", ")} <span className="text-[12px] text-gray-500">(เตรียมความพร้อมทั่วไป ไม่ใช่วิชาสอบที่ทุกหลักสูตรกำหนด)</span>
-                    </p>
-                    <div className="mt-1.5 font-medium text-gray-800">หลักสูตรที่ตรวจสอบแล้ว</div>
-                    {row.links.length ? (
-                      <ul className="space-y-0.5">
-                        {row.links.slice(0, 2).map((l, k) => (
-                          <li key={l}>
-                            <a href={l} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
-                              {row.programs[k] || "ดูหลักสูตรใน myTCAS"} ↗
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500">
-                        ยังไม่มีลิงก์หลักสูตรที่ตรวจสอบแล้ว —{" "}
-                        <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline">
-                          ค้นหาเองในหน้าค้นหา myTCAS ↗
-                        </a>
-                      </p>
-                    )}
+                    <div className="text-gray-900">{DIM_ACTIVITY[c].act}</div>
+                    <div>
+                      <span className="text-gray-500">ทักษะที่ได้ฝึก: </span>
+                      {DIM_ACTIVITY[c].skill}
+                    </div>
+                    <div>
+                      <span className="text-gray-500">สิ่งที่ควรสังเกต: </span>
+                      {DIM_ACTIVITY[c].observe}
+                    </div>
                   </div>
                 ))}
               </div>
-            </section>
-          </div>
-        )}
+              <p className="mt-1.5 text-[12.5px] text-gray-500">กิจกรรมเหล่านี้ช่วยสำรวจความสนใจ ไม่ใช่ข้อพิสูจน์ว่าต้องเลือกสาขาใด</p>
+            </li>
+          </AdviceBox>
 
-        {/* ④ อาชีพตัวอย่าง (≤ 3) */}
-        <section className="mt-4">
-          <h3 className="text-[15.5px] font-semibold text-gray-800">อาชีพตัวอย่าง</h3>
-          <CareerList items={resultCareers.map((c) => ({ ...c, reason: careerReason(data, latest, c) }))} />
-          <p className="mt-1.5 text-[12.5px] text-gray-500">เป็นตัวอย่างอาชีพที่สัมพันธ์กับความสนใจแบบนี้ ไม่ได้ยืนยันว่าคุณเหมาะกับอาชีพนั้นหรือจะประสบความสำเร็จแน่นอน</p>
-        </section>
-        <p className="mt-3 pt-2 border-t border-gray-100 text-[11.5px] text-gray-400">
-          ที่มา: ไฟล์ข้อมูลคณะ–อาชีพของงานแนะแนว (ตาราง 120 รหัส, คำแนะนำสำหรับนักเรียน, ทักษะที่ควรพัฒนา, วิชาที่ควรเน้น, อาชีพ) • ลิงก์หลักสูตรตรวจกับ myTCAS (ทปอ.) แล้ว
-        </p>
+          <AdviceBox n="2" title="สาขาที่ควรสำรวจ" wide>
+            <li className="list-none">
+              {explore.length === 0 ? (
+                <p className="text-gray-600">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {explore.map(({ row, code, links }) => {
+                    const link = links.find((l) => l.code === row.dim) || links[0];
+                    return (
+                      <div key={row.name} className="rounded-lg bg-white/80 border border-gray-100 px-3 py-2.5 min-w-0 leading-6">
+                        <div className="text-[14.5px] font-semibold text-gray-800">{row.name}</div>
+                        <p className="mt-1">
+                          สาขานี้อาจเป็นอีกทางเลือกให้คุณสำรวจ เพราะเกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]} ({link.code}) ของคุณ
+                          ลองศึกษาลักษณะการเรียนและการทำงานจริงเพิ่มเติม เพื่อดูว่าตรงกับสิ่งที่คุณสนใจหรือไม่
+                        </p>
+                        <p className="mt-1 text-[12.5px] text-gray-500">
+                          ข้อมูลแนะแนวของโรงเรียน: แนะนำสาขานี้สำหรับรหัส {code}
+                          {latest.hasTie ? (code === latest.code ? " (รหัสหลัก)" : " (รหัสทางเลือก)") : ""}
+                        </p>
+                        <div className="mt-1">
+                          <span className="text-gray-500">วิชาที่ควรเตรียม: </span>
+                          {row.subjects.join(", ")}
+                        </div>
+                        {row.links.length ? (
+                          <div className="mt-1">
+                            <span className="text-gray-500">หลักสูตรใน myTCAS: </span>
+                            {row.links.slice(0, 2).map((l, k) => (
+                              <a key={l} href={l} target="_blank" rel="noreferrer" className="block text-sky-600 hover:underline">
+                                {row.programs[k] || "ดูหลักสูตร"} ↗
+                              </a>
+                            ))}
+                          </div>
+                        ) : (
+                          <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="mt-1 block text-sky-600 hover:underline">
+                            ค้นหาหลักสูตรเพิ่มเติมใน myTCAS ↗
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {explore.length > 0 && (
+                <p className="mt-1.5 text-[12.5px] text-gray-500">
+                  วิชาที่ควรเตรียมเป็นคำแนะนำทั่วไป ไม่ใช่วิชาสอบที่ทุกหลักสูตรกำหนด • ชื่อหลักสูตรตรงกับข้อมูล myTCAS ปีการศึกษา 2570 ส่วนเกณฑ์รับสมัครให้ดูจากประกาศของแต่ละหลักสูตร
+                </p>
+              )}
+            </li>
+          </AdviceBox>
+
+          <AdviceBox n="3" title="อาชีพตัวอย่าง" wide>
+            <li className="list-none">
+              <CareerList items={resultCareers.map((c) => ({ ...c, reason: `อาชีพในสาขา${c.faculty.name} — งานที่เน้น${joinTh(traitWords(c.faculty))}` }))} />
+              <p className="mt-1.5 text-[12.5px] text-gray-500">เป็นตัวอย่างงานให้ลองศึกษาเพิ่มเติม ไม่ได้ยืนยันว่าคุณเหมาะกับอาชีพนั้นหรือจะประสบความสำเร็จแน่นอน</p>
+            </li>
+          </AdviceBox>
+        </div>
+        <div className="mt-3 pt-2 border-t border-gray-100 text-[11.5px] text-gray-400 space-y-0.5">
+          <p>สาขา วิชาที่ควรเตรียม และอาชีพ: ข้อมูลแนะแนวของโรงเรียน • หลักสูตร: myTCAS (ทปอ.)</p>
+          <p>กิจกรรมเพื่อสำรวจตัวเอง: คำแนะนำทั่วไปของระบบตามด้านความสนใจ</p>
+        </div>
       </div>
 
       {/* ===== ส่วน A: เป้าหมายการศึกษาต่อ ===== */}
@@ -799,7 +824,7 @@ export default function ResultPage() {
                   </div>
                   {f.programs.length > 0 && (
                     <div className="text-[13px] text-gray-600">
-                      หลักสูตรที่ตรวจสอบแล้ว:{" "}
+                      หลักสูตรใน myTCAS:{" "}
                       {f.programs.slice(0, 3).map((pg, k) => (
                         <span key={pg}>
                           {k > 0 && " • "}
@@ -816,7 +841,7 @@ export default function ResultPage() {
                   )}
                   {f.programs.length === 0 && (
                     <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline text-[13px]">
-                      ยังไม่มีลิงก์หลักสูตรที่ตรวจสอบแล้ว — ค้นหาเองในหน้าค้นหา myTCAS ↗
+                      ค้นหาหลักสูตรเพิ่มเติมใน myTCAS ↗
                     </a>
                   )}
                   <div className="mt-2">
