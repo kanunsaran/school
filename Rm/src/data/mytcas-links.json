@@ -1,6 +1,6 @@
 {
  "source": "myTCAS courses.json",
- "fetchedAt": "2026-10-12",
+ "fetchedAt": "2026-10-13",
  "faculties": {
   "วิศวกรรมโยธา": {
    "programs": [
@@ -228,6 +228,14 @@
     "https://course.mytcas.com/universities/001/faculties/25/fields/40_05",
     "https://course.mytcas.com/universities/008/faculties/02/fields/40_05",
     "https://course.mytcas.com/universities/016/faculties/02/fields/40_05"
+   ]
+  },
+  "มัณฑนศิลป์": {
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาการออกแบบภายใน"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/04/fields/80_01"
    ]
   },
   "นิเทศศาสตร์ (โฆษณา/ภาพยนตร์)": {

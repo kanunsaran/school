@@ -2290,8 +2290,13 @@
     "ภาษาอังกฤษ"
    ],
    "exam": "เตรียม Portfolio ฝึกวาดเส้น ออกแบบ และตรวจวิชาเฉพาะของสาขา",
-   "programs": [],
-   "links": []
+   "programs": [
+    "มหาวิทยาลัยศิลปากร: หลักสูตรศิลปบัณฑิต สาขาวิชาการออกแบบภายใน"
+   ],
+   "links": [
+    "https://course.mytcas.com/universities/008/faculties/04/fields/80_01"
+   ],
+   "linkSource": "mytcas-auto"
   },
   {
    "name": "นิเทศศาสตร์ (โฆษณา/ภาพยนตร์)",

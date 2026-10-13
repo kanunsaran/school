@@ -5,7 +5,8 @@ import Header from "../../Header";
 import { getGoals } from "../../callapi/callapi_user.jsx";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
-import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME } from "../../utils/goals.js";
+import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
+import AdmissionInfo from "../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
   denseRank, tiedWith, riasecAdvice, careersForResult, careersForGoal, interestLinks,
@@ -783,6 +784,9 @@ export default function ResultPage() {
                   <a href={f.link || MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-sky-600 hover:underline text-[13px]">
                     {f.link ? "ตรวจคุณสมบัติและเกณฑ์รับเข้าล่าสุดใน myTCAS ↗" : `ค้นหาหลักสูตร “${f.name}” ใน myTCAS ↗`}
                   </a>
+                  <div className="mt-2">
+                    <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} />
+                  </div>
                 </FacultyItem>
               ))}
             </AdviceBox>

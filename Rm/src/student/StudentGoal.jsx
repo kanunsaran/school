@@ -22,6 +22,7 @@ import {
   goalsOf, MAX_GOALS, GOAL_RANK_LABEL, fullUniName, sameUni, programLinkFor, MYTCAS_HOME, GRADE_TERMS, GRADE_SUBJECTS, gradeForSubject,
 } from "../utils/goals.js";
 import uniData from "../data/universities.json";
+import AdmissionInfo from "../components/AdmissionInfo.jsx";
 import { GRADE_OPTIONS, readGradeReport, termGpa, groupOf } from "../utils/gradeOcr.js";
 
 // หน้าเป้าหมายของฉัน — ตั้งเป้าหมายได้หลายข้อ (คณะ/สาขา + มหาวิทยาลัย + อาชีพ) แต่ละข้อเทียบกับผล RIASEC และข้อมูลคณะ–อาชีพ (Excel)
@@ -150,6 +151,7 @@ function GoalCard({ goal, rank, total, analysis, grades, onEdit, onDelete, onMak
             <FaChevronDown className={`text-[10px] transition-transform ${open ? "rotate-180" : ""}`} />
           </button>
           {open && (
+            <>
             <dl className="mt-2 grid gap-2 text-[13.5px] leading-6">
               {[
                 ["ทักษะที่ควรพัฒนา", f.skills],
@@ -178,6 +180,10 @@ function GoalCard({ goal, rank, total, analysis, grades, onEdit, onDelete, onMak
                 </a>
               )}
             </dl>
+            <div className="mt-3">
+              <AdmissionInfo facultyName={f.name} university={goal.university_name ? fullUniName(goal.university_name) : null} gpax={grades?.gpax ?? null} />
+            </div>
+            </>
           )}
         </div>
       ) : (
