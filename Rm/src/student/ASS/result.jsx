@@ -4,6 +4,7 @@ import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header";
 import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
+import onet from "../../data/onet-faculties.json";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
 import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
@@ -32,12 +33,24 @@ const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "ก
 // กิจกรรมทั่วไปตามด้านความสนใจ — ข้อความของระบบ ใช้เฉพาะเมื่อข้อมูลแนะแนวของโรงเรียนไม่มีกิจกรรมของด้านนั้น
 // (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว) • คำถามทบทวนตัวเองใช้กับทุกกิจกรรมของด้านนั้น
 const DIM_ACTIVITY = {
-  R: { act: "ลองซ่อม ประกอบ หรือทำชิ้นงาน/โมเดลง่าย ๆ ด้วยมือตัวเอง", how: "เลือกของใช้ที่ชำรุดเล็กน้อยหรือชุดประกอบง่าย ๆ ทำให้เสร็จ 1 ชิ้น แล้วจดว่าติดปัญหาตรงไหน", skill: "การใช้เครื่องมือ การลงมือทำ", question: "คุณชอบทำงานกับสิ่งของที่จับต้องได้และเห็นผลงานเป็นชิ้นเป็นอันหรือไม่?" },
-  I: { act: "ลองค้นหาคำตอบของเรื่องที่สงสัย", how: "ตั้งคำถาม 1 ข้อ หาข้อมูลจากแหล่งที่น่าเชื่อถืออย่างน้อย 2 แหล่ง แล้วสรุปสั้น ๆ ด้วยภาษาตัวเอง", skill: "การค้นคว้า การคิดวิเคราะห์", question: "คุณสนุกกับการหาเหตุผลและคำตอบเชิงลึกหรือไม่?" },
-  A: { act: "ลองสร้างผลงานของตัวเอง", how: "ทำโปสเตอร์ ภาพประกอบ คลิปสั้น หรืองานเขียน 1 ชิ้นในหัวข้อที่สนใจ แล้วให้เพื่อนลองดู", skill: "ความคิดสร้างสรรค์ การสื่อสารผ่านผลงาน", question: "คุณชอบได้ถ่ายทอดความคิดของตัวเองผ่านผลงานหรือไม่?" },
-  S: { act: "ลองช่วยติวหนังสือหรือร่วมกิจกรรมอาสา", how: "อธิบายบทเรียนที่ถนัดให้เพื่อนหรือน้อง หรือร่วมกิจกรรมจิตอาสาของโรงเรียน 1 ครั้ง", skill: "การสื่อสาร การรับฟัง การช่วยเหลือผู้อื่น", question: "คุณชอบช่วยเหลือ ดูแล หรือถ่ายทอดความรู้ให้คนอื่นหรือไม่?" },
-  E: { act: "ลองรับหน้าที่นำกลุ่มหรือจัดงานเล็ก ๆ", how: "อาสาเป็นหัวหน้างานกลุ่ม หรือวางแผนกิจกรรม/ขายของในงานโรงเรียน ตั้งเป้าหมายแล้วติดตามผล", skill: "การวางแผน การโน้มน้าว การตัดสินใจ", question: "คุณชอบเป็นผู้นำและผลักดันให้งานสำเร็จหรือไม่?" },
-  C: { act: "ลองจัดระบบข้อมูลหรืองานของกลุ่ม", how: "ทำตารางงาน จัดหมวดหมู่ไฟล์ หรือบันทึกรายรับ–รายจ่ายของชมรมให้เป็นระบบ 1 เดือน", skill: "ความละเอียด การจัดระเบียบข้อมูล", question: "คุณรู้สึกพอใจเมื่องานเป็นระบบและถูกต้องหรือไม่?" },
+  R: { act: "ทดลองลงมือทำชิ้นงานด้วยตัวเอง", how: "ลองซ่อมของใช้ที่ชำรุดเล็กน้อย ประกอบชุดโมเดล หรือทำชิ้นงานง่าย ๆ ให้เสร็จ 1 ชิ้น แล้วจดว่าติดปัญหาตรงไหน", skill: "การใช้เครื่องมือ การแก้ปัญหาเฉพาะหน้า และความสนใจในงานที่จับต้องได้", question: "คุณรู้สึกอย่างไรเมื่อได้ลงมือทำจนเห็นผลงานเป็นชิ้นเป็นอัน?" },
+  I: { act: "ค้นหาคำตอบจากคำถามที่สงสัย", how: "เลือกคำถามที่สนใจ ค้นข้อมูลจากแหล่งที่น่าเชื่อถืออย่างน้อย 2 แหล่ง เปรียบเทียบข้อมูล แล้วสรุปคำตอบด้วยเหตุผลของตนเอง", skill: "การตั้งคำถาม การค้นคว้า และการใช้เหตุผล", question: "คุณสนุกกับการค้นหาสาเหตุ ตรวจสอบข้อมูล และทำความเข้าใจเรื่องที่ยังไม่รู้หรือไม่?" },
+  A: { act: "สร้างผลงานในแบบของตัวเอง", how: "สร้างโปสเตอร์ ภาพประกอบ คลิปสั้น หรืองานเขียนในหัวข้อที่สนใจ โดยเลือกวิธีนำเสนอได้อย่างอิสระ", skill: "จินตนาการ การแสดงออก และการถ่ายทอดความคิด", question: "คุณชอบการสร้างผลงานที่สะท้อนแนวคิดหรือเอกลักษณ์ของตัวเองมากน้อยเพียงใด?" },
+  S: { act: "ทดลองช่วยเหลือหรือถ่ายทอดความรู้ให้ผู้อื่น", how: "ลองช่วยเพื่อนทบทวนบทเรียน รับฟังปัญหาของเพื่อน หรือเข้าร่วมกิจกรรมจิตอาสาที่สนใจ", skill: "การรับฟัง การสื่อสาร และความสนใจในการช่วยเหลือผู้อื่น", question: "คุณรู้สึกอย่างไรเมื่อได้ช่วยให้ผู้อื่นเข้าใจหรือจัดการปัญหาของตนเองได้ดีขึ้น?" },
+  E: { act: "ทดลองนำกลุ่มหรือจัดงานเล็ก ๆ", how: "อาสาเป็นหัวหน้างานกลุ่ม วางแผนกิจกรรม หรือขายของในงานโรงเรียน ตั้งเป้าหมายแล้วติดตามผล", skill: "การวางแผน การโน้มน้าว และการตัดสินใจ", question: "คุณรู้สึกอย่างไรเมื่อได้เป็นคนนำและผลักดันให้งานสำเร็จ?" },
+  C: { act: "ทดลองจัดระบบข้อมูลหรือวางแผนงาน", how: "ลองจัดตารางอ่านหนังสือ จัดหมวดหมู่เอกสาร หรือสร้างตารางบันทึกงานที่ต้องทำให้เป็นระบบ", skill: "ความละเอียด การวางแผน และความพึงพอใจในการทำงานอย่างเป็นระเบียบ", question: "คุณชอบการจัดข้อมูลให้เป็นระบบและตรวจสอบได้หรือไม่?" },
+};
+// ชื่อความรู้ของ O*NET (Knowledge) → ภาษาไทย (แปลตามนิยามของ O*NET)
+const KNOWLEDGE_TH = {
+  "Administration and Management": "การบริหารและการจัดการ", Administrative: "งานธุรการและเอกสาร", "Economics and Accounting": "เศรษฐศาสตร์และการบัญชี",
+  "Sales and Marketing": "การขายและการตลาด", "Customer and Personal Service": "การให้บริการผู้รับบริการ", "Personnel and Human Resources": "การบริหารบุคคล",
+  "Production and Processing": "กระบวนการผลิต", "Food Production": "การผลิตอาหาร", "Computers and Electronics": "คอมพิวเตอร์และอิเล็กทรอนิกส์",
+  "Engineering and Technology": "วิศวกรรมและเทคโนโลยี", Design: "การออกแบบ (แบบร่าง แบบแปลน)", "Building and Construction": "การก่อสร้าง", Mechanical: "เครื่องจักรและเครื่องมือ",
+  Mathematics: "คณิตศาสตร์", Physics: "ฟิสิกส์", Chemistry: "เคมี", Biology: "ชีววิทยา", Psychology: "จิตวิทยา", "Sociology and Anthropology": "สังคมวิทยาและมานุษยวิทยา",
+  Geography: "ภูมิศาสตร์", "Medicine and Dentistry": "การแพทย์และทันตกรรม", "Therapy and Counseling": "การบำบัดและการให้คำปรึกษา", "Education and Training": "การสอนและการฝึกอบรม",
+  "English Language": "การใช้ภาษาและการเขียน", "Foreign Language": "ภาษาต่างประเทศ", "Fine Arts": "ศิลปะ (ทัศนศิลป์ ดนตรี การแสดง)", "History and Archeology": "ประวัติศาสตร์และโบราณคดี",
+  "Philosophy and Theology": "ปรัชญาและศาสนา", "Public Safety and Security": "ความปลอดภัยสาธารณะ", "Law and Government": "กฎหมายและการปกครอง", Telecommunications: "โทรคมนาคม",
+  "Communications and Media": "การสื่อสารและสื่อ", Transportation: "การขนส่ง",
 };
 // ลักษณะงานของแต่ละด้าน — แปลสรุปจากนิยามของ O*NET OnLine (Interests, 1.B.1) ตรวจเมื่อ 14 ต.ค. 2569
 const ONET_WORK = {
@@ -344,6 +357,38 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
   );
 }
 
+// สิ่งที่ควรศึกษาเพิ่มเติมก่อนตัดสินใจ — เฉพาะของแต่ละสาขา จาก 2 แหล่ง:
+// (1) ทักษะที่ควรพัฒนาของสาขา (ข้อมูลแนะแนวของโรงเรียน) (2) ความรู้หลักของอาชีพตัวแทนสาขาจาก O*NET OnLine พร้อมลิงก์และรหัสความสนใจของ O*NET
+function StudyBeforeDeciding({ faculty, skip = [] }) {
+  const skills = faculty.skills.split(/,\s*/).filter((x) => !skip.includes(x));
+  const o = onet.faculties[faculty.name];
+  return (
+    <ul className="mt-0.5 space-y-1 text-[13.5px] text-gray-700">
+      {skills.length > 0 && (
+        <li>
+          <span className="text-gray-500">ทักษะที่สาขานี้ใช้: </span>
+          {skills.join(", ")}
+        </li>
+      )}
+      {o?.knowledge?.length > 0 && (
+        <li>
+          <span className="text-gray-500">ความรู้หลักที่งานด้านนี้ใช้: </span>
+          {o.knowledge.slice(0, 3).map((k) => KNOWLEDGE_TH[k] || k).join(", ")}
+        </li>
+      )}
+      {o && (
+        <li className="text-[11.5px] text-gray-400 leading-5">
+          อ้างอิงอาชีพตัวแทน:{" "}
+          <a href={o.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-sky-700">
+            O*NET — {o.title}
+          </a>
+          {o.interest && ` • O*NET จัดอาชีพนี้ในกลุ่มความสนใจ ${o.interest}`} • ตรวจเมื่อ {thaiDate(onet.checkedAt)}
+        </li>
+      )}
+    </ul>
+  );
+}
+
 // หลักสูตรตัวอย่าง 1 รายการ + ลิงก์ค้นหาเพิ่มเติมบน myTCAS (แสดงทุกครั้ง)
 // เลือก: (1) มหาวิทยาลัยในเป้าหมายของนักเรียน ถ้ามีหลักสูตรของสาขานี้ในข้อมูล (2) ไม่มี → หลักสูตรแรกในข้อมูลแนะแนว
 // (ระบบยังไม่มีข้อมูลความโดดเด่นของมหาวิทยาลัย จึงไม่จัดอันดับและไม่อ้างว่าดีที่สุด) • หลักสูตรทุกรายการตรวจชื่อกับ myTCAS แล้ว
@@ -369,9 +414,6 @@ function ProgramPick({ faculty, goalUni, compact = false }) {
         ) : (
           <div className="text-gray-500">ยังไม่มีหลักสูตรตัวอย่างที่ตรวจสอบแล้ว</div>
         )}
-        <a href={MYTCAS_HOME} target="_blank" rel="noreferrer" className="text-[12.5px] text-gray-500 underline underline-offset-2 hover:text-sky-700">
-          ค้นหาหลักสูตรอื่นบน myTCAS ↗
-        </a>
       </div>
     );
   }
@@ -604,6 +646,11 @@ export default function ResultPage() {
         {/* ② สรุปความสนใจ */}
         <p className="text-[15px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
 
+        {sum.near.length > 0 && (
+          <p className="mt-2 text-[13px] text-gray-500">
+            ด้าน{joinTh(sum.near.map((c) => PLAIN[c]))}ได้คะแนนห่างจากกลุ่มที่เด่นเพียง {sum.nearGap} คะแนน จึงเป็นความสนใจที่ไม่ควรมองข้ามเช่นกัน
+          </p>
+        )}
         {latest.hasTie && (
           <p className="mt-2 text-[13px] text-gray-500">
             {joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน รหัสจึงเขียนเป็น {latest.alternativeCodes.join(", ")} ได้ด้วย (ผลชุดเดียวกัน ไม่ต้องเลือก){" "}
@@ -760,7 +807,7 @@ export default function ResultPage() {
                       <div className="text-[12.5px] font-semibold text-pink-600">
                         {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]} ({x.dim}){x.forGoal ? " · ด้านที่สาขาเป้าหมายใช้" : ""}
                       </div>
-                      <div className="font-medium text-gray-900">{x.text || g.act}</div>
+                      <div className="font-medium text-gray-900">กิจกรรม: {x.text || g.act}</div>
                       {!x.text && (
                         <div>
                           <span className="text-gray-500">วิธีลงมือทำ: </span>
@@ -772,17 +819,22 @@ export default function ResultPage() {
                         {g.skill}
                       </div>
                       <div>
-                        <span className="text-gray-500">ทบทวนตัวเอง: </span>
+                        <span className="text-gray-500">ลองถามตัวเอง: </span>
                         {g.question}
                       </div>
-                      <div className="mt-0.5 text-[11.5px] text-gray-400">
-                        {x.text ? "ที่มา: ข้อมูลแนะแนวของโรงเรียน" : "ที่มา: คำแนะนำทั่วไปของระบบ (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว)"}
-                      </div>
+                      {x.text ? (
+                        <details className="mt-0.5 text-[11.5px] text-gray-400">
+                          <summary className="cursor-pointer">ที่มา: ข้อมูลแนะแนวของโรงเรียน (ดูข้อความต้นฉบับ)</summary>
+                          <span className="text-gray-500">คำแนะนำของสาขา{x.faculty.name}: “{x.faculty.advice}”</span>
+                        </details>
+                      ) : (
+                        <div className="mt-0.5 text-[11.5px] text-gray-400">ที่มา: คำแนะนำทั่วไปของระบบ (ยังไม่ผ่านการตรวจสอบจากครูแนะแนว)</div>
+                      )}
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-1.5 text-[12.5px] text-gray-500">ช่วยสำรวจความสนใจ ไม่จำเป็นว่าทุกคนที่ได้ด้านนี้ต้องชอบ และไม่ใช่ข้อพิสูจน์ว่าต้องเลือกสาขาใด</p>
+              <p className="mt-1.5 text-[12.5px] text-gray-500">กิจกรรมเป็นตัวอย่างที่ลงมือทำได้จริง เลือกทำเฉพาะที่สนใจ — คำตอบของคำถามใช้สำรวจความสนใจ ไม่ได้ตัดสินว่าคุณเก่งหรือไม่เก่งด้านนั้น</p>
             </li>
           </AdviceBox>
 
@@ -806,14 +858,8 @@ export default function ResultPage() {
                         <p className="mt-1 text-gray-700">
                           สาขานี้อาจเป็นทางเลือกที่น่าสำรวจสำหรับคุณ เนื่องจากเกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 3))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
                         </p>
-                        <div className="mt-1.5 font-medium text-gray-800">สิ่งที่ควรศึกษาเพิ่มเติม</div>
-                        <p className="text-gray-700">
-                          {/* ไม่ซ้ำกับวลีที่ใช้ในเหตุผลด้านบน */}
-                          {row.skills
-                            .split(/,\s*/)
-                            .filter((x) => !link.phrases.slice(0, 3).includes(x))
-                            .join(", ") || row.skills}
-                        </p>
+                        <div className="mt-1.5 font-medium text-gray-800">สิ่งที่ควรศึกษาเพิ่มเติมก่อนตัดสินใจ</div>
+                        <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 3)} />
                         <div className="mt-1.5 font-medium text-gray-800">หลักสูตรแนะนำ</div>
                         <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
                       </div>
@@ -821,6 +867,14 @@ export default function ResultPage() {
                   })}
                 </div>
               )}
+              <a
+                href={MYTCAS_HOME}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14px] font-medium text-sky-700 hover:bg-sky-50"
+              >
+                🔎 ค้นหาหลักสูตรและมหาวิทยาลัยอื่นบน myTCAS ↗
+              </a>
               {explore.length > 0 && (
                 <p className="mt-1.5 text-[12.5px] text-gray-500">
                   เป็นสาขาที่เกี่ยวข้องกับความสนใจ ไม่ได้หมายความว่ามีคุณสมบัติเข้าศึกษาได้ • ที่มา: ข้อมูลแนะแนวของโรงเรียน และหลักสูตรที่ตรวจชื่อกับ myTCAS เมื่อ{" "}

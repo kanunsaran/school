@@ -24,6 +24,14 @@
    "checkedAt": "2026-10-14"
   },
   {
+   "id": "onet-occupations",
+   "name": "O*NET OnLine — หน้าข้อมูลอาชีพตัวแทนของแต่ละสาขา (79 อาชีพ, 85 สาขา)",
+   "url": "https://www.onetonline.org/",
+   "use": "ความรู้หลักของงาน (Knowledge) และรหัสความสนใจของอาชีพ — ใช้ในหัวข้อ “สิ่งที่ควรศึกษาเพิ่มเติมก่อนตัดสินใจ” (การจับคู่สาขา→อาชีพทำด้วยมือใน scripts/onet-faculties.mjs)",
+   "checkedAt": "2026-10-14",
+   "checked": "ชื่ออาชีพตรงกับที่ตั้งใจทุกสาขา; 2 อาชีพไม่มีข้อมูล Knowledge"
+  },
+  {
    "id": "mytcas",
    "name": "myTCAS — ระบบค้นหาหลักสูตร (ทปอ.)",
    "url": "https://course.mytcas.com/",

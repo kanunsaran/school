@@ -488,7 +488,10 @@ export const interestSummary = (scores) => {
   const first = ranked.filter((c) => denseRank(scores, c) === 1);
   const lead = first.length > 1 ? first : ranked.filter((c) => denseRank(scores, c) <= 2 && (first.includes(c) || denseRank(scores, c) === 1 + first.length)).slice(0, Math.max(2, first.length));
   const rest = ranked.filter((c) => !lead.includes(c));
-  return { lead, leadClose: lead.length > 1 && spread(lead) <= CLOSE_POINTS, rest, restClose: rest.length > 1 && spread(rest) <= CLOSE_POINTS };
+  // ด้านนอก 3 อันดับแรกที่คะแนนห่างจากด้านต่ำสุดในกลุ่มเด่นไม่เกิน CLOSE_POINTS — ไม่ควรถูกมองข้าม
+  const cut = Math.min(...ranked.map((c) => scores[c]));
+  const near = RIASEC_ORDER.filter((c) => !ranked.includes(c) && cut - scores[c] <= CLOSE_POINTS);
+  return { lead, leadClose: lead.length > 1 && spread(lead) <= CLOSE_POINTS, rest, restClose: rest.length > 1 && spread(rest) <= CLOSE_POINTS, near, nearGap: near.length ? cut - Math.max(...near.map((c) => scores[c])) : null };
 };
 
 // ข้อความอันดับรูปแบบเดียวทั้งระบบ: "อันดับ 1" / "อันดับร่วม 3" (อันดับ = 1 + จำนวนด้านที่คะแนนมากกว่า)

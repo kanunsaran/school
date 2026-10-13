@@ -1,0 +1,1678 @@
+{
+ "source": "O*NET OnLine (onetonline.org) — U.S. Department of Labor/ETA, CC BY 4.0",
+ "checkedAt": "2026-10-14",
+ "faculties": {
+  "วิศวกรรมโยธา": {
+   "code": "17-2051.00",
+   "title": "Civil Engineers",
+   "url": "https://www.onetonline.org/link/summary/17-2051.00",
+   "tasks": [
+    "Direct engineering activities, ensuring compliance with environmental, safety, or other governmental regulations.",
+    "Manage and direct the construction, operations, or maintenance activities at project site.",
+    "Inspect project sites to monitor progress and ensure conformance to design specifications and safety or sanitation standards.",
+    "Compute load and grade requirements, water flow rates, or material stress factors to determine design specifications.",
+    "Plan and design transportation or hydraulic systems or structures, using computer-assisted design or drawing tools."
+   ],
+   "knowledge": [
+    "Design",
+    "Engineering and Technology",
+    "Building and Construction",
+    "Mathematics",
+    "English Language"
+   ],
+   "interest": "RIC"
+  },
+  "วิศวกรรมเครื่องกล": {
+   "code": "17-2141.00",
+   "title": "Mechanical Engineers",
+   "url": "https://www.onetonline.org/link/summary/17-2141.00",
+   "tasks": [
+    "Read and interpret blueprints, technical drawings, schematics, or computer-generated reports.",
+    "Research, design, evaluate, install, operate, or maintain mechanical products, equipment, systems or processes to meet requirements.",
+    "Specify system components or direct modification of products to ensure conformance with engineering design, performance specifications, or environmental regulations.",
+    "Confer with engineers or other personnel to implement operating procedures, resolve system malfunctions, or provide technical information.",
+    "Investigate equipment failures or difficulties to diagnose faulty operation and recommend remedial actions."
+   ],
+   "knowledge": [
+    "Design",
+    "Engineering and Technology",
+    "Production and Processing",
+    "Mechanical",
+    "English Language"
+   ],
+   "interest": "RIC"
+  },
+  "วิศวกรรมไฟฟ้า": {
+   "code": "17-2071.00",
+   "title": "Electrical Engineers",
+   "url": "https://www.onetonline.org/link/summary/17-2071.00",
+   "tasks": [
+    "Design, implement, maintain, or improve electrical instruments, equipment, facilities, components, products, or systems for commercial, industrial, or domestic purposes.",
+    "Oversee project production efforts to assure projects are completed on time and within budget.",
+    "Direct or coordinate manufacturing, construction, installation, maintenance, support, documentation, or testing activities to ensure compliance with specifications, codes, or customer requirements.",
+    "Perform detailed calculations to compute and establish manufacturing, construction, or installation standards or specifications.",
+    "Operate computer-assisted engineering or design software or equipment to perform engineering tasks."
+   ],
+   "knowledge": [
+    "Engineering and Technology",
+    "Computers and Electronics",
+    "Design",
+    "English Language",
+    "Mathematics"
+   ],
+   "interest": "RIC"
+  },
+  "วิศวกรรมอุตสาหการ": {
+   "code": "17-2112.00",
+   "title": "Industrial Engineers",
+   "url": "https://www.onetonline.org/link/summary/17-2112.00",
+   "tasks": [
+    "Estimate production costs, cost saving methods, and the effects of product design changes on expenditures for management review, action, and control.",
+    "Plan and establish sequence of operations to fabricate and assemble parts or products and to promote efficient utilization.",
+    "Analyze statistical data and product specifications to determine standards and establish quality and reliability objectives of finished product.",
+    "Confer with clients, vendors, staff, and management personnel regarding purchases, product and production specifications, manufacturing capabilities, or project status.",
+    "Communicate with management and user personnel to develop production and design standards."
+   ],
+   "knowledge": [
+    "Engineering and Technology",
+    "Production and Processing",
+    "Mechanical",
+    "Design",
+    "English Language"
+   ],
+   "interest": "CIR"
+  },
+  "เกษตรศาสตร์": {
+   "code": "19-1013.00",
+   "title": "Soil and Plant Scientists",
+   "url": "https://www.onetonline.org/link/summary/19-1013.00",
+   "tasks": [
+    "Communicate research or project results to other professionals or the public or teach related courses, seminars, or workshops.",
+    "Develop methods of conserving or managing soil that can be applied by farmers or forestry companies.",
+    "Provide information or recommendations to farmers or other landowners regarding ways in which they can best use land, promote plant growth, or avoid or correct problems such as erosion.",
+    "Conduct experiments to develop new or improved varieties of field crops, focusing on characteristics such as yield, quality, disease resistance, nutritional value, or adaptation to specific soils or climates.",
+    "Investigate soil problems or poor water quality to determine sources and effects."
+   ],
+   "knowledge": [
+    "Biology",
+    "English Language",
+    "Computers and Electronics",
+    "Chemistry",
+    "Mathematics"
+   ],
+   "interest": "IR"
+  },
+  "สัตวแพทยศาสตร์": {
+   "code": "29-1131.00",
+   "title": "Veterinarians",
+   "url": "https://www.onetonline.org/link/summary/29-1131.00",
+   "tasks": [
+    "Treat sick or injured animals by prescribing medication, setting bones, dressing wounds, or performing surgery.",
+    "Inoculate animals against various diseases, such as rabies or distemper.",
+    "Examine animals to detect and determine the nature of diseases or injuries.",
+    "Collect body tissue, feces, blood, urine, or other body fluids for examination and analysis.",
+    "Operate diagnostic equipment, such as radiographic or ultrasound equipment, and interpret the resulting images."
+   ],
+   "knowledge": [
+    "Biology",
+    "Medicine and Dentistry",
+    "Customer and Personal Service",
+    "English Language",
+    "Mathematics"
+   ],
+   "interest": "IR"
+  },
+  "ประมง": {
+   "code": "19-1023.00",
+   "title": "Zoologists and Wildlife Biologists",
+   "url": "https://www.onetonline.org/link/summary/19-1023.00",
+   "tasks": [
+    "Inventory or estimate plant and wildlife populations.",
+    "Disseminate information by writing reports and scientific papers or journal articles, and by making presentations and giving talks for schools, clubs, interest groups and park interpretive programs.",
+    "Develop, or make recommendations on, management systems and plans for wildlife populations and habitat, consulting with stakeholders and the public at large to explore options.",
+    "Study animals in their natural habitats, assessing effects of environment and industry on animals, interpreting findings and recommending alternative operating conditions for industry.",
+    "Study characteristics of animals, such as origin, interrelationships, classification, life histories, diseases, development, genetics, and distribution."
+   ],
+   "knowledge": [
+    "Biology",
+    "English Language",
+    "Geography",
+    "Mathematics",
+    "Law and Government"
+   ],
+   "interest": "IR"
+  },
+  "วนศาสตร์": {
+   "code": "19-1032.00",
+   "title": "Foresters",
+   "url": "https://www.onetonline.org/link/summary/19-1032.00",
+   "tasks": [
+    "Establish short- and long-term plans for management of forest lands and forest resources.",
+    "Plan cutting programs and manage timber sales from harvested areas, assisting companies to achieve production goals.",
+    "Determine methods of cutting and removing timber with minimum waste and environmental damage.",
+    "Negotiate terms and conditions of agreements and contracts for forest harvesting, forest management and leasing of forest lands.",
+    "Perform inspections of forests or forest nurseries."
+   ],
+   "knowledge": [
+    "Biology",
+    "English Language",
+    "Mathematics",
+    "Geography",
+    "Administration and Management"
+   ],
+   "interest": "RIC"
+  },
+  "เทคโนโลยีการบิน": {
+   "code": "53-2011.00",
+   "title": "Airline Pilots, Copilots, and Flight Engineers",
+   "url": "https://www.onetonline.org/link/summary/53-2011.00",
+   "tasks": [
+    "Use instrumentation to guide flights when visibility is poor.",
+    "Start engines, operate controls, and pilot airplanes to transport passengers, mail, or freight, adhering to flight plans, regulations, and procedures.",
+    "Work as part of a flight team with other crew members, especially during takeoffs and landings.",
+    "Respond to and report in-flight emergencies and malfunctions.",
+    "Inspect aircraft for defects and malfunctions, according to pre-flight checklists."
+   ],
+   "knowledge": [
+    "Transportation",
+    "English Language",
+    "Geography",
+    "Mechanical",
+    "Public Safety and Security"
+   ],
+   "interest": "RCE"
+  },
+  "วิทยาศาสตร์การกีฬา": {
+   "code": "29-1128.00",
+   "title": "Exercise Physiologists",
+   "url": "https://www.onetonline.org/link/summary/29-1128.00",
+   "tasks": [
+    "Explain exercise program or physiological testing procedures to participants.",
+    "Develop exercise programs to improve participant strength, flexibility, endurance, or circulatory functioning, in accordance with exercise science standards, regulatory requirements, and credentialing requirements.",
+    "Provide clinical oversight of exercise for participants at all risk levels.",
+    "Provide emergency or other appropriate medical care to participants with symptoms or signs of physical distress.",
+    "Interview participants to obtain medical history or assess participant goals."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "English Language",
+    "Medicine and Dentistry",
+    "Biology",
+    "Education and Training"
+   ],
+   "interest": "RIS"
+  },
+  "แพทยศาสตร์": {
+   "code": "29-1215.00",
+   "title": "Family Medicine Physicians",
+   "url": "https://www.onetonline.org/link/summary/29-1215.00",
+   "tasks": [
+    "Prescribe or administer treatment, therapy, medication, vaccination, and other specialized medical care to treat or prevent illness, disease, or injury.",
+    "Order, perform, and interpret tests and analyze records, reports, and examination information to diagnose patients' condition.",
+    "Collect, record, and maintain patient information, such as medical history, reports, or examination results.",
+    "Monitor patients' conditions and progress and reevaluate treatments as necessary.",
+    "Explain procedures and discuss test results or prescribed treatments with patients."
+   ],
+   "knowledge": [
+    "Medicine and Dentistry",
+    "English Language",
+    "Therapy and Counseling",
+    "Biology",
+    "Psychology"
+   ],
+   "interest": "SI"
+  },
+  "ทันตแพทยศาสตร์": {
+   "code": "29-1021.00",
+   "title": "Dentists, General",
+   "url": "https://www.onetonline.org/link/summary/29-1021.00",
+   "tasks": [
+    "Use masks, gloves, and safety glasses to protect patients and self from infectious diseases.",
+    "Administer anesthetics to limit the amount of pain experienced by patients during procedures.",
+    "Examine teeth, gums, and related tissues, using dental instruments, x-rays, or other diagnostic equipment, to evaluate dental health, diagnose diseases or abnormalities, and plan appropriate treatments.",
+    "Formulate plan of treatment for patient's teeth and mouth tissue.",
+    "Use dental air turbines, hand instruments, dental appliances, or surgical implements."
+   ],
+   "knowledge": [
+    "Medicine and Dentistry",
+    "Customer and Personal Service",
+    "Biology",
+    "Administration and Management",
+    "English Language"
+   ],
+   "interest": "IRS"
+  },
+  "เภสัชศาสตร์": {
+   "code": "29-1051.00",
+   "title": "Pharmacists",
+   "url": "https://www.onetonline.org/link/summary/29-1051.00",
+   "tasks": [
+    "Review prescriptions to assure accuracy, to ascertain the needed ingredients, and to evaluate their suitability.",
+    "Collaborate with other health care professionals to plan, monitor, review, or evaluate the quality or effectiveness of drugs or drug regimens, providing advice on drug applications or characteristics.",
+    "Work in hospitals or clinics or for Health Management Organizations (HMOs), dispensing prescriptions, serving as a medical team consultant, or specializing in specific drug therapy areas, such as oncology or nuclear pharmacotherapy.",
+    "Provide information and advice regarding drug interactions, side effects, dosage, and proper medication storage.",
+    "Provide specialized services to help patients manage conditions, such as diabetes, asthma, smoking cessation, or high blood pressure."
+   ],
+   "knowledge": [
+    "Medicine and Dentistry",
+    "English Language",
+    "Biology",
+    "Mathematics",
+    "Chemistry"
+   ],
+   "interest": "ISC"
+  },
+  "วิทยาศาสตร์ (เคมี)": {
+   "code": "19-2031.00",
+   "title": "Chemists",
+   "url": "https://www.onetonline.org/link/summary/19-2031.00",
+   "tasks": [
+    "Develop, improve, or customize products, equipment, formulas, processes, or analytical methods.",
+    "Analyze organic or inorganic compounds to determine chemical or physical properties, composition, structure, relationships, or reactions, using chromatography, spectroscopy, or spectrophotometry techniques.",
+    "Induce changes in composition of substances by introducing heat, light, energy, or chemical catalysts for quantitative or qualitative analysis.",
+    "Conduct quality control tests.",
+    "Write technical papers or reports or prepare standards and specifications for processes, facilities, products, or tests."
+   ],
+   "knowledge": [
+    "Chemistry",
+    "English Language",
+    "Mathematics",
+    "Production and Processing",
+    "Administration and Management"
+   ],
+   "interest": "IRC"
+  },
+  "วิทยาศาสตร์ (ชีววิทยา)": {
+   "code": "19-1029.04",
+   "title": "Biologists",
+   "url": "https://www.onetonline.org/link/summary/19-1029.04",
+   "tasks": [
+    "Program and use computers to store, process, and analyze data.",
+    "Prepare technical and research reports, such as environmental impact reports, and communicate the results to individuals in industry, government, or the general public.",
+    "Supervise biological technicians and technologists and other scientists.",
+    "Develop and maintain liaisons and effective working relations with groups and individuals, agencies, and the public to encourage cooperative management strategies or to develop information and interpret findings.",
+    "Identify, classify, and study structure, behavior, ecology, physiology, nutrition, culture, and distribution of plant and animal species."
+   ],
+   "knowledge": [
+    "Biology",
+    "Education and Training",
+    "English Language",
+    "Mathematics",
+    "Administration and Management"
+   ],
+   "interest": "ICR"
+  },
+  "วิทยาการคอมพิวเตอร์": {
+   "code": "15-1252.00",
+   "title": "Software Developers",
+   "url": "https://www.onetonline.org/link/summary/15-1252.00",
+   "tasks": [
+    "Analyze user needs and software requirements to determine feasibility of design within time and cost constraints.",
+    "Develop or direct software system testing or validation procedures, programming, or documentation.",
+    "Confer with systems analysts, engineers, programmers and others to design systems and to obtain information on project limitations and capabilities, performance requirements and interfaces.",
+    "Modify existing software to correct errors, adapt it to new hardware, or upgrade interfaces and improve performance.",
+    "Prepare reports or correspondence concerning project specifications, activities, or status."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "Customer and Personal Service",
+    "Mathematics",
+    "English Language"
+   ],
+   "interest": "IC"
+  },
+  "เทคนิคการแพทย์": {
+   "code": "29-2011.00",
+   "title": "Medical and Clinical Laboratory Technologists",
+   "url": "https://www.onetonline.org/link/summary/29-2011.00",
+   "tasks": [
+    "Analyze samples of biological material for chemical content or reaction.",
+    "Analyze laboratory findings to check the accuracy of the results.",
+    "Conduct chemical analysis of body fluids, including blood, urine, or spinal fluid, to determine presence of normal or abnormal components.",
+    "Enter data from analysis of medical tests or clinical results into computer for storage.",
+    "Collect and study blood samples to determine the number of cells, their morphology, or their blood group, blood type, or compatibility for transfusion purposes, using microscopic techniques."
+   ],
+   "knowledge": [
+    "Chemistry",
+    "Customer and Personal Service",
+    "Computers and Electronics",
+    "English Language",
+    "Biology"
+   ],
+   "interest": "IRC"
+  },
+  "สาธารณสุขศาสตร์": {
+   "code": "19-1041.00",
+   "title": "Epidemiologists",
+   "url": "https://www.onetonline.org/link/summary/19-1041.00",
+   "tasks": [
+    "Communicate research findings on various types of diseases to health practitioners, policy makers, and the public.",
+    "Oversee public health programs, including statistical analysis, health care planning, surveillance systems, and public health improvement.",
+    "Investigate diseases or parasites to determine cause and risk factors, progress, life cycle, or mode of transmission.",
+    "Educate healthcare workers, patients, and the public about infectious and communicable diseases, including disease transmission and prevention.",
+    "Monitor and report incidents of infectious diseases to local and state health agencies."
+   ],
+   "knowledge": [
+    "Mathematics",
+    "Biology",
+    "English Language",
+    "Medicine and Dentistry",
+    "Computers and Electronics"
+   ],
+   "interest": "IS"
+  },
+  "คณิตศาสตร์/สถิติ": {
+   "code": "15-2041.00",
+   "title": "Statisticians",
+   "url": "https://www.onetonline.org/link/summary/15-2041.00",
+   "tasks": [
+    "Analyze and interpret statistical data to identify significant differences in relationships among sources of information.",
+    "Evaluate the statistical methods and procedures used to obtain data to ensure validity, applicability, efficiency, and accuracy.",
+    "Report results of statistical analyses, including information in the form of graphs, charts, and tables.",
+    "Determine whether statistical methods are appropriate, based on user needs or research questions of interest.",
+    "Prepare data for processing by organizing information, checking for inaccuracies, and adjusting and weighting the raw data."
+   ],
+   "knowledge": [
+    "Mathematics",
+    "Computers and Electronics",
+    "English Language"
+   ],
+   "interest": "IC"
+  },
+  "ศิลปกรรมศาสตร์ (ทัศนศิลป์)": {
+   "code": "27-1013.00",
+   "title": "Fine Artists, Including Painters, Sculptors, and Illustrators",
+   "url": "https://www.onetonline.org/link/summary/27-1013.00",
+   "tasks": [
+    "Use materials such as pens and ink, watercolors, charcoal, oil, or computer software to create artwork.",
+    "Integrate and develop visual elements, such as line, space, mass, color, and perspective, to produce desired effects, such as the illustration of ideas, emotions, or moods.",
+    "Confer with clients, editors, writers, art directors, and other interested parties regarding the nature and content of artwork to be produced.",
+    "Maintain portfolios of artistic work to demonstrate styles, interests, and abilities.",
+    "Market artwork through brochures, mailings, or Web sites."
+   ],
+   "knowledge": [
+    "Design",
+    "Computers and Electronics",
+    "English Language",
+    "Production and Processing",
+    "Fine Arts"
+   ],
+   "interest": "AR"
+  },
+  "สถาปัตยกรรมศาสตร์": {
+   "code": "17-1011.00",
+   "title": "Architects, Except Landscape and Naval",
+   "url": "https://www.onetonline.org/link/summary/17-1011.00",
+   "tasks": [
+    "Prepare scale drawings or architectural designs, using computer-aided design or other tools.",
+    "Plan or design structures such as residences, office buildings, theatres, factories, or other structural properties in accordance with environmental, safety, or other regulations.",
+    "Meet with clients to review or discuss architectural drawings.",
+    "Prepare contract documents for building contractors.",
+    "Develop final construction plans that include aesthetic representations of the structure or details for its construction."
+   ],
+   "knowledge": [
+    "Design",
+    "Building and Construction",
+    "Engineering and Technology",
+    "Customer and Personal Service",
+    "Public Safety and Security"
+   ],
+   "interest": "RCA"
+  },
+  "มัณฑนศิลป์": {
+   "code": "27-1025.00",
+   "title": "Interior Designers",
+   "url": "https://www.onetonline.org/link/summary/27-1025.00",
+   "tasks": [
+    "Design plans to be safe and to be compliant with the American Disabilities Act (ADA).",
+    "Use computer-aided drafting (CAD) and related software to produce construction documents.",
+    "Research health and safety code requirements to inform design.",
+    "Confer with client to determine factors affecting planning of interior environments, such as budget, architectural preferences, purpose, and function.",
+    "Advise client on interior design factors, such as space planning, layout and use of furnishings or equipment, and color coordination."
+   ],
+   "knowledge": [
+    "Design",
+    "Customer and Personal Service",
+    "Building and Construction",
+    "English Language",
+    "Sales and Marketing"
+   ],
+   "interest": "AR"
+  },
+  "นิเทศศาสตร์ (โฆษณา/ภาพยนตร์)": {
+   "code": "27-2012.00",
+   "title": "Producers and Directors",
+   "url": "https://www.onetonline.org/link/summary/27-2012.00",
+   "tasks": [
+    "Plan details such as framing, composition, camera movement, sound, and actor movement for each shot or scene.",
+    "Communicate to actors the approach, characterization, and movement needed for each scene in such a way that rehearsals and takes are minimized.",
+    "Direct live broadcasts, films and recordings, or non-broadcast programming for public entertainment or education.",
+    "Research production topics using the internet, video archives, and other informational sources.",
+    "Review film, recordings, or rehearsals to ensure conformance to production and broadcast standards."
+   ],
+   "knowledge": [
+    "Communications and Media",
+    "English Language",
+    "Telecommunications",
+    "Computers and Electronics",
+    "Administration and Management"
+   ],
+   "interest": "AE"
+  },
+  "ดุริยางคศาสตร์": {
+   "code": "27-2042.00",
+   "title": "Musicians and Singers",
+   "url": "https://www.onetonline.org/link/summary/27-2042.00",
+   "tasks": [
+    "Perform before live audiences in concerts, recitals, educational presentations, and other social gatherings.",
+    "Practice performances, individually or in rehearsal with other musicians, to master individual pieces of music or to maintain and improve skills.",
+    "Specialize in playing a specific family of instruments or a particular type of music.",
+    "Play musical instruments as soloists, or as members or guest artists of musical groups such as orchestras, ensembles, or bands.",
+    "Provide the musical background for live shows, such as ballets, operas, musical theatre, and cabarets."
+   ],
+   "knowledge": [
+    "Fine Arts"
+   ],
+   "interest": "AE"
+  },
+  "การออกแบบแฟชั่น": {
+   "code": "27-1022.00",
+   "title": "Fashion Designers",
+   "url": "https://www.onetonline.org/link/summary/27-1022.00",
+   "tasks": [
+    "Sketch rough and detailed drawings of apparel or accessories, and write specifications such as color schemes, construction, material types, and accessory requirements.",
+    "Examine sample garments on and off models, modifying designs to achieve desired effects.",
+    "Confer with sales and management executives or with clients to discuss design ideas.",
+    "Select materials and production techniques to be used for products.",
+    "Provide sample garments to agents and sales representatives, and arrange for showings of sample garments at sales meetings or fashion shows."
+   ],
+   "knowledge": [
+    "Design",
+    "Computers and Electronics",
+    "Production and Processing",
+    "Sales and Marketing",
+    "English Language"
+   ],
+   "interest": "ARE"
+  },
+  "การออกแบบผลิตภัณฑ์": {
+   "code": "27-1021.00",
+   "title": "Commercial and Industrial Designers",
+   "url": "https://www.onetonline.org/link/summary/27-1021.00",
+   "tasks": [
+    "Prepare sketches of ideas, detailed drawings, illustrations, artwork, or blueprints, using drafting instruments, paints and brushes, or computer-aided design equipment.",
+    "Modify and refine designs, using working models, to conform with customer specifications, production limitations, or changes in design trends.",
+    "Evaluate feasibility of design ideas, based on factors such as appearance, safety, function, serviceability, budget, production costs/methods, and market characteristics.",
+    "Confer with engineering, marketing, production, or sales departments, or with customers, to establish and evaluate design concepts for manufactured products.",
+    "Present designs and reports to customers or design committees for approval and discuss need for modification."
+   ],
+   "knowledge": [
+    "Design",
+    "Engineering and Technology",
+    "Mechanical",
+    "Production and Processing",
+    "Computers and Electronics"
+   ],
+   "interest": "ARI"
+  },
+  "อักษรศาสตร์/มนุษยศาสตร์ (วรรณกรรม)": {
+   "code": "27-3043.00",
+   "title": "Writers and Authors",
+   "url": "https://www.onetonline.org/link/summary/27-3043.00",
+   "tasks": [
+    "Write fiction or nonfiction prose, such as short stories, novels, biographies, articles, descriptive or critical analyses, and essays.",
+    "Revise written material to meet personal standards and to satisfy needs of clients, publishers, directors, or producers.",
+    "Present drafts and ideas to clients.",
+    "Edit or rewrite existing written material as necessary, and submit written material for approval by supervisor, editor, or publisher.",
+    "Conduct research to obtain factual information and authentic detail, using sources such as newspaper accounts, diaries, and interviews."
+   ],
+   "knowledge": [
+    "English Language",
+    "Communications and Media",
+    "Administrative"
+   ],
+   "interest": "AE"
+  },
+  "ภาพยนตร์และสื่อดิจิทัล": {
+   "code": "27-4032.00",
+   "title": "Film and Video Editors",
+   "url": "https://www.onetonline.org/link/summary/27-4032.00",
+   "tasks": [
+    "Organize and string together raw footage into a continuous whole according to scripts or the instructions of directors and producers.",
+    "Edit films and videotapes to insert music, dialogue, and sound effects, to arrange films into sequences, and to correct errors, using editing equipment.",
+    "Select and combine the most effective shots of each scene to form a logical and smoothly running story.",
+    "Review footage sequence by sequence to become familiar with it before assembling it into a final product.",
+    "Set up and operate computer editing systems, electronic titling systems, video switching equipment, and digital video effects units to produce a final product."
+   ],
+   "knowledge": [
+    "Communications and Media",
+    "English Language",
+    "Computers and Electronics",
+    "Telecommunications",
+    "Fine Arts"
+   ],
+   "interest": "AC"
+  },
+  "ครุศาสตร์/ศึกษาศาสตร์": {
+   "code": "25-2031.00",
+   "title": "Secondary School Teachers, Except Special and Career/Technical Education",
+   "url": "https://www.onetonline.org/link/summary/25-2031.00",
+   "tasks": [
+    "Prepare students for later grades by encouraging them to explore learning opportunities and to persevere with challenging tasks.",
+    "Instruct through lectures, discussions, and demonstrations in one or more subjects, such as English, mathematics, or social studies.",
+    "Establish and enforce rules for behavior and procedures for maintaining order among students.",
+    "Prepare materials and classrooms for class activities.",
+    "Adapt teaching methods and instructional materials to meet students' varying needs and interests."
+   ],
+   "knowledge": [
+    "Education and Training",
+    "English Language",
+    "Customer and Personal Service",
+    "Computers and Electronics",
+    "Psychology"
+   ],
+   "interest": "S"
+  },
+  "พยาบาลศาสตร์": {
+   "code": "29-1141.00",
+   "title": "Registered Nurses",
+   "url": "https://www.onetonline.org/link/summary/29-1141.00",
+   "tasks": [
+    "Record patients' medical information and vital signs.",
+    "Administer medications to patients and monitor patients for reactions or side effects.",
+    "Maintain accurate, detailed reports and records.",
+    "Monitor, record, and report symptoms or changes in patients' conditions.",
+    "Provide health care, first aid, immunizations, or assistance in convalescence or rehabilitation in locations such as schools, hospitals, or industry."
+   ],
+   "knowledge": [
+    "Psychology",
+    "Customer and Personal Service",
+    "Medicine and Dentistry",
+    "English Language",
+    "Administrative"
+   ],
+   "interest": "SCI"
+  },
+  "จิตวิทยา": {
+   "code": "19-3033.00",
+   "title": "Clinical and Counseling Psychologists",
+   "url": "https://www.onetonline.org/link/summary/19-3033.00",
+   "tasks": [
+    "Conduct assessments of patients' risk for harm to self or others.",
+    "Document patient information including session notes, progress notes, recommendations, and treatment plans.",
+    "Identify psychological, emotional, or behavioral issues and diagnose disorders, using information obtained from interviews, tests, records, or reference materials.",
+    "Write reports on clients and maintain required paperwork.",
+    "Counsel individuals, groups, or families to help them understand problems, deal with crisis situations, define goals, and develop realistic action plans."
+   ],
+   "knowledge": [
+    "Psychology",
+    "Therapy and Counseling",
+    "English Language",
+    "Education and Training",
+    "Customer and Personal Service"
+   ],
+   "interest": "SI"
+  },
+  "สังคมสงเคราะห์ศาสตร์": {
+   "code": "21-1021.00",
+   "title": "Child, Family, and School Social Workers",
+   "url": "https://www.onetonline.org/link/summary/21-1021.00",
+   "tasks": [
+    "Maintain case history records and prepare reports.",
+    "Interview clients individually, in families, or in groups, assessing their situations, capabilities, and problems to determine what services are required to meet their needs.",
+    "Serve as liaisons between students, homes, schools, family services, child guidance clinics, courts, protective services, doctors, and other contacts to help children who face problems, such as disabilities, abuse, or poverty.",
+    "Develop and review service plans in consultation with clients and perform follow-ups assessing the quantity and quality of services provided.",
+    "Address legal issues, such as child abuse and discipline, assisting with hearings and providing testimony to inform custody arrangements."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "Psychology",
+    "Therapy and Counseling",
+    "English Language",
+    "Administrative"
+   ],
+   "interest": "S"
+  },
+  "กายภาพบำบัด": {
+   "code": "29-1123.00",
+   "title": "Physical Therapists",
+   "url": "https://www.onetonline.org/link/summary/29-1123.00",
+   "tasks": [
+    "Plan, prepare, or carry out individually designed programs of physical treatment to maintain, improve, or restore physical functioning, alleviate pain, or prevent physical dysfunction in patients.",
+    "Perform and document an initial exam, evaluating data to identify problems and determine a diagnosis prior to intervention.",
+    "Record prognosis, treatment, response, and progress in patient's chart or enter information into computer.",
+    "Instruct patient and family in treatment procedures to be continued at home.",
+    "Evaluate effects of treatment at various stages and adjust treatments to achieve maximum benefit."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "Therapy and Counseling",
+    "Medicine and Dentistry",
+    "Psychology",
+    "Education and Training"
+   ],
+   "interest": "SIR"
+  },
+  "สาธารณสุขศาสตร์ (สายชุมชน)": {
+   "code": "21-1094.00",
+   "title": "Community Health Workers",
+   "url": "https://www.onetonline.org/link/summary/21-1094.00",
+   "tasks": [
+    "Report incidences of child or elder abuse, neglect, or threats of harm to authorities, as required.",
+    "Monitor nutrition of children, elderly, or other high-risk groups.",
+    "Maintain updated client records with plans, notes, appropriate forms, or related information.",
+    "Contact clients in person, by phone, or in writing to ensure they have completed required or recommended actions.",
+    "Advise clients or community groups on issues related to self-care, such as diabetes management."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "English Language",
+    "Medicine and Dentistry",
+    "Psychology",
+    "Therapy and Counseling"
+   ],
+   "interest": "S"
+  },
+  "การศึกษาปฐมวัย": {
+   "code": "25-2011.00",
+   "title": "Preschool Teachers, Except Special Education",
+   "url": "https://www.onetonline.org/link/summary/25-2011.00",
+   "tasks": [
+    "Teach basic skills, such as color, shape, number and letter recognition, personal hygiene, and social skills.",
+    "Establish and enforce rules for behavior and procedures for maintaining order.",
+    "Adapt teaching methods and instructional materials to meet students' varying needs and interests.",
+    "Provide a variety of materials and resources for children to explore, manipulate, and use, both in learning activities and in imaginative play.",
+    "Serve meals and snacks in accordance with nutritional guidelines."
+   ],
+   "knowledge": [
+    "Education and Training",
+    "English Language",
+    "Public Safety and Security",
+    "Customer and Personal Service",
+    "Psychology"
+   ],
+   "interest": "SA"
+  },
+  "กิจกรรมบำบัด": {
+   "code": "29-1122.00",
+   "title": "Occupational Therapists",
+   "url": "https://www.onetonline.org/link/summary/29-1122.00",
+   "tasks": [
+    "Test and evaluate patients' physical and mental abilities and analyze medical data to determine realistic rehabilitation goals for patients.",
+    "Complete and maintain necessary records.",
+    "Plan, organize, and conduct occupational therapy programs in hospital, institutional, or community settings to help rehabilitate persons with disabilities because of illness, injury or psychological or developmental problems.",
+    "Plan and implement programs and social activities to help patients learn work or school skills and adjust to handicaps.",
+    "Select activities that will help individuals learn work and life-management skills within limits of their mental or physical capabilities."
+   ],
+   "knowledge": [
+    "Therapy and Counseling",
+    "Psychology",
+    "Customer and Personal Service",
+    "Medicine and Dentistry",
+    "English Language"
+   ],
+   "interest": "SI"
+  },
+  "บริหารธุรกิจ (การตลาด)": {
+   "code": "11-2021.00",
+   "title": "Marketing Managers",
+   "url": "https://www.onetonline.org/link/summary/11-2021.00",
+   "tasks": [
+    "Formulate, direct, or coordinate marketing activities or policies to promote products or services, working with advertising or promotion managers.",
+    "Use sales forecasting or strategic planning to ensure the sale and profitability of products, lines, or services, analyzing business developments and monitoring market trends.",
+    "Identify, develop, or evaluate marketing strategy, based on knowledge of establishment objectives, market characteristics, and cost and markup factors.",
+    "Direct the hiring, training, or performance evaluations of marketing or sales staff and oversee their daily activities.",
+    "Evaluate the financial aspects of product development, such as budgets, expenditures, research and development appropriations, or return-on-investment and profit-loss projections."
+   ],
+   "knowledge": [
+    "Sales and Marketing",
+    "English Language",
+    "Customer and Personal Service",
+    "Communications and Media",
+    "Administration and Management"
+   ],
+   "interest": "EC"
+  },
+  "บริหารธุรกิจ (การจัดการ)": {
+   "code": "11-1021.00",
+   "title": "General and Operations Managers",
+   "url": "https://www.onetonline.org/link/summary/11-1021.00",
+   "tasks": [
+    "Review financial statements, sales or activity reports, or other performance data to measure productivity or goal achievement or to identify areas needing cost reduction or program improvement.",
+    "Direct and coordinate activities of businesses or departments concerned with the production, pricing, sales, or distribution of products.",
+    "Direct administrative activities directly related to making products or providing services.",
+    "Prepare staff work schedules and assign specific duties.",
+    "Direct or coordinate financial or budget activities to fund operations, maximize investments, or increase efficiency."
+   ],
+   "knowledge": [
+    "Administration and Management",
+    "Customer and Personal Service",
+    "English Language",
+    "Production and Processing",
+    "Mathematics"
+   ],
+   "interest": "EC"
+  },
+  "นิติศาสตร์": {
+   "code": "23-1011.00",
+   "title": "Lawyers",
+   "url": "https://www.onetonline.org/link/summary/23-1011.00",
+   "tasks": [
+    "Interpret laws, rulings and regulations for individuals and businesses.",
+    "Analyze the probable outcomes of cases, using knowledge of legal precedents.",
+    "Gather evidence to formulate defense or to initiate legal actions by such means as interviewing clients and witnesses to ascertain the facts of a case.",
+    "Represent clients in court or before government agencies.",
+    "Evaluate findings and develop strategies and arguments in preparation for presentation of cases."
+   ],
+   "knowledge": [
+    "Law and Government",
+    "English Language",
+    "Customer and Personal Service",
+    "Administrative",
+    "Computers and Electronics"
+   ],
+   "interest": "ECI"
+  },
+  "รัฐศาสตร์": {
+   "code": "19-3094.00",
+   "title": "Political Scientists",
+   "url": "https://www.onetonline.org/link/summary/19-3094.00",
+   "tasks": [
+    "Teach political science.",
+    "Maintain current knowledge of government policy decisions.",
+    "Develop and test theories, using information from interviews, newspapers, periodicals, case law, historical papers, polls, or statistical sources.",
+    "Disseminate research results through academic publications, written reports, or public presentations.",
+    "Advise political science students."
+   ],
+   "knowledge": [
+    "Law and Government",
+    "English Language",
+    "Education and Training",
+    "History and Archeology",
+    "Mathematics"
+   ],
+   "interest": "IA"
+  },
+  "เศรษฐศาสตร์ (นโยบาย)": {
+   "code": "19-3011.00",
+   "title": "Economists",
+   "url": "https://www.onetonline.org/link/summary/19-3011.00",
+   "tasks": [
+    "Study economic and statistical data in area of specialization, such as finance, labor, or agriculture.",
+    "Compile, analyze, and report data to explain economic phenomena and forecast market trends, applying mathematical models and statistical techniques.",
+    "Study the socioeconomic impacts of new public policies, such as proposed legislation, taxes, services, and regulations.",
+    "Explain economic impact of policies to the public.",
+    "Review documents written by others."
+   ],
+   "knowledge": [
+    "Mathematics",
+    "Economics and Accounting",
+    "English Language",
+    "Computers and Electronics",
+    "Education and Training"
+   ],
+   "interest": "ICE"
+  },
+  "การจัดการโรงแรม/การท่องเที่ยว": {
+   "code": "11-9081.00",
+   "title": "Lodging Managers",
+   "url": "https://www.onetonline.org/link/summary/11-9081.00",
+   "tasks": [
+    "Answer inquiries pertaining to hotel policies and services, and resolve occupants' complaints.",
+    "Participate in financial activities, such as the setting of room rates, the establishment of budgets, and the allocation of funds to departments.",
+    "Confer and cooperate with other managers to ensure coordination of hotel activities.",
+    "Greet and register guests.",
+    "Monitor the revenue activity of the hotel or facility."
+   ],
+   "knowledge": [
+    "Administration and Management",
+    "English Language",
+    "Personnel and Human Resources",
+    "Customer and Personal Service",
+    "Mathematics"
+   ],
+   "interest": "ECS"
+  },
+  "นิเทศศาสตร์ (PR/โฆษณา)": {
+   "code": "27-3031.00",
+   "title": "Public Relations Specialists",
+   "url": "https://www.onetonline.org/link/summary/27-3031.00",
+   "tasks": [
+    "Respond to requests for information from the media or designate an appropriate spokesperson or information source.",
+    "Plan or direct development or communication of programs to maintain favorable public or stockholder perceptions of an organization's accomplishments, agenda, or environmental responsibility.",
+    "Post and update content on the company's Web site and social media outlets.",
+    "Write press releases or other media communications to promote clients.",
+    "Establish or maintain cooperative relationships with representatives of community, consumer, employee, or public interest groups."
+   ],
+   "knowledge": [
+    "Communications and Media",
+    "English Language",
+    "Administration and Management",
+    "Customer and Personal Service",
+    "Sales and Marketing"
+   ],
+   "interest": "EAS"
+  },
+  "บัญชี": {
+   "code": "13-2011.00",
+   "title": "Accountants and Auditors",
+   "url": "https://www.onetonline.org/link/summary/13-2011.00",
+   "tasks": [
+    "Prepare, examine, or analyze accounting records, financial statements, or other financial reports to assess accuracy, completeness, and conformance to reporting and procedural standards.",
+    "Process invoices for payment.",
+    "Review accounts for discrepancies and reconcile differences.",
+    "Compute taxes owed and prepare tax returns, ensuring compliance with payment, reporting, or other tax requirements.",
+    "Prepare adjusting journal entries."
+   ],
+   "knowledge": [
+    "Economics and Accounting",
+    "English Language",
+    "Mathematics",
+    "Law and Government",
+    "Administration and Management"
+   ],
+   "interest": "CEI"
+  },
+  "การเงิน/การธนาคาร": {
+   "code": "13-2051.00",
+   "title": "Financial and Investment Analysts",
+   "url": "https://www.onetonline.org/link/summary/13-2051.00",
+   "tasks": [
+    "Advise clients on aspects of capitalization, such as amounts, sources, or timing.",
+    "Analyze financial or operational performance of companies facing financial difficulties to identify or recommend remedies.",
+    "Assess companies as investments for clients by examining company facilities.",
+    "Collaborate on projects with other professionals, such as lawyers, accountants, or public relations experts.",
+    "Collaborate with investment bankers to attract new corporate clients."
+   ],
+   "knowledge": [],
+   "interest": "CEI"
+  },
+  "เศรษฐศาสตร์ (วิเคราะห์)": {
+   "code": "19-3011.00",
+   "title": "Economists",
+   "url": "https://www.onetonline.org/link/summary/19-3011.00",
+   "tasks": [
+    "Study economic and statistical data in area of specialization, such as finance, labor, or agriculture.",
+    "Compile, analyze, and report data to explain economic phenomena and forecast market trends, applying mathematical models and statistical techniques.",
+    "Study the socioeconomic impacts of new public policies, such as proposed legislation, taxes, services, and regulations.",
+    "Explain economic impact of policies to the public.",
+    "Review documents written by others."
+   ],
+   "knowledge": [
+    "Mathematics",
+    "Economics and Accounting",
+    "English Language",
+    "Computers and Electronics",
+    "Education and Training"
+   ],
+   "interest": "ICE"
+  },
+  "สถิติประยุกต์": {
+   "code": "15-2041.00",
+   "title": "Statisticians",
+   "url": "https://www.onetonline.org/link/summary/15-2041.00",
+   "tasks": [
+    "Analyze and interpret statistical data to identify significant differences in relationships among sources of information.",
+    "Evaluate the statistical methods and procedures used to obtain data to ensure validity, applicability, efficiency, and accuracy.",
+    "Report results of statistical analyses, including information in the form of graphs, charts, and tables.",
+    "Determine whether statistical methods are appropriate, based on user needs or research questions of interest.",
+    "Prepare data for processing by organizing information, checking for inaccuracies, and adjusting and weighting the raw data."
+   ],
+   "knowledge": [
+    "Mathematics",
+    "Computers and Electronics",
+    "English Language"
+   ],
+   "interest": "IC"
+  },
+  "ระบบสารสนเทศทางธุรกิจ": {
+   "code": "15-1211.00",
+   "title": "Computer Systems Analysts",
+   "url": "https://www.onetonline.org/link/summary/15-1211.00",
+   "tasks": [
+    "Troubleshoot program and system malfunctions to restore normal functioning.",
+    "Provide staff and users with assistance solving computer-related problems, such as malfunctions and program problems.",
+    "Test, maintain, and monitor computer programs and systems, including coordinating the installation of computer programs and systems.",
+    "Use the computer in the analysis and solution of business problems, such as development of integrated production and inventory control and cost analysis systems.",
+    "Coordinate and link the computer systems within an organization to increase compatibility so that information can be shared."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "Customer and Personal Service",
+    "English Language",
+    "Mathematics",
+    "Administration and Management"
+   ],
+   "interest": "IC"
+  },
+  "การจัดการโลจิสติกส์": {
+   "code": "13-1081.00",
+   "title": "Logisticians",
+   "url": "https://www.onetonline.org/link/summary/13-1081.00",
+   "tasks": [
+    "Maintain and develop positive business relationships with a customer's key personnel involved in, or directly relevant to, a logistics activity.",
+    "Develop an understanding of customers' needs and take actions to ensure that such needs are met.",
+    "Manage subcontractor activities, reviewing proposals, developing performance specifications, and serving as liaisons between subcontractors and organizations.",
+    "Develop proposals that include documentation for estimates.",
+    "Review logistics performance with customers against targets, benchmarks, and service agreements."
+   ],
+   "knowledge": [
+    "Transportation",
+    "English Language",
+    "Administration and Management",
+    "Customer and Personal Service",
+    "Mathematics"
+   ],
+   "interest": "CEI"
+  },
+  "การออกแบบอุตสาหกรรม": {
+   "code": "27-1021.00",
+   "title": "Commercial and Industrial Designers",
+   "url": "https://www.onetonline.org/link/summary/27-1021.00",
+   "tasks": [
+    "Prepare sketches of ideas, detailed drawings, illustrations, artwork, or blueprints, using drafting instruments, paints and brushes, or computer-aided design equipment.",
+    "Modify and refine designs, using working models, to conform with customer specifications, production limitations, or changes in design trends.",
+    "Evaluate feasibility of design ideas, based on factors such as appearance, safety, function, serviceability, budget, production costs/methods, and market characteristics.",
+    "Confer with engineering, marketing, production, or sales departments, or with customers, to establish and evaluate design concepts for manufactured products.",
+    "Present designs and reports to customers or design committees for approval and discuss need for modification."
+   ],
+   "knowledge": [
+    "Design",
+    "Engineering and Technology",
+    "Mechanical",
+    "Production and Processing",
+    "Computers and Electronics"
+   ],
+   "interest": "ARI"
+  },
+  "รังสีเทคนิค": {
+   "code": "29-2034.00",
+   "title": "Radiologic Technologists and Technicians",
+   "url": "https://www.onetonline.org/link/summary/29-2034.00",
+   "tasks": [
+    "Explain procedures and observe patients to ensure safety and comfort during scan.",
+    "Process exposed radiographs using film processors or computer generated methods.",
+    "Perform procedures, such as linear tomography, mammography, sonograms, joint and cyst aspirations, routine contrast studies, routine fluoroscopy, or examinations of the head, trunk, or extremities under supervision of physician.",
+    "Record, process, and maintain patient data or treatment records and prepare reports.",
+    "Prepare contrast material, radiopharmaceuticals, or anesthetic or antispasmodic drugs under the direction of a radiologist."
+   ],
+   "knowledge": [
+    "English Language",
+    "Medicine and Dentistry",
+    "Customer and Personal Service",
+    "Biology",
+    "Physics"
+   ],
+   "interest": "RCI"
+  },
+  "การจัดการเทคโนโลยี": {
+   "code": "11-3021.00",
+   "title": "Computer and Information Systems Managers",
+   "url": "https://www.onetonline.org/link/summary/11-3021.00",
+   "tasks": [
+    "Direct daily operations of department, analyzing workflow, establishing priorities, developing standards and setting deadlines.",
+    "Meet with department heads, managers, supervisors, vendors, and others, to solicit cooperation and resolve problems.",
+    "Review project plans to plan and coordinate project activity.",
+    "Assign and review the work of systems analysts, programmers, and other computer-related workers.",
+    "Provide users with technical support for computer problems."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "Customer and Personal Service",
+    "Administration and Management",
+    "Engineering and Technology",
+    "English Language"
+   ],
+   "interest": "CEI"
+  },
+  "เทคโนโลยีสารสนเทศ": {
+   "code": "15-1244.00",
+   "title": "Network and Computer Systems Administrators",
+   "url": "https://www.onetonline.org/link/summary/15-1244.00",
+   "tasks": [
+    "Plan, coordinate, and implement network security measures to protect data, software, and hardware.",
+    "Perform data backups and disaster recovery operations.",
+    "Diagnose, troubleshoot, and resolve hardware, software, or other network and system problems, and replace defective components when necessary.",
+    "Maintain and administer computer networks and related computing environments, including computer hardware, systems software, applications software, and all configurations.",
+    "Configure, monitor, and maintain email applications or virus protection software."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "Telecommunications",
+    "Customer and Personal Service",
+    "English Language",
+    "Administration and Management"
+   ],
+   "interest": "CRI"
+  },
+  "ศิลปศึกษา": {
+   "code": "25-2031.00",
+   "title": "Secondary School Teachers, Except Special and Career/Technical Education",
+   "url": "https://www.onetonline.org/link/summary/25-2031.00",
+   "tasks": [
+    "Prepare students for later grades by encouraging them to explore learning opportunities and to persevere with challenging tasks.",
+    "Instruct through lectures, discussions, and demonstrations in one or more subjects, such as English, mathematics, or social studies.",
+    "Establish and enforce rules for behavior and procedures for maintaining order among students.",
+    "Prepare materials and classrooms for class activities.",
+    "Adapt teaching methods and instructional materials to meet students' varying needs and interests."
+   ],
+   "knowledge": [
+    "Education and Training",
+    "English Language",
+    "Customer and Personal Service",
+    "Computers and Electronics",
+    "Psychology"
+   ],
+   "interest": "S"
+  },
+  "สถาปัตยกรรมภายใน": {
+   "code": "27-1025.00",
+   "title": "Interior Designers",
+   "url": "https://www.onetonline.org/link/summary/27-1025.00",
+   "tasks": [
+    "Design plans to be safe and to be compliant with the American Disabilities Act (ADA).",
+    "Use computer-aided drafting (CAD) and related software to produce construction documents.",
+    "Research health and safety code requirements to inform design.",
+    "Confer with client to determine factors affecting planning of interior environments, such as budget, architectural preferences, purpose, and function.",
+    "Advise client on interior design factors, such as space planning, layout and use of furnishings or equipment, and color coordination."
+   ],
+   "knowledge": [
+    "Design",
+    "Customer and Personal Service",
+    "Building and Construction",
+    "English Language",
+    "Sales and Marketing"
+   ],
+   "interest": "AR"
+  },
+  "พลศึกษา": {
+   "code": "27-2022.00",
+   "title": "Coaches and Scouts",
+   "url": "https://www.onetonline.org/link/summary/27-2022.00",
+   "tasks": [
+    "Plan, organize, and conduct practice sessions.",
+    "Provide training direction, encouragement, motivation, and nutritional advice to prepare athletes for games, competitive events, or tours.",
+    "Adjust coaching techniques, based on the strengths and weaknesses of athletes.",
+    "Instruct individuals or groups in sports rules, game strategies, and performance principles, such as specific ways of moving the body, hands, or feet, to achieve desired results.",
+    "Plan strategies and choose team members for individual games or sports seasons."
+   ],
+   "knowledge": [
+    "Education and Training",
+    "English Language",
+    "Administration and Management",
+    "Psychology",
+    "Customer and Personal Service"
+   ],
+   "interest": "SER"
+  },
+  "วิศวกรรมความปลอดภัย": {
+   "code": "17-2111.00",
+   "title": "Health and Safety Engineers, Except Mining Safety Engineers and Inspectors",
+   "url": "https://www.onetonline.org/link/summary/17-2111.00",
+   "tasks": [
+    "Investigate industrial accidents, injuries, or occupational diseases to determine causes and preventive measures.",
+    "Conduct research to evaluate safety levels for products.",
+    "Evaluate product designs for safety.",
+    "Conduct or coordinate worker training in areas such as safety laws and regulations, hazardous condition monitoring, and use of safety equipment.",
+    "Maintain and apply knowledge of current policies, regulations, and industrial processes."
+   ],
+   "knowledge": [
+    "English Language",
+    "Engineering and Technology",
+    "Administration and Management",
+    "Customer and Personal Service",
+    "Public Safety and Security"
+   ],
+   "interest": "IRC"
+  },
+  "การจัดการสิ่งแวดล้อม": {
+   "code": "19-2041.00",
+   "title": "Environmental Scientists and Specialists, Including Health",
+   "url": "https://www.onetonline.org/link/summary/19-2041.00",
+   "tasks": [
+    "Communicate scientific or technical information to the public, organizations, or internal audiences through oral briefings, written documents, workshops, conferences, training sessions, or public hearings.",
+    "Monitor effects of pollution or land degradation and recommend means of prevention or control.",
+    "Collect, synthesize, analyze, manage, and report environmental data, such as pollution emission measurements, atmospheric monitoring measurements, meteorological or mineralogical information, or soil or water samples.",
+    "Review and implement environmental technical standards, guidelines, policies, and formal regulations that meet all appropriate requirements.",
+    "Provide scientific or technical guidance, support, coordination, or oversight to governmental agencies, environmental programs, industry, or the public."
+   ],
+   "knowledge": [
+    "English Language",
+    "Biology",
+    "Customer and Personal Service",
+    "Law and Government",
+    "Computers and Electronics"
+   ],
+   "interest": "IRC"
+  },
+  "ปฏิบัติการฉุกเฉินการแพทย์": {
+   "code": "29-2043.00",
+   "title": "Paramedics",
+   "url": "https://www.onetonline.org/link/summary/29-2043.00",
+   "tasks": [
+    "Perform emergency cardiac care, such as cardioversion and manual defibrillation.",
+    "Perform emergency invasive intervention before delivering patient to an acute care facility.",
+    "Coordinate work with other emergency medical team members or police or fire department personnel.",
+    "Assess nature and extent of illness or injury to establish and prioritize medical procedures.",
+    "Comfort and reassure patients."
+   ],
+   "knowledge": [
+    "Medicine and Dentistry",
+    "English Language",
+    "Public Safety and Security",
+    "Customer and Personal Service",
+    "Biology"
+   ],
+   "interest": "SRI"
+  },
+  "การจัดการธุรกิจอาหาร": {
+   "code": "11-9051.00",
+   "title": "Food Service Managers",
+   "url": "https://www.onetonline.org/link/summary/11-9051.00",
+   "tasks": [
+    "Count money and make bank deposits.",
+    "Establish standards for personnel performance and customer service.",
+    "Keep records required by government agencies regarding sanitation or food subsidies.",
+    "Schedule staff hours and assign duties.",
+    "Investigate and resolve complaints regarding food quality, service, or accommodations."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "Administration and Management",
+    "Food Production",
+    "English Language",
+    "Personnel and Human Resources"
+   ],
+   "interest": "ECR"
+  },
+  "การจัดการอุตสาหกรรม": {
+   "code": "11-3051.00",
+   "title": "Industrial Production Managers",
+   "url": "https://www.onetonline.org/link/summary/11-3051.00",
+   "tasks": [
+    "Set and monitor product standards, examining samples of raw products or directing testing during processing, to ensure finished products are of prescribed quality.",
+    "Direct or coordinate production, processing, distribution, or marketing activities of industrial organizations.",
+    "Review processing schedules or production orders to make decisions concerning inventory requirements, staffing requirements, work procedures, or duty assignments, considering budgetary limitations and time constraints.",
+    "Review operations and confer with technical or administrative staff to resolve production or processing problems.",
+    "Hire, train, evaluate, or discharge staff or resolve personnel grievances."
+   ],
+   "knowledge": [
+    "Production and Processing",
+    "Administration and Management",
+    "Customer and Personal Service",
+    "Education and Training",
+    "Mathematics"
+   ],
+   "interest": "ECR"
+  },
+  "วิศวกรรมคอมพิวเตอร์": {
+   "code": "17-2061.00",
+   "title": "Computer Hardware Engineers",
+   "url": "https://www.onetonline.org/link/summary/17-2061.00",
+   "tasks": [
+    "Update knowledge and skills to keep up with rapid advancements in computer technology.",
+    "Design and develop computer hardware and support peripherals, including central processing units (CPUs), support logic, microprocessors, custom integrated circuits, and printers and disk drives.",
+    "Confer with engineering staff and consult specifications to evaluate interface between hardware and software and operational and performance requirements of overall system.",
+    "Build, test, and modify product prototypes, using working models or theoretical models constructed with computer simulation.",
+    "Write detailed functional specifications that document the hardware development process and support hardware introduction."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "Engineering and Technology",
+    "Design",
+    "Mathematics",
+    "English Language"
+   ],
+   "interest": "RIC"
+  },
+  "อัญมณีและเครื่องประดับ": {
+   "code": "51-9071.00",
+   "title": "Jewelers and Precious Stone and Metal Workers",
+   "url": "https://www.onetonline.org/link/summary/51-9071.00",
+   "tasks": [
+    "Clean and polish metal items and jewelry pieces, using jewelers' tools, polishing wheels, and chemical baths.",
+    "Smooth soldered joints and rough spots, using hand files and emery paper, and polish smoothed areas with polishing wheels or buffing wire.",
+    "Create jewelry from materials such as gold, silver, platinum, and precious or semiprecious stones.",
+    "Cut and file pieces of jewelry such as rings, brooches, bracelets, and lockets.",
+    "Examine assembled or finished products to ensure conformance to specifications, using magnifying glasses or precision measuring instruments."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "Design",
+    "Production and Processing",
+    "Sales and Marketing",
+    "Administration and Management"
+   ],
+   "interest": "RAC"
+  },
+  "เทคโนโลยีการพิมพ์": {
+   "code": "51-5111.00",
+   "title": "Prepress Technicians and Workers",
+   "url": "https://www.onetonline.org/link/summary/51-5111.00",
+   "tasks": [
+    "Generate prepress proofs in digital or other format to approximate the appearance of the final printed piece.",
+    "Proofread and perform quality control of text and images.",
+    "Enter, position, and alter text size, using computers, to make up and arrange pages so that printed materials can be produced.",
+    "Perform \"preflight\" check of required font, graphic, text and image files to ensure completeness prior to delivery to printer.",
+    "Operate and maintain laser plate-making equipment that converts electronic data to plates without the use of film."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "English Language",
+    "Design",
+    "Mathematics",
+    "Production and Processing"
+   ],
+   "interest": "CR"
+  },
+  "อาชีวอนามัยและความปลอดภัย": {
+   "code": "19-5011.00",
+   "title": "Occupational Health and Safety Specialists",
+   "url": "https://www.onetonline.org/link/summary/19-5011.00",
+   "tasks": [
+    "Recommend measures to help protect workers from potentially hazardous work methods, processes, or materials.",
+    "Develop or maintain hygiene programs, such as noise surveys, continuous atmosphere monitoring, ventilation surveys, or asbestos management plans.",
+    "Order suspension of activities that pose threats to workers' health or safety.",
+    "Investigate accidents to identify causes or to determine how such accidents might be prevented in the future.",
+    "Inspect or evaluate workplace environments, equipment, or practices to ensure compliance with safety standards and government regulations."
+   ],
+   "knowledge": [
+    "English Language",
+    "Chemistry",
+    "Education and Training",
+    "Mathematics",
+    "Customer and Personal Service"
+   ],
+   "interest": "ICR"
+  },
+  "วิศวกรรมชีวการแพทย์": {
+   "code": "17-2031.00",
+   "title": "Bioengineers and Biomedical Engineers",
+   "url": "https://www.onetonline.org/link/summary/17-2031.00",
+   "tasks": [
+    "Evaluate the safety, efficiency, and effectiveness of biomedical equipment.",
+    "Prepare technical reports, data summary documents, or research articles for scientific publication, regulatory submissions, or patent applications.",
+    "Design or develop medical diagnostic or clinical instrumentation, equipment, or procedures, using the principles of engineering and biobehavioral sciences.",
+    "Conduct research, along with life scientists, chemists, and medical scientists, on the engineering aspects of the biological systems of humans and animals.",
+    "Adapt or design computer hardware or software for medical science uses."
+   ],
+   "knowledge": [
+    "Engineering and Technology",
+    "Computers and Electronics",
+    "Mathematics",
+    "Design",
+    "Physics"
+   ],
+   "interest": "IRC"
+  },
+  "วิศวกรรมสื่อดิจิทัล": {
+   "code": "27-1014.00",
+   "title": "Special Effects Artists and Animators",
+   "url": "https://www.onetonline.org/link/summary/27-1014.00",
+   "tasks": [
+    "Design complex graphics and animation, using independent judgment, creativity, and computer equipment.",
+    "Create basic designs, drawings, and illustrations for product labels, cartons, direct mail, or television.",
+    "Participate in design and production of multimedia campaigns, handling budgeting and scheduling, and assisting with such responsibilities as production coordination, background design, and progress tracking.",
+    "Create two-dimensional and three-dimensional images depicting objects in motion or illustrating a process, using computer animation or modeling programs.",
+    "Make objects or characters appear lifelike by manipulating light, color, texture, shadow, and transparency, or manipulating static images to give the illusion of motion."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "English Language",
+    "Design",
+    "Communications and Media",
+    "Customer and Personal Service"
+   ],
+   "interest": "AR"
+  },
+  "การออกแบบดิจิทัลและอินเทอร์แอคทีฟ": {
+   "code": "15-1255.00",
+   "title": "Web and Digital Interface Designers",
+   "url": "https://www.onetonline.org/link/summary/15-1255.00",
+   "tasks": [
+    "Identify problems uncovered by testing or customer feedback, and correct problems or refer problems to appropriate personnel for correction.",
+    "Design, build, or maintain Web sites, using authoring or scripting languages, content creation tools, management tools, and digital media.",
+    "Write supporting code for Web applications or Web sites.",
+    "Perform Web site tests according to planned schedules, or after any Web site or product revision.",
+    "Collaborate with web development professionals, such as front-end or back-end developers, to complete the full scope of Web development projects."
+   ],
+   "knowledge": [
+    "Computers and Electronics",
+    "English Language",
+    "Customer and Personal Service",
+    "Administration and Management"
+   ],
+   "interest": "IAC"
+  },
+  "วิทยาการข้อมูล": {
+   "code": "15-2051.00",
+   "title": "Data Scientists",
+   "url": "https://www.onetonline.org/link/summary/15-2051.00",
+   "tasks": [
+    "Analyze, manipulate, or process large sets of data using statistical software.",
+    "Create graphs, charts, or other visualizations to convey the results of data analysis using specialized software.",
+    "Test, validate, and reformulate models to ensure accurate prediction of outcomes of interest.",
+    "Deliver oral or written presentations of the results of mathematical modeling and data analysis to management or other end users.",
+    "Recommend data-driven solutions to key stakeholders."
+   ],
+   "knowledge": [
+    "Mathematics",
+    "Computers and Electronics",
+    "English Language"
+   ],
+   "interest": "IC"
+  },
+  "สังคมวิทยาและมานุษยวิทยา": {
+   "code": "19-3041.00",
+   "title": "Sociologists",
+   "url": "https://www.onetonline.org/link/summary/19-3041.00",
+   "tasks": [
+    "Analyze and interpret data to increase the understanding of human social behavior.",
+    "Prepare publications and reports containing research findings.",
+    "Develop, implement, and evaluate methods of data collection, such as questionnaires or interviews.",
+    "Collect data about the attitudes, values, and behaviors of people in groups, using observation, interviews, and review of documents.",
+    "Teach sociology."
+   ],
+   "knowledge": [
+    "Sociology and Anthropology",
+    "English Language",
+    "Education and Training",
+    "Mathematics",
+    "History and Archeology"
+   ],
+   "interest": "ISA"
+  },
+  "โภชนาการและการกำหนดอาหาร": {
+   "code": "29-1031.00",
+   "title": "Dietitians and Nutritionists",
+   "url": "https://www.onetonline.org/link/summary/29-1031.00",
+   "tasks": [
+    "Assess nutritional needs, diet restrictions, and current health plans to develop and implement dietary-care plans and provide nutritional counseling.",
+    "Evaluate laboratory tests in preparing nutrition recommendations.",
+    "Counsel individuals and groups on basic rules of good nutrition, healthy eating habits, and nutrition monitoring to improve their quality of life.",
+    "Advise patients and their families on nutritional principles, dietary plans, diet modifications, and food selection and preparation.",
+    "Incorporate patient cultural, ethnic, or religious preferences and needs in the development of nutrition plans."
+   ],
+   "knowledge": [
+    "Biology",
+    "Medicine and Dentistry",
+    "English Language",
+    "Therapy and Counseling",
+    "Customer and Personal Service"
+   ],
+   "interest": "SI"
+  },
+  "อักษรศาสตร์ (ภาษาศาสตร์)": {
+   "code": "27-3091.00",
+   "title": "Interpreters and Translators",
+   "url": "https://www.onetonline.org/link/summary/27-3091.00",
+   "tasks": [
+    "Follow ethical codes that protect the confidentiality of information.",
+    "Translate messages simultaneously or consecutively into specified languages, orally or by using hand signs, maintaining message content, context, and style as much as possible.",
+    "Listen to speakers' statements to determine meanings and to prepare translations, using electronic listening systems as necessary.",
+    "Compile terminology and information to be used in translations, including technical terms such as those for legal or medical material.",
+    "Refer to reference materials, such as dictionaries, lexicons, encyclopedias, and computerized terminology banks, as needed to ensure translation accuracy."
+   ],
+   "knowledge": [
+    "English Language",
+    "Foreign Language",
+    "Customer and Personal Service",
+    "Education and Training",
+    "Administrative"
+   ],
+   "interest": "CAS"
+  },
+  "สารสนเทศศาสตร์": {
+   "code": "25-4022.00",
+   "title": "Librarians and Media Collections Specialists",
+   "url": "https://www.onetonline.org/link/summary/25-4022.00",
+   "tasks": [
+    "Search standard reference materials, including online sources and the Internet, to answer patrons' reference questions.",
+    "Analyze patrons' requests to determine needed information and assist in furnishing or locating that information.",
+    "Supervise daily library operations, budgeting, planning, and personnel activities, such as hiring, training, scheduling, and performance evaluations.",
+    "Plan and teach classes on topics such as information literacy, library instruction, and technology use.",
+    "Code, classify, and catalog books, publications, films, audio-visual aids, and other library materials, based on subject matter or standard library classification systems."
+   ],
+   "knowledge": [
+    "English Language",
+    "Customer and Personal Service",
+    "Education and Training",
+    "Computers and Electronics",
+    "Administration and Management"
+   ],
+   "interest": "CSI"
+  },
+  "เวชระเบียนและสารสนเทศสุขภาพ": {
+   "code": "29-9021.00",
+   "title": "Health Information Technologists and Medical Registrars",
+   "url": "https://www.onetonline.org/link/summary/29-9021.00",
+   "tasks": [
+    "Assign the patient to diagnosis-related groups (DRGs), using appropriate computer software.",
+    "Compile medical care and census data for statistical reports on diseases treated, surgery performed, or use of hospital beds.",
+    "Design databases to support healthcare applications, ensuring security, performance and reliability.",
+    "Develop in-service educational materials.",
+    "Evaluate and recommend upgrades or improvements to existing computerized healthcare systems."
+   ],
+   "knowledge": [],
+   "interest": "CIS"
+  },
+  "นาฏศิลป์และการละคร": {
+   "code": "27-2011.00",
+   "title": "Actors",
+   "url": "https://www.onetonline.org/link/summary/27-2011.00",
+   "tasks": [
+    "Attend auditions and casting calls to audition for roles.",
+    "Work closely with directors, other actors, and playwrights to find the interpretation most suited to the role.",
+    "Portray and interpret roles, using speech, gestures, and body movements, to entertain, inform, or instruct radio, film, television, or live audiences.",
+    "Study and rehearse roles from scripts to interpret, learn and memorize lines, stunts, and cues as directed.",
+    "Collaborate with other actors as part of an ensemble."
+   ],
+   "knowledge": [
+    "English Language",
+    "Fine Arts",
+    "Communications and Media",
+    "Psychology"
+   ],
+   "interest": "ASE"
+  },
+  "การออกแบบกราฟิก": {
+   "code": "27-1024.00",
+   "title": "Graphic Designers",
+   "url": "https://www.onetonline.org/link/summary/27-1024.00",
+   "tasks": [
+    "Key information into computer equipment to create layouts for client or supervisor.",
+    "Review final layouts and suggest improvements, as needed.",
+    "Determine size and arrangement of illustrative material and copy, and select style and size of type.",
+    "Develop graphics and layouts for product illustrations, company logos, and Web sites.",
+    "Create designs, concepts, and sample layouts, based on knowledge of layout principles and esthetic design concepts."
+   ],
+   "knowledge": [
+    "Design",
+    "Computers and Electronics",
+    "Fine Arts",
+    "Communications and Media",
+    "English Language"
+   ],
+   "interest": "AC"
+  },
+  "ดิจิทัลเกม": {
+   "code": "15-1255.01",
+   "title": "Video Game Designers",
+   "url": "https://www.onetonline.org/link/summary/15-1255.01",
+   "tasks": [
+    "Balance and adjust gameplay experiences to ensure the critical and commercial success of the product.",
+    "Devise missions, challenges, or puzzles to be encountered in game play.",
+    "Create core game features, including storylines, role-play mechanics, and character biographies for a new video game or game franchise.",
+    "Solicit, obtain, and integrate feedback from design and technical staff into original game design.",
+    "Conduct regular design reviews throughout the game development process."
+   ],
+   "knowledge": [
+    "Design",
+    "Computers and Electronics",
+    "Communications and Media",
+    "Mathematics",
+    "Psychology"
+   ],
+   "interest": "AI"
+  },
+  "การจัดการอีเวนต์": {
+   "code": "13-1121.00",
+   "title": "Meeting, Convention, and Event Planners",
+   "url": "https://www.onetonline.org/link/summary/13-1121.00",
+   "tasks": [
+    "Consult with customers to determine objectives and requirements for events, such as meetings, conferences, and conventions.",
+    "Review event bills for accuracy and approve payment.",
+    "Coordinate services for events, such as accommodation and transportation for participants, facilities, catering, signage, displays, special needs requirements, printing and event security.",
+    "Arrange the availability of audio-visual equipment, transportation, displays, and other event needs.",
+    "Confer with staff at a chosen event site to coordinate details."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "English Language",
+    "Communications and Media",
+    "Administrative",
+    "Administration and Management"
+   ],
+   "interest": "ECS"
+  },
+  "วารสารศาสตร์": {
+   "code": "27-3023.00",
+   "title": "News Analysts, Reporters, and Journalists",
+   "url": "https://www.onetonline.org/link/summary/27-3023.00",
+   "tasks": [
+    "Report news stories for publication or broadcast, describing the background and details of events.",
+    "Gather information and develop perspectives about news subjects through research, interviews, observation, and experience.",
+    "Research a story's background information to provide complete and accurate information.",
+    "Arrange interviews with people who can provide information about a story.",
+    "Establish and maintain relationships with individuals who are credible sources of information."
+   ],
+   "knowledge": [
+    "English Language",
+    "Communications and Media",
+    "Computers and Electronics",
+    "Telecommunications",
+    "Customer and Personal Service"
+   ],
+   "interest": "AIE"
+  },
+  "การตลาด (สายสร้างสรรค์)": {
+   "code": "13-1161.00",
+   "title": "Market Research Analysts and Marketing Specialists",
+   "url": "https://www.onetonline.org/link/summary/13-1161.00",
+   "tasks": [
+    "Prepare reports of findings, illustrating data graphically and translating complex findings into written text.",
+    "Seek and provide information to help companies determine their position in the marketplace.",
+    "Conduct research on consumer opinions and marketing strategies, collaborating with marketing professionals, statisticians, pollsters, and other professionals.",
+    "Collect and analyze data on customer demographics, preferences, needs, and buying habits to identify potential markets and factors affecting product demand.",
+    "Devise and evaluate methods and procedures for collecting data, such as surveys, opinion polls, or questionnaires, or arrange to obtain existing data."
+   ],
+   "knowledge": [
+    "English Language",
+    "Sales and Marketing",
+    "Administration and Management",
+    "Customer and Personal Service"
+   ],
+   "interest": "ECI"
+  },
+  "เทคโนโลยีการศึกษา": {
+   "code": "25-9031.00",
+   "title": "Instructional Coordinators",
+   "url": "https://www.onetonline.org/link/summary/25-9031.00",
+   "tasks": [
+    "Observe work of teaching staff to evaluate performance and to recommend changes that could strengthen teaching skills.",
+    "Plan and conduct teacher training programs and conferences dealing with new classroom procedures, instructional materials and equipment, and teaching aids.",
+    "Interpret and enforce provisions of state education codes and rules and regulations of state education boards.",
+    "Conduct or participate in workshops, committees, and conferences designed to promote the intellectual, social, and physical welfare of students.",
+    "Advise teaching and administrative staff in curriculum development, use of materials and equipment, and implementation of state and federal programs and procedures."
+   ],
+   "knowledge": [
+    "Education and Training",
+    "English Language",
+    "Administration and Management",
+    "Mathematics",
+    "Computers and Electronics"
+   ],
+   "interest": "SEI"
+  },
+  "การจัดการภัยพิบัติ": {
+   "code": "11-9161.00",
+   "title": "Emergency Management Directors",
+   "url": "https://www.onetonline.org/link/summary/11-9161.00",
+   "tasks": [
+    "Consult with officials of local and area governments, schools, hospitals, and other institutions to determine their needs and capabilities in the event of a natural disaster or other emergency.",
+    "Develop and maintain liaisons with municipalities, county departments, and similar entities to facilitate plan development, response effort coordination, and exchanges of personnel and equipment.",
+    "Coordinate disaster response or crisis management activities, such as ordering evacuations, opening public shelters, and implementing special needs plans and programs.",
+    "Prepare emergency situation status reports that describe response and recovery efforts, needs, and preliminary damage assessments.",
+    "Maintain and update all resource materials associated with emergency preparedness plans."
+   ],
+   "knowledge": [
+    "Public Safety and Security",
+    "Administration and Management",
+    "Law and Government",
+    "Communications and Media",
+    "English Language"
+   ],
+   "interest": "ECI"
+  },
+  "การจัดการทรัพยากรมนุษย์": {
+   "code": "13-1071.00",
+   "title": "Human Resources Specialists",
+   "url": "https://www.onetonline.org/link/summary/13-1071.00",
+   "tasks": [
+    "Interpret and explain human resources policies, procedures, laws, standards, or regulations.",
+    "Hire employees and process hiring-related paperwork.",
+    "Maintain current knowledge of Equal Employment Opportunity (EEO) and affirmative action guidelines and laws, such as the Americans with Disabilities Act (ADA).",
+    "Prepare or maintain employment records related to events, such as hiring, termination, leaves, transfers, or promotions, using human resources management system software.",
+    "Address employee relations issues, such as harassment allegations, work complaints, or other employee concerns."
+   ],
+   "knowledge": [
+    "Personnel and Human Resources",
+    "Administrative",
+    "Administration and Management",
+    "English Language",
+    "Customer and Personal Service"
+   ],
+   "interest": "ECS"
+  },
+  "การจัดการธุรกิจบันเทิง": {
+   "code": "13-1011.00",
+   "title": "Agents and Business Managers of Artists, Performers, and Athletes",
+   "url": "https://www.onetonline.org/link/summary/13-1011.00",
+   "tasks": [
+    "Collect fees, commissions, or other payments, according to contract terms.",
+    "Send samples of clients' work and other promotional material to potential employers to obtain auditions, sponsorships, or endorsement deals.",
+    "Keep informed of industry trends and deals.",
+    "Conduct auditions or interviews to evaluate potential clients.",
+    "Negotiate with managers, promoters, union officials, and other persons regarding clients' contractual rights and obligations."
+   ],
+   "knowledge": [
+    "Customer and Personal Service",
+    "Sales and Marketing",
+    "English Language",
+    "Administration and Management",
+    "Fine Arts"
+   ],
+   "interest": "ESC"
+  },
+  "ภาษาและการสื่อสาร": {
+   "code": "27-3031.00",
+   "title": "Public Relations Specialists",
+   "url": "https://www.onetonline.org/link/summary/27-3031.00",
+   "tasks": [
+    "Respond to requests for information from the media or designate an appropriate spokesperson or information source.",
+    "Plan or direct development or communication of programs to maintain favorable public or stockholder perceptions of an organization's accomplishments, agenda, or environmental responsibility.",
+    "Post and update content on the company's Web site and social media outlets.",
+    "Write press releases or other media communications to promote clients.",
+    "Establish or maintain cooperative relationships with representatives of community, consumer, employee, or public interest groups."
+   ],
+   "knowledge": [
+    "Communications and Media",
+    "English Language",
+    "Administration and Management",
+    "Customer and Personal Service",
+    "Sales and Marketing"
+   ],
+   "interest": "EAS"
+  }
+ }
+}
