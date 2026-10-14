@@ -392,11 +392,18 @@ function CareerList({ items }) {
   if (!items.length) return <p className="text-[14px] text-gray-500">ยังไม่มีข้อมูลอาชีพที่เกี่ยวข้อง</p>;
   return (
     <div className="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-      {items.map((c) => {
-        const e = careerEmoji(c.title, c.faculty?.dim);
+      {items.map((c, i) => {
+        const e = careerEmoji(c.title, c.faculty?.dim, i);
         return (
           <div key={c.title} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 border ${c.source === "goal" ? "bg-pink-50 border-pink-200" : "bg-white/80 border-gray-100"}`}>
-            <img src={e.src} alt="" width={44} height={44} className="h-11 w-11 shrink-0" />
+            <div className="relative h-12 w-12 shrink-0">
+              <img src={e.src} alt="" width={44} height={44} className="h-11 w-11" />
+              {e.badge && (
+                <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-white shadow ring-1 ring-gray-100">
+                  <img src={e.badge} alt="" width={16} height={16} className="h-4 w-4" />
+                </span>
+              )}
+            </div>
             <div className="min-w-0">
               <div className="text-[15.5px] font-semibold text-gray-800">{c.title}</div>
               {c.reason && <div className="text-[13px] text-gray-500 leading-5">{c.reason}</div>}
