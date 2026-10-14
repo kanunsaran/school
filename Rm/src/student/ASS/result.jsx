@@ -272,7 +272,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
           </div>
           <span className={`shrink-0 rounded-full px-3 py-1 text-[14px] font-semibold text-white ${tone.pill}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
         </div>
-        <p className="mt-1.5 text-[14px] text-gray-600 leading-6">{LEVEL_WHY[a.kind]}</p>
+        <p className="mt-1.5 text-[14px] text-gray-600 leading-6">{LEVEL_WHY[a.kind].replace("{ด้าน}", TRAIT_NOUN[dim])}</p>
       </div>
       <div className="px-4 pb-4 sm:px-5">
 
@@ -321,7 +321,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
         <summary className="cursor-pointer select-none">ระบบพิจารณาจากอะไร</summary>
         <ul className="mt-1.5 space-y-1">
           <Finding ok={a.reason === "recommended"}>
-            {a.reason === "recommended" ? `ตาราง 120 รหัสของโรงเรียนแนะนำสาขานี้สำหรับรหัส ${a.viaCode}` : `ไม่อยู่ในรายการที่ตาราง 120 รหัสแนะนำสำหรับรหัส ${codes.join(" / ")}`}
+            {a.reason === "recommended" ? `เป็นสาขาที่แนะนำสำหรับรหัส ${a.viaCode}` : `ไม่อยู่ในสาขาที่แนะนำสำหรับรหัส ${codes.join(" / ")}`}
           </Finding>
           <Finding ok={dimMine}>
             ด้านหลักของสาขา ({dim}) {dimMine ? `อยู่ในความสนใจเด่นของคุณ (${rankLabel(scores, dim)})` : "ไม่อยู่ในความสนใจเด่น (อันดับ 1–3)"}
