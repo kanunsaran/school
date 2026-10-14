@@ -307,6 +307,8 @@ export default function AssessmentResultsPage() {
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_640px] gap-6 items-stretch">
           {/* ===== ซ้าย: รายชื่อ — เส้นคั่นแทนกรอบครอบ ===== */}
           <div className="min-w-0 xl:border-r xl:border-gray-200 xl:pr-6">
+            {/* จอใหญ่: รายชื่อติดอยู่กับที่ เลื่อนอ่านผลด้านขวาได้โดยไม่ต้องเลื่อนกลับมาหารายชื่อ */}
+            <div className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
 
             <div className="mb-2 text-[14.5px] text-gray-500">พบนักเรียน {rows.length} คน</div>
 
@@ -375,6 +377,7 @@ export default function AssessmentResultsPage() {
                 <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-10 px-3 rounded-lg border border-gray-200 bg-white disabled:opacity-40 text-[14.5px]">ถัดไป</button>
               </div>
             )}
+            </div>
           </div>
 
           {/* ===== ขวา: รายละเอียด (จอเล็ก = ป๊อปอัพ) ===== */}
