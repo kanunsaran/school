@@ -5,7 +5,6 @@ import { exportReportExcel } from "../utils/reportExcel.js";
 import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
 import { isBelowXl } from "../utils/breakpoints.js";
 import Swal from "sweetalert2";
-import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 import {
   FaSearch, FaTimes, FaUser, FaCommentDots, FaCheck, FaPaperPlane, FaTrash,
@@ -16,7 +15,7 @@ import Avatar from "../components/Avatar.jsx";
 import useStudentAvatars from "../hooks/useStudentAvatars.js";
 import {
   getStudent, getEnrollments, getClasses, getTypeResults,
-  getGoals, getConsultationRequests,
+  getGoals,
   getAssessmentsList, getAssessmentAdvice, addAssessmentAdvice, updateAssessmentAdvice, deleteAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
@@ -25,7 +24,6 @@ import { getCurrentUser } from "../utils/auth.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import { goalsOf, fullUniName } from "../utils/goals.js";
 import { ADVICE_MAX } from "../utils/adviceTopics.js";
-import { normalizeConsultation, STATUS_META as CONSULT_STATUS } from "../utils/consultationStore.js";
 import { interestSummaryText, joinTh, TRAIT_NOUN } from "../utils/riasecSummary.js";
 import { latestCurrentResults, legacyOnlyUserIds, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
 import { RIASEC_ORDER, MAX_SCORE, denseRank, facultiesForCode, goalTargets, analyzeTarget, exploreFaculties } from "../utils/riasecScoring.js";
@@ -61,7 +59,6 @@ export default function AssessmentResultsPage() {
   const [loading, setLoading] = useState(true);
 
   const currentUser = getCurrentUser();
-  const navigate = useNavigate();
 
   const [customAssessments, setCustomAssessments] = useState([]);
   useEffect(() => {
@@ -201,16 +198,6 @@ export default function AssessmentResultsPage() {
   }, [riasecData, selected, selectedGoals]);
   const mainGoalFaculty = selectedGoals[0]?.faculty || null;
 
-  // ความต้องการปรึกษา = คำขอปรึกษาที่นักเรียนส่งในระบบคำขอปรึกษาเดิม (ตาราง consultation_requests)
-  const [consults, setConsults] = useState(null);
-  const selectedStudentId = selected?.student.user_id;
-  useEffect(() => {
-    if (!selectedStudentId) return;
-    setConsults(null);
-    getConsultationRequests({ student_user_id: selectedStudentId })
-      .then((rows) => setConsults((rows || []).map(normalizeConsultation).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
-      .catch(() => setConsults([]));
-  }, [selectedStudentId]);
 
   // ---------- ส่งออกรายงานผลการประเมิน (PDF อ่านง่าย / Excel) ----------
   const resultsReport = () => {
@@ -509,38 +496,6 @@ export default function AssessmentResultsPage() {
                         </div>
                       ))}
                       {!selectedGoals.some((x) => x.goal.career_field) && <div className="text-[13px] text-gray-400">นักเรียนยังไม่ได้ระบุอาชีพที่สนใจ</div>}
-                    </div>
-                  )}
-                </PanelSection>
-
-                {/* ④ ความต้องการปรึกษา — จากระบบคำขอปรึกษาเดิม */}
-                <PanelSection title="💬 ความต้องการปรึกษาของนักเรียน">
-                  {consults === null ? (
-                    <div className="text-[13.5px] text-gray-400">กำลังโหลด...</div>
-                  ) : consults.length === 0 ? (
-                    <div className="text-[13.5px] text-gray-400">นักเรียนยังไม่ได้ระบุความต้องการปรึกษา</div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {consults.slice(0, 3).map((c) => {
-                        const first = c.messages.find((m) => m.sender === "student");
-                        return (
-                          <div key={c.id} className="rounded-xl border border-gray-100 px-3.5 py-2.5">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="text-[14.5px] font-medium text-gray-900">{c.subject || c.category}</div>
-                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium ${CONSULT_STATUS[c.status]?.cls || "bg-gray-100 text-gray-500"}`}>
-                                {CONSULT_STATUS[c.status]?.label || c.status}
-                              </span>
-                            </div>
-                            {first?.text && first.text !== c.subject && <div className="mt-0.5 text-[13.5px] text-gray-600 whitespace-pre-line line-clamp-3">{first.text}</div>}
-                            <div className="mt-0.5 text-[12px] text-gray-400">
-                              {c.category} · ส่งเมื่อ {formatDateTime(c.createdAt)}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <button type="button" onClick={() => navigate("/consultations")} className="self-start text-[13.5px] text-pink-600 hover:underline bg-transparent !p-0">
-                        ตอบคำขอที่หน้าคำขอปรึกษา →
-                      </button>
                     </div>
                   )}
                 </PanelSection>
