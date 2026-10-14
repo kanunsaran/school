@@ -915,7 +915,7 @@ export default function ResultPage() {
               ))}
             </AdviceBox>
 
-            <AdviceBox n="2" title="ทักษะที่ควรพัฒนา">
+            <AdviceBox n="2" title="แนวทางเตรียมความพร้อม">
               {advice.perFaculty.map((f) => (
                 <FacultyItem key={f.name} name={f.name} multi={advice.perFaculty.length > 1}>
                   <ul className="space-y-1">
@@ -926,7 +926,7 @@ export default function ResultPage() {
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-1 text-[13px] text-gray-500">แนวทางเตรียมความพร้อม ไม่ใช่เงื่อนไขบังคับในการสมัคร • คำอธิบายทักษะเขียนโดยระบบ ยังไม่ผ่านการตรวจจากครูแนะแนว</div>
+                  <div className="mt-1 text-[13px] text-gray-500">ทักษะที่ช่วยให้พร้อมสำหรับสาขานี้ ไม่ใช่เงื่อนไขบังคับในการสมัคร • คำอธิบายทักษะเขียนโดยระบบ ยังไม่ผ่านการตรวจจากครูแนะแนว</div>
                 </FacultyItem>
               ))}
             </AdviceBox>
