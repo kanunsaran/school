@@ -195,14 +195,14 @@ function GoalHeader({ goal, onEdit }) {
   return (
     <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="text-[13px] font-semibold text-gray-500">
+        <div className="text-[14px] font-semibold text-gray-500">
           เป้าหมายที่คุณตั้งไว้{goal.updated_at || goal.created_at ? ` • ${thaiDate(goal.updated_at || goal.created_at)}` : ""}
         </div>
-        <button type="button" onClick={onEdit} className="text-[13px] text-pink-600 hover:text-pink-700 bg-transparent !p-0">
+        <button type="button" onClick={onEdit} className="text-[14px] text-pink-600 hover:text-pink-700 bg-transparent !p-0">
           แก้ไขเป้าหมาย →
         </button>
       </div>
-      <div className="mt-1.5 grid sm:grid-cols-2 gap-x-4 gap-y-1 text-[14px]">
+      <div className="mt-1.5 grid sm:grid-cols-2 gap-x-4 gap-y-1 text-[15.5px]">
         <div>
           <span className="text-gray-500">คณะที่สนใจ: </span>
           <b>{goal.faculty_name || "-"}</b>
@@ -212,7 +212,7 @@ function GoalHeader({ goal, onEdit }) {
           <b>{goal.university_name || "-"}</b>
         </div>
       </div>
-      {goal.goal_text && <p className="text-[13.5px] text-gray-600 mt-1">“{goal.goal_text}”</p>}
+      {goal.goal_text && <p className="text-[15px] text-gray-600 mt-1.5">“{goal.goal_text}”</p>}
     </div>
   );
 }
@@ -570,6 +570,8 @@ export default function ResultPage() {
   const atScore = (v) => RIASEC_ORDER.filter((c) => scores[c] === v).join("/");
   // ขั้นตอนถัดไปตามสถานะจริงของนักเรียน (ไม่ใช้รายการเดียวกันกับทุกคน)
   const goalA = analyses[0] || null;
+  // ด้านที่คะแนนเท่ากัน: ด้านที่ทำให้รหัสเป็นได้หลายแบบก่อน ไม่มี = ด้านในความสนใจเด่นที่คะแนนเท่ากับด้านอื่น (คะแนนเท่ากันนอกอันดับ 1–3 ไม่ต้องแนะนำ)
+  const tieDims = swingDims.length >= 2 ? swingDims : topDims.filter((c) => tiedWith(scores, c).some((d) => topDims.includes(d)));
   const nextSteps = [
     !hasGoal(myGoal) && "ตั้งเป้าหมายคณะ/สาขาที่สนใจในหน้าเป้าหมาย เพื่อให้ระบบเทียบกับผลนี้และแสดงเกณฑ์รับเข้าจริง",
     hasGoal(myGoal) && !goalA && `ยังไม่พบ “${myGoal.faculty_name || myGoal.goal_text}” ในข้อมูลของระบบ — ลองเลือกชื่อคณะจากรายการในหน้าเป้าหมาย หรือปรึกษาครูแนะแนว`,
@@ -579,7 +581,7 @@ export default function ResultPage() {
     grades === null || grades?.gpax == null
       ? "บันทึกเกรดในหน้าเป้าหมาย เพื่อเทียบกับ GPAX ขั้นต่ำในเกณฑ์รับเข้า"
       : grades && `เทียบ GPAX ของคุณ (${Number(grades.gpax).toFixed(2)}) กับ GPAX ขั้นต่ำของแต่ละรอบในส่วนเกณฑ์รับเข้า`,
-    latest.hasTie && `${joinTh(swingDims.map((c) => PLAIN[c]))}ได้คะแนนเท่ากัน ลองกิจกรรมของทั้งสองด้านเพื่อดูว่าชอบแบบไหนมากกว่า`,
+    tieDims.length >= 2 && `ความสนใจด้าน${joinTh(tieDims.map((c) => TRAIT_NOUN[c]))}ได้คะแนนเท่ากัน ลองกิจกรรมของ${tieDims.length === 2 ? "ทั้งสองด้าน" : "ทุกด้าน"}เพื่อดูว่าชอบแบบไหนมากกว่า`,
     latest.lowDifferentiation && "คะแนนแต่ละด้านใกล้กัน ลองกิจกรรมหลายแบบก่อนตัดสินใจเลือกสาขา",
     "ปรึกษาครูแนะแนวเมื่อยังไม่แน่ใจ หรืออยากได้มุมมองเพิ่มเติม",
   ].filter(Boolean);
@@ -934,18 +936,18 @@ export default function ResultPage() {
       <GroupLabel>แนวทางดำเนินการต่อ</GroupLabel>
       <div className={CARD}>
         <SectionHeader emoji="👣" title="ขั้นตอนถัดไปที่แนะนำ" subtitle="เลือกทำตามที่เหมาะกับคุณ — ระบบไม่ได้ตัดสินใจแทน" />
-        <ol className="space-y-1.5 text-[14px] text-gray-700 list-decimal pl-5">
+        <ol className="space-y-2 text-[15.5px] text-gray-700 list-decimal pl-5">
           {nextSteps.map((t) => (
             <li key={t}>{t}</li>
           ))}
         </ol>
         <details className="mt-4">
-          <summary className="cursor-pointer select-none text-[14px] font-medium text-gray-700">🗺️ แนวทางทั่วไป ม.4–ม.6 (ปรับตามเป้าหมายและจังหวะของแต่ละคน)</summary>
+          <summary className="cursor-pointer select-none text-[15px] font-medium text-gray-700">🗺️ แนวทางทั่วไป ม.4–ม.6 (ปรับตามเป้าหมายและจังหวะของแต่ละคน)</summary>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
             {roadmapFor(advice?.usesGoal ? advice.focus[0]?.name : null).map((step) => (
               <div key={step.grade} className="bg-white/70 rounded-xl p-4">
                 <div className="text-[15.5px] font-semibold text-pink-600">{step.grade}</div>
-                <ul className="mt-2 space-y-1.5 text-[13.5px] text-gray-700">
+                <ul className="mt-2 space-y-1.5 text-[14.5px] text-gray-700">
                   {step.items.map((it, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span aria-hidden className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400" />
