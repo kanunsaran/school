@@ -749,18 +749,18 @@ export default function ResultPage() {
                           <Icon code={DIM_ICON[x.dim]} className="h-6 w-6" />
                         </span>
                         <div className="min-w-0">
-                          <div className={`text-[13.5px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</div>
-                          <div className="text-[16px] font-semibold text-gray-900 leading-6">{g.act}</div>
+                          <div className={`text-[14px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</div>
+                          <p className="mt-0.5 text-[15px] font-semibold text-gray-900 leading-6">{g.act}</p>
                           {!x.text && <p className="mt-1 text-[12px] text-gray-400 leading-5">คำแนะนำเบื้องต้นจากระบบ ยังไม่ได้ผ่านการตรวจสอบจากครูแนะแนว</p>}
                         </div>
                       </div>
                       <div className="min-w-0">
-                        <div className="text-[13.5px] font-semibold text-gray-800">ลองทำกิจกรรมนี้</div>
-                        <p className="mt-0.5 text-[14.5px] text-gray-700 leading-6">{x.text || g.how}</p>
+                        <div className={`text-[14px] font-semibold ${t.text}`}>ลองทำกิจกรรมนี้</div>
+                        <p className="mt-0.5 text-[15px] text-gray-700 leading-6">{x.text || g.how}</p>
                       </div>
                       <div className="min-w-0">
-                        <div className="text-[13.5px] font-semibold text-gray-800">ลองสังเกตตัวเอง</div>
-                        <p className="mt-0.5 text-[14.5px] text-gray-700 leading-6">{g.question}</p>
+                        <div className={`text-[14px] font-semibold ${t.text}`}>ลองสังเกตตัวเอง</div>
+                        <p className="mt-0.5 text-[15px] text-gray-700 leading-6">{g.question}</p>
                       </div>
                     </div>
                   );
