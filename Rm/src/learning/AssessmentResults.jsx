@@ -503,24 +503,24 @@ export default function AssessmentResultsPage() {
 
                 {/* ⑤ ข้อมูลประกอบการแนะแนว */}
                 <PanelSection title="ข้อมูลประกอบการแนะแนว">
-                  <div className="text-[13.5px] font-semibold text-gray-700">
+                  <div className="text-[15px] font-semibold text-gray-800">
                     สาขาที่ระบบแนะนำ <span className="font-normal text-gray-400">(จากผลความสนใจ — ไม่ใช่เป้าหมายของนักเรียน)</span>
                   </div>
                   {!selected.result ? (
-                    <div className="mt-1 text-[13.5px] text-gray-400">ต้องมีผลแบบประเมินก่อน</div>
+                    <div className="mt-1 text-[14.5px] text-gray-400">ต้องมีผลแบบประเมินก่อน</div>
                   ) : selectedExplore.length === 0 ? (
-                    <div className="mt-1 text-[13.5px] text-gray-400">ไม่มีข้อมูลสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน</div>
+                    <div className="mt-1 text-[14.5px] text-gray-400">ไม่มีข้อมูลสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน</div>
                   ) : (
-                    <ol className="mt-1.5 space-y-1.5">
+                    <ol className="mt-1.5 space-y-2">
                       {selectedExplore.map(({ row, code, links }, i) => {
                         const link = links.find((l) => l.code === row.dim) || links[0];
                         return (
-                          <li key={row.name} className="text-[14px] text-gray-700 leading-6">
+                          <li key={row.name} className="text-[15px] text-gray-700 leading-7">
                             <span className="font-medium text-gray-900">
                               {i + 1}. {row.name}
                             </span>{" "}
-                            <span className="text-[12px] text-pink-600">รหัส {code}</span>
-                            <div className="text-[13.5px] text-gray-500">
+                            <span className="text-[13px] text-pink-600">รหัส {code}</span>
+                            <div className="text-[14.5px] text-gray-500">
                               เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}
                             </div>
                           </li>
@@ -529,11 +529,11 @@ export default function AssessmentResultsPage() {
                     </ol>
                   )}
 
-                  <div className="mt-4 text-[13.5px] font-semibold text-gray-700">
+                  <div className="mt-4 text-[15px] font-semibold text-gray-800">
                     แนวทางเตรียมตัวสำหรับเป้าหมายหลัก{mainGoalFaculty ? `: ${mainGoalFaculty.name}` : ""}
                   </div>
                   {!mainGoalFaculty ? (
-                    <div className="mt-1 text-[13.5px] text-gray-400">
+                    <div className="mt-1 text-[14.5px] text-gray-400">
                       {selectedGoals.length ? "ไม่พบสาขาเป้าหมายหลักในข้อมูลแนะแนว" : "นักเรียนยังไม่ได้ตั้งเป้าหมาย"}
                     </div>
                   ) : (
@@ -729,7 +729,7 @@ function AdviceEditor({ studentId, currentUserId }) {
 function PanelSection({ title, children }) {
   return (
     <section className="border-t border-gray-100 py-4">
-      <h3 className="mb-2 text-[14.5px] font-semibold text-gray-800">{title}</h3>
+      <h3 className="mb-2 text-[16px] font-semibold text-gray-900">{title}</h3>
       {children}
     </section>
   );
@@ -752,7 +752,7 @@ function GoalPrep({ faculty, goalUni }) {
     ["คำแนะนำการเตรียมสอบ (ทั่วไป ไม่ใช่เกณฑ์รับเข้า)", faculty.exam],
   ].filter(([, v]) => v);
   return (
-    <div className="mt-1.5 space-y-1 text-[13.5px] leading-6">
+    <div className="mt-1.5 space-y-1.5 text-[15px] leading-7">
       {rows.map(([k, v]) => (
         <div key={k}>
           <span className="text-gray-500">{k}: </span>
@@ -768,9 +768,9 @@ function GoalPrep({ faculty, goalUni }) {
         ) : (
           <span className="text-gray-400">ไม่มีข้อมูลหลักสูตรที่ตรวจสอบแล้ว</span>
         )}
-        {pick && !fromGoal && goalUni && <span className="text-[12px] text-gray-400"> (ไม่พบหลักสูตรของ{goalUni}ในข้อมูล)</span>}
+        {pick && !fromGoal && goalUni && <span className="text-[13px] text-gray-400"> (ไม่พบหลักสูตรของ{goalUni}ในข้อมูล)</span>}
       </div>
-      <div className="text-[12px] text-gray-400">ที่มา: ข้อมูลแนะแนวของโรงเรียน • หลักสูตรจาก myTCAS — ตรวจประกาศของมหาวิทยาลัยก่อนสมัคร</div>
+      <div className="text-[13px] text-gray-400">ที่มา: ข้อมูลแนะแนวของโรงเรียน • หลักสูตรจาก myTCAS — ตรวจประกาศของมหาวิทยาลัยก่อนสมัคร</div>
     </div>
   );
 }
