@@ -113,7 +113,7 @@ function SectionHeader({ emoji, title, subtitle }) {
     <div className="flex items-center gap-3 mb-4">
       <div className="h-9 w-9 rounded-xl bg-pink-500/10 text-[19px] flex items-center justify-center shrink-0">{emoji}</div>
       <div>
-        <h2 className="text-[16.5px] font-semibold text-gray-800">{title}</h2>
+        <h2 className="text-[18px] font-semibold text-gray-900">{title}</h2>
         {subtitle && <p className="text-[13.5px] text-gray-500 mt-0.5">{subtitle}</p>}
       </div>
     </div>
@@ -142,7 +142,7 @@ function AdviceBox({ n, title, subtitle, icon, source, wide, children }) {
         )}
         <div className="min-w-0">
           <h3 className="text-[16.5px] font-semibold text-gray-800">{title}</h3>
-          {subtitle && <p className="text-[13px] text-gray-500">{subtitle}</p>}
+          {subtitle && <p className="text-[13.5px] text-gray-500">{subtitle}</p>}
         </div>
       </div>
       <ul className="space-y-2 text-[15px] text-gray-700 flex-1">{children}</ul>
@@ -195,24 +195,24 @@ function GoalHeader({ goal, onEdit }) {
   return (
     <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="text-[14px] font-semibold text-gray-500">
+        <div className="text-[13.5px] font-medium text-gray-500">
           เป้าหมายที่คุณตั้งไว้{goal.updated_at || goal.created_at ? ` • ${thaiDate(goal.updated_at || goal.created_at)}` : ""}
         </div>
-        <button type="button" onClick={onEdit} className="text-[14px] text-pink-600 hover:text-pink-700 bg-transparent !p-0">
+        <button type="button" onClick={onEdit} className="text-[13.5px] font-medium text-pink-600 hover:text-pink-700 bg-transparent !p-0">
           แก้ไขเป้าหมาย →
         </button>
       </div>
-      <div className="mt-1.5 grid sm:grid-cols-2 gap-x-4 gap-y-1 text-[15.5px]">
+      <div className="mt-1.5 grid sm:grid-cols-2 gap-x-4 gap-y-1 text-[15px]">
         <div>
-          <span className="text-gray-500">คณะที่สนใจ: </span>
+          <span className="text-[13.5px] text-gray-500">คณะที่สนใจ: </span>
           <b>{goal.faculty_name || "-"}</b>
         </div>
         <div>
-          <span className="text-gray-500">มหาวิทยาลัย: </span>
+          <span className="text-[13.5px] text-gray-500">มหาวิทยาลัย: </span>
           <b>{goal.university_name || "-"}</b>
         </div>
       </div>
-      {goal.goal_text && <p className="text-[15px] text-gray-600 mt-1.5">“{goal.goal_text}”</p>}
+      {goal.goal_text && <p className="text-[14.5px] text-gray-500 mt-1.5">“{goal.goal_text}”</p>}
     </div>
   );
 }
@@ -220,7 +220,7 @@ function GoalHeader({ goal, onEdit }) {
 function Block({ title, tone, children }) {
   return (
     <div className="mt-4">
-      <div className={`flex items-center gap-2 text-[15.5px] font-semibold ${tone.title}`}>
+      <div className={`flex items-center gap-2 text-[16px] font-semibold ${tone.title}`}>
         <span className={`h-4 w-1 rounded-full ${tone.bar}`} />
         {title}
       </div>
@@ -266,7 +266,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
           </div>
           <span className={`shrink-0 rounded-full px-3 py-1 text-[14px] font-semibold text-white ${tone.pill}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
         </div>
-        <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
+        <p className="mt-1.5 text-[14px] text-gray-600 leading-6">{LEVEL_WHY[a.kind]}</p>
       </div>
       <div className="px-4 pb-4 sm:px-5">
 
@@ -280,7 +280,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
         {a.displayLevel === "low" && (
           <p>
             ความสนใจที่โดดเด่นของคุณอาจแตกต่างจากลักษณะการเรียนหรือการทำงานบางส่วนของสาขานี้ แต่ไม่ได้หมายความว่าคุณเรียนสาขานี้ไม่ได้ หากสาขานี้ยังเป็นเป้าหมาย
-            ลองศึกษารายวิชาและลักษณะการเรียนจริง และทดลองกิจกรรมด้าน{TRAIT_NOUN[dim]} ({dim}) เพื่อสำรวจว่าคุณชอบและอยากพัฒนาทักษะด้านใดเพิ่ม
+            ลองศึกษารายวิชาและลักษณะการเรียนจริง และทดลองกิจกรรมด้าน{TRAIT_NOUN[dim]} เพื่อสำรวจว่าคุณชอบและอยากพัฒนาทักษะด้านใดเพิ่ม
           </p>
         )}
       </Block>
@@ -296,11 +296,11 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
 
       {alternatives.length > 0 && (
         <details className="mt-4">
-          <summary className={`cursor-pointer select-none text-[14.5px] font-semibold ${tone.title}`}>สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
+          <summary className={`cursor-pointer select-none text-[15px] font-semibold ${tone.title}`}>สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
           <div className="mt-2 space-y-2">
             {alternatives.slice(0, 2).map((x) => (
               <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
-                <div className="text-[15px] font-semibold text-gray-800">{x.row.name}</div>
+                <div className="text-[15.5px] font-semibold text-gray-800">{x.row.name}</div>
                 <p className="text-[14.5px] text-gray-700 leading-7">
                   เหมาะสำหรับการสำรวจเพิ่มเติม หากสนใจงานด้าน{joinTh(x.shared)}
                   {x.differs.length > 0 ? ` โดยมีส่วนที่แตกต่างจาก${nm(f.name)}คือการเรียนด้าน${joinTh(x.differs)}` : ""}
@@ -613,14 +613,14 @@ export default function ResultPage() {
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {topDims.map((c) => (
-            <span key={c} className="inline-flex items-center gap-1.5 bg-white/80 rounded-full px-3.5 py-1.5 text-[14px] font-medium shadow-sm">
+            <span key={c} className="inline-flex items-center gap-1.5 bg-white/80 rounded-full px-3.5 py-1.5 text-[13.5px] font-medium shadow-sm">
               <span>{EMOJI[c]}</span>
               {dims[c].nameTh}
             </span>
           ))}
         </div>
 
-        <p className="text-[15.5px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
+        <p className="text-[16px] mt-5 pt-4 border-t border-gray-200/70 text-gray-700 leading-7">“{summary}”</p>
         <p className="mt-1.5 text-[13px] text-gray-400">ผลนี้บอก “ความสนใจ” ไม่ได้วัดความสามารถ และไม่ได้ตัดสินว่าคุณเหมาะกับสาขาหรืออาชีพใด</p>
 
         {location.state?.saveFailed && (
@@ -704,7 +704,7 @@ export default function ResultPage() {
                   <span className="text-[22px]">{["🥇", "🥈", "🥉"][r - 1] || "🏅"}</span>
                   <span className="text-[13px] text-gray-600">{rankText(c)}</span>
                 </div>
-                <div className="text-[15px] font-semibold mt-1">
+                <div className="text-[15.5px] font-semibold mt-1">
                   {EMOJI[c]} {c} – {dims[c].nameEn} ({dims[c].nameTh})
                 </div>
                 <div className="text-[13.5px] text-gray-700 mt-1 leading-6">
@@ -751,17 +751,17 @@ export default function ResultPage() {
                           <Icon code={DIM_ICON[x.dim]} className="h-6 w-6" />
                         </span>
                         <div className="min-w-0">
-                          <div className={`text-[14px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</div>
-                          <p className="mt-0.5 text-[15px] font-semibold text-gray-900 leading-6">{g.act}</p>
+                          <div className={`text-[13.5px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</div>
+                          <p className="mt-0.5 text-[16px] font-semibold text-gray-900 leading-6">{g.act}</p>
                           {!x.text && <p className="mt-1 text-[12px] text-gray-400 leading-5">คำแนะนำเบื้องต้นจากระบบ ยังไม่ได้ผ่านการตรวจสอบจากครูแนะแนว</p>}
                         </div>
                       </div>
                       <div className="min-w-0">
-                        <div className={`text-[14px] font-semibold ${t.text}`}>ลองทำกิจกรรมนี้</div>
+                        <div className={`text-[13.5px] font-semibold ${t.text}`}>ลองทำกิจกรรมนี้</div>
                         <p className="mt-0.5 text-[15px] text-gray-700 leading-6">{x.text || g.how}</p>
                       </div>
                       <div className="min-w-0">
-                        <div className={`text-[14px] font-semibold ${t.text}`}>ลองสังเกตตัวเอง</div>
+                        <div className={`text-[13.5px] font-semibold ${t.text}`}>ลองสังเกตตัวเอง</div>
                         <p className="mt-0.5 text-[15px] text-gray-700 leading-6">{g.question}</p>
                       </div>
                     </div>
@@ -786,7 +786,7 @@ export default function ResultPage() {
                     return (
                       <div key={row.name} className="flex flex-col rounded-xl bg-white border border-gray-100 px-3.5 py-3 min-w-0 leading-7 text-[15px]">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 text-[16px] font-semibold text-gray-900">
+                          <div className="flex items-center gap-2 text-[16.5px] font-semibold text-gray-900">
                             <span className="h-7 w-7 shrink-0 rounded-full bg-pink-100 text-pink-600 text-[13.5px] font-bold grid place-items-center">{i + 1}</span>
                             {row.name}
                           </div>
@@ -796,7 +796,7 @@ export default function ResultPage() {
                           เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
                         </p>
                         <div className="mt-2 flex-1 rounded-lg bg-gray-50 px-3 py-2">
-                          <div className="text-[14px] font-semibold text-gray-800">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
+                          <div className="text-[13.5px] font-semibold text-gray-600">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
                           <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
                         </div>
                         <div className="mt-2">
@@ -936,17 +936,17 @@ export default function ResultPage() {
       <GroupLabel>แนวทางดำเนินการต่อ</GroupLabel>
       <div className={CARD}>
         <SectionHeader emoji="👣" title="ขั้นตอนถัดไปที่แนะนำ" subtitle="เลือกทำตามที่เหมาะกับคุณ — ระบบไม่ได้ตัดสินใจแทน" />
-        <ol className="space-y-2 text-[15.5px] text-gray-700 list-decimal pl-5">
+        <ol className="space-y-2 text-[15px] text-gray-700 list-decimal pl-5 marker:font-semibold marker:text-pink-500">
           {nextSteps.map((t) => (
             <li key={t}>{t}</li>
           ))}
         </ol>
         <details className="mt-4">
-          <summary className="cursor-pointer select-none text-[15px] font-medium text-gray-700">🗺️ แนวทางทั่วไป ม.4–ม.6 (ปรับตามเป้าหมายและจังหวะของแต่ละคน)</summary>
+          <summary className="cursor-pointer select-none text-[14.5px] font-medium text-gray-600">🗺️ แนวทางทั่วไป ม.4–ม.6 (ปรับตามเป้าหมายและจังหวะของแต่ละคน)</summary>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
             {roadmapFor(advice?.usesGoal ? advice.focus[0]?.name : null).map((step) => (
               <div key={step.grade} className="bg-white/70 rounded-xl p-4">
-                <div className="text-[15.5px] font-semibold text-pink-600">{step.grade}</div>
+                <div className="text-[16px] font-semibold text-pink-600">{step.grade}</div>
                 <ul className="mt-2 space-y-1.5 text-[14.5px] text-gray-700">
                   {step.items.map((it, i) => (
                     <li key={i} className="flex items-start gap-2">
