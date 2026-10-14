@@ -17,7 +17,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import Avatar from "../components/Avatar.jsx";
 import useStudentAvatars from "../hooks/useStudentAvatars.js";
 import {
-  getStudent, getEnrollments, getClasses, getTypeResults, getTypes, getFaculties,
+  getStudent, getEnrollments, getClasses, getTypeResults,
   getGoals, getPortfolioWorks, getPortfolioWorkFiles, getConsultationRequests,
   getAssessmentsList, getAssessmentAdvice, addAssessmentAdvice, deleteAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
@@ -29,6 +29,15 @@ import { API_BASE } from "../utils/feedShared.js";
 import { resolveFileUrl } from "../utils/media.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import { primaryGoalOf } from "../utils/goals.js";
+import { latestCurrentResults, legacyOnlyUserIds, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
+import { RIASEC_ORDER, MAX_SCORE, denseRank, facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
+
+const LEVEL_META = {
+  high: { label: "สอดคล้องสูง", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  medium: { label: "สอดคล้องปานกลาง", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  low: { label: "สอดคล้องต่ำ", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+};
+const BAR = { R: "bg-red-400", I: "bg-blue-400", A: "bg-yellow-400", S: "bg-green-400", E: "bg-purple-400", C: "bg-gray-400" };
 
 // แปลงแถวดิบจาก GET /assessment-advice (advice_id, advice_text, created_at, ...) ให้เป็น shape เดิม {id, text, createdAt}
 const normalizeAdvice = (raw) => ({ id: raw.advice_id, text: raw.advice_text, createdAt: raw.created_at });
@@ -54,8 +63,7 @@ export default function AssessmentResultsPage() {
   const [enrollments, setEnrollments] = useState([]);
   const [classesList, setClassesList] = useState([]);
   const [typeResults, setTypeResults] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [faculties, setFaculties] = useState([]);
+  const [riasecData, setRiasecData] = useState(null);
   const [goals, setGoals] = useState([]);
   const [portfolioWorks, setPortfolioWorks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +78,7 @@ export default function AssessmentResultsPage() {
     getAssessmentsList().then((data) => setCustomAssessments(data || [])).catch(() => setCustomAssessments([]));
   }, []);
   const assessmentOptions = useMemo(
-    () => [{ id: "holland", title: "Holland Code (RIASEC)" }, ...customAssessments.map((a) => ({ id: a.assessment_id, title: a.title }))],
+    () => [{ id: "holland", title: RIASEC_TEST_TITLE }, ...customAssessments.map((a) => ({ id: a.assessment_id, title: a.title }))],
     [customAssessments]
   );
   const assessmentSelectOptions = useMemo(() => assessmentOptions.map((a) => ({ value: a.id, label: a.title })), [assessmentOptions]);
@@ -89,13 +97,12 @@ export default function AssessmentResultsPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [studentData, enrollData, gradeData, typeResultData, typeData, facultyData, goalData, workData] = await Promise.all([
+        const [studentData, enrollData, gradeData, typeResultData, data, goalData, workData] = await Promise.all([
           getStudent().catch(() => []),
           getEnrollments().catch(() => []),
           getClasses().catch(() => []),
           getTypeResults().catch(() => []),
-          getTypes().catch(() => []),
-          getFaculties().catch(() => []),
+          import("../data/riasec.json").then((m) => m.default).catch(() => null),
           getGoals().catch(() => []),
           getPortfolioWorks().catch(() => []),
         ]);
@@ -103,8 +110,7 @@ export default function AssessmentResultsPage() {
         setEnrollments(enrollData || []);
         setClassesList((gradeData || []).map((c) => ({ ...c, id: c.id ?? c.grade_id ?? c.idgrade })));
         setTypeResults(typeResultData || []);
-        setTypes(typeData || []);
-        setFaculties(facultyData || []);
+        setRiasecData(data);
         setGoals(goalData || []);
         setPortfolioWorks(workData || []);
       } finally {
@@ -122,14 +128,9 @@ export default function AssessmentResultsPage() {
     return map;
   }, [enrollments]);
 
-  const latestResultByUserId = useMemo(() => {
-    const map = new Map();
-    typeResults.forEach((r) => {
-      const existing = map.get(String(r.user_user_id));
-      if (!existing || new Date(r.test_date) > new Date(existing.test_date)) map.set(String(r.user_user_id), r);
-    });
-    return map;
-  }, [typeResults]);
+  // ผลล่าสุดของแบบทดสอบปัจจุบัน (มีคะแนน 6 ด้าน) — ผลระบบเดิมไม่นับเป็น "เสร็จสิ้น"
+  const latestResultByUserId = useMemo(() => latestCurrentResults(typeResults), [typeResults]);
+  const legacyOnly = useMemo(() => legacyOnlyUserIds(typeResults, latestResultByUserId), [typeResults, latestResultByUserId]);
 
   const isHolland = assessmentFilter === "holland";
 
@@ -186,20 +187,24 @@ export default function AssessmentResultsPage() {
   useEffect(() => {
     if (!loading && !selectedId && paged.length > 0) setSelectedId(paged[0].student.user_id);
   }, [loading, selectedId, paged]);
-  const selectedType = selected?.result ? types.find((t) => String(t.type_id) === String(selected.result.type_type_id)) : null;
-  const selectedFaculty = selected?.result ? faculties.find((f) => String(f.faculty_id) === String(selected.result.recommended_faculty_id)) : null;
   const selectedGrade = selected?.gradeId ? classesList.find((c) => String(c.id) === String(selected.gradeId)) : null;
 
-  // คณะอื่นในแค็ตตาล็อกที่ตรงกับกลุ่มบุคลิกภาพเดียวกัน (จริงจาก faculty.Type_type_id) ไม่ใช่ "Top 3" ตายตัว เพราะข้อมูลจริงมีเท่าที่มี
-  const matchingFaculties = useMemo(() => {
-    if (!selectedType) return [];
-    return faculties.filter((f) => String(f.Type_type_id) === String(selectedType.type_id));
-  }, [faculties, selectedType]);
+  // สาขาที่ข้อมูลแนะแนวแนะนำสำหรับรหัสของนักเรียน (เกณฑ์เดียวกับหน้าผลของนักเรียน)
+  const codeFaculties = (res) =>
+    riasecData && res ? [...new Set(facultiesForCode(riasecData, res.riasec.code).flatMap((x) => x.rows.map((r) => r.name)))] : [];
+  const selectedFaculties = codeFaculties(selected?.result);
 
   const selectedGoal = useMemo(() => {
     if (!selected) return null;
     return primaryGoalOf(goals, selected.student.user_id);
   }, [goals, selected]);
+
+  // ความสอดคล้องของเป้าหมายหลักกับผลล่าสุด — analyzeTarget เดียวกับหน้าผลของนักเรียน
+  const selectedAlignment = useMemo(() => {
+    if (!riasecData || !selected?.result || !selectedGoal) return null;
+    const target = goalTargets(riasecData, { faculty_name: selectedGoal.faculty_name, goal_text: selectedGoal.goal_text })[0];
+    return target ? analyzeTarget(riasecData, selected.result.riasec, target) : null;
+  }, [riasecData, selected, selectedGoal]);
 
   const selectedLatestWork = useMemo(() => {
     if (!selected) return null;
@@ -258,8 +263,6 @@ export default function AssessmentResultsPage() {
     const room = roomFilter ? classesList.find((c) => String(c.id) === String(roomFilter)) : null;
     const list = exportTargets.map((r, i) => {
       const c = classesList.find((cc) => String(cc.id) === String(r.gradeId));
-      const t = r.result ? types.find((tt) => String(tt.type_id) === String(r.result.type_type_id)) : null;
-      const f = r.result ? faculties.find((ff) => String(ff.faculty_id) === String(r.result.recommended_faculty_id)) : null;
       return {
         no: i + 1,
         code: r.student.student_code,
@@ -268,8 +271,8 @@ export default function AssessmentResultsPage() {
         seat: r.seatNo,
         date: r.result ? formatDateTime(r.result.test_date) : null,
         status: STATUS_META[r.status].label,
-        type: t?.type_name,
-        faculty: f ? `${f.faculty_name} (${f.university_name})` : null,
+        type: r.result?.riasec.code || null,
+        faculty: codeFaculties(r.result).slice(0, 3).join(", ") || null,
       };
     });
     const done = exportTargets.filter((r) => r.status === "completed").length;
@@ -282,8 +285,8 @@ export default function AssessmentResultsPage() {
       { label: "เลขที่", key: "seat", width: "5%", align: "center" },
       { label: "สถานะ", key: "status", width: "9%", align: "center" },
       { label: "วันที่ทำ", key: "date", width: "13%" },
-      { label: "กลุ่มบุคลิกภาพ", key: "type", width: "12%" },
-      { label: "คณะที่แนะนำ", key: "faculty", width: "18%" },
+      { label: "รหัส RIASEC", key: "type", width: "10%", align: "center" },
+      { label: "สาขาที่แนะนำสำหรับรหัส", key: "faculty", width: "20%" },
     ];
     return {
       title: `รายงานผล ${assessmentTitle}`,
@@ -477,35 +480,63 @@ export default function AssessmentResultsPage() {
                 </div>
 
                 {!selected.result ? (
-                  <div className="rounded-xl bg-gray-50 text-gray-400 text-[14.5px] px-4 py-6 text-center">นักเรียนคนนี้ยังไม่ได้ทำแบบประเมินนี้</div>
+                  <div className="rounded-xl bg-gray-50 text-gray-400 text-[14.5px] px-4 py-6 text-center">
+                    นักเรียนคนนี้ยังไม่ได้ทำแบบประเมินนี้
+                    {legacyOnly.has(String(selected.student.user_id)) && (
+                      <div className="mt-1 text-[13px]">มีผลจากระบบเดิมที่ไม่มีคะแนนราย 6 ด้าน — ให้นักเรียนทำแบบทดสอบใหม่</div>
+                    )}
+                  </div>
                 ) : (
                   <>
                     {/* กล่องไฮไลต์เดียวที่ยังใช้กรอบ — ที่เหลือคั่นด้วยเส้นแบ่งแทน กันดูรก */}
-                    <div className="rounded-2xl border border-pink-100 bg-pink-50/50 p-5 mb-4">
-                      <div className="text-[14.5px] text-pink-700/70 mb-1">กลุ่มบุคลิกภาพที่โดดเด่น</div>
-                      <div className="text-[21px] font-bold text-pink-800">{selectedType?.type_name || "-"}</div>
-                      {selectedType?.description && <p className="text-[14px] text-gray-600 mt-2">{selectedType.description}</p>}
-                      <div className="text-[12.5px] text-gray-400 mt-3">
-                        ระบบยังไม่ได้เก็บคะแนนแยกราย 6 มิติ (RIASEC) ต่อคำถาม จึงยังแสดงกราฟเรดาร์แบบละเอียดไม่ได้ — แสดงเฉพาะกลุ่มบุคลิกภาพหลักที่สรุปผลได้จริงเท่านั้น
-                      </div>
-                    </div>
+                    {(() => {
+                      const res = selected.result.riasec;
+                      const sc = selected.result.scores;
+                      const dims = riasecData?.dimensions || {};
+                      const top = res.ranked.filter((c) => denseRank(sc, c) <= 3);
+                      return (
+                        <div className="rounded-2xl border border-pink-100 bg-pink-50/50 p-5 mb-4">
+                          <div className="text-[14px] text-pink-700/70">รหัสความสนใจ (ผลครั้งล่าสุด)</div>
+                          <div className="flex flex-wrap items-end gap-x-2.5">
+                            <span className="text-[28px] font-bold tracking-wider text-pink-800">{res.code}</span>
+                            {res.alternativeCodes.length > 0 && res.alternativeCodes.length <= 2 && (
+                              <span className="pb-1.5 text-[13.5px] text-gray-400">หรือ {res.alternativeCodes.join(", ")}</span>
+                            )}
+                          </div>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {top.map((c) => (
+                              <span key={c} className="rounded-full bg-white px-2.5 py-0.5 text-[13px] font-medium text-gray-700 shadow-sm">
+                                {dims[c]?.nameTh || c}
+                              </span>
+                            ))}
+                          </div>
+                          <div className="mt-3 space-y-1.5">
+                            {RIASEC_ORDER.map((c) => (
+                              <div key={c} className="flex items-center gap-2 text-[13px]">
+                                <span className="w-28 shrink-0 truncate text-gray-600">
+                                  {c} · {dims[c]?.nameTh || ""}
+                                </span>
+                                <span className="h-2 flex-1 rounded-full bg-white">
+                                  <span className={`block h-2 rounded-full ${BAR[c]}`} style={{ width: `${(sc[c] / MAX_SCORE) * 100}%` }} />
+                                </span>
+                                <span className="w-12 shrink-0 text-right font-medium text-gray-700">{sc[c]}/{MAX_SCORE}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {res.lowDifferentiation && <div className="mt-2 text-[12.5px] text-sky-700">คะแนนทุกด้านใกล้เคียงกัน</div>}
+                        </div>
+                      );
+                    })()}
 
                     <div className="divide-y divide-gray-100 border-t border-gray-100 mb-4">
-                      {(selectedFaculty || matchingFaculties.length > 0) && (
+                      {selectedFaculties.length > 0 && (
                         <div className="py-4">
-                          <div className="text-[14px] text-gray-500 mb-2">คณะที่แนะนำตามกลุ่มบุคลิกภาพ</div>
-                          <div className="flex flex-col gap-2">
-                            {selectedFaculty && (
-                              <div>
-                                <div className="text-[15.5px] font-semibold text-gray-900">{selectedFaculty.faculty_name}</div>
-                                <div className="text-[13.5px] text-gray-500">{selectedFaculty.university_name}</div>
-                              </div>
-                            )}
-                            {matchingFaculties.filter((f) => f.faculty_id !== selectedFaculty?.faculty_id).map((f) => (
-                              <div key={f.faculty_id} className="pt-2 border-t border-gray-50">
-                                <div className="text-[14.5px] font-medium text-gray-800">{f.faculty_name}</div>
-                                <div className="text-[13px] text-gray-500">{f.university_name}</div>
-                              </div>
+                          <div className="text-[14px] text-gray-500 mb-2">สาขาที่แนะนำสำหรับรหัส {selected.result.riasec.code}</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedFaculties.map((name) => (
+                              <span key={name} className="rounded-lg bg-gray-50 border border-gray-100 px-2.5 py-1 text-[14px] text-gray-800">
+                                {name}
+                              </span>
                             ))}
                           </div>
                         </div>
@@ -513,7 +544,14 @@ export default function AssessmentResultsPage() {
 
                       {selectedGoal && (
                         <div className="py-4">
-                          <div className="text-[14px] text-gray-500 mb-1.5 flex items-center gap-1.5">🚩 เป้าหมายของนักเรียน</div>
+                          <div className="text-[14px] text-gray-500 mb-1.5 flex items-center gap-1.5">
+                            🚩 เป้าหมายหลักของนักเรียน
+                            {selectedAlignment && (
+                              <span className={`ml-auto rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${LEVEL_META[selectedAlignment.displayLevel].cls}`}>
+                                {LEVEL_META[selectedAlignment.displayLevel].label}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[15px] text-gray-900"><span className="text-gray-500">อยากเรียน:</span> <span className="font-medium">{selectedGoal.faculty_name}{selectedGoal.university_name ? ` • ${selectedGoal.university_name}` : ""}</span></div>
                           {selectedGoal.career_field && <div className="text-[14.5px] text-gray-700 mt-0.5"><span className="text-gray-500">อาชีพที่สนใจ:</span> {selectedGoal.career_field}</div>}
                           {selectedGoal.goal_text && <div className="text-[14px] text-gray-600 mt-1.5">{selectedGoal.goal_text}</div>}

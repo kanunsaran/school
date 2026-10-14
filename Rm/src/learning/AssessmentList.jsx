@@ -18,6 +18,7 @@ import { gradeLabel } from "../utils/gradeLabel.js";
 import { notAvailableYet } from "../utils/feedShared.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import PageLoading from "../components/PageLoading.jsx";
+import { latestCurrentResults, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
 import { getActivityLog, logActivity } from "../utils/assessmentStore.js";
 
 // แปลงแถวดิบจาก GET /assessments (assessment_id, open_date, target_grade_ids, question_count, response_count, ...)
@@ -115,8 +116,9 @@ export default function AssessmentListPage() {
         setStudentCount((students || []).length);
         // กรองเฉพาะผลของนักเรียนจริง (พบข้อมูลทดสอบของบัญชีครูปนอยู่ในตาราง user_type_result)
         const studentIds = new Set((students || []).map((s) => String(s.user_id)));
-        const uniqueRespondents = new Set((typeResults || []).filter((r) => studentIds.has(String(r.user_user_id))).map((r) => String(r.user_user_id)));
-        setHollandRespondedCount(uniqueRespondents.size);
+        // นับเฉพาะผู้ที่ทำแบบทดสอบปัจจุบัน (มีคะแนน 6 ด้าน) — ผลจากระบบเดิมไม่นับ
+        const current = latestCurrentResults((typeResults || []).filter((r) => studentIds.has(String(r.user_user_id))));
+        setHollandRespondedCount(current.size);
       } finally {
         setLoading(false);
       }
@@ -129,8 +131,8 @@ export default function AssessmentListPage() {
   const hollandAssessment = useMemo(
     () => ({
       id: HOLLAND_ID,
-      title: "Holland Code (RIASEC)",
-      description: "แบบประเมินความสนใจและอาชีพตามทฤษฎี RIASEC",
+      title: RIASEC_TEST_TITLE,
+      description: "60 ข้อ ด้านละ 10 ข้อ ตอบ 1–5 — ได้คะแนน 6 ด้านและรหัสความสนใจ 3 ตัว (นับเฉพาะผลจากแบบทดสอบปัจจุบัน)",
       type: "ความสนใจ",
       isSystem: true,
       status: "published",

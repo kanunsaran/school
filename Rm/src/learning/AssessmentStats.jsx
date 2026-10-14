@@ -12,7 +12,8 @@ import { getActivityLog } from "../utils/assessmentStore.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import PageLoading from "../components/PageLoading.jsx";
 import { primaryGoalOf } from "../utils/goals.js";
-import { resultFromScores, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
+import { goalTargets, analyzeTarget, RIASEC_ORDER } from "../utils/riasecScoring.js";
+import { latestCurrentResults, legacyOnlyUserIds, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
 
 const DONUT_COLORS = ["#ec4899", "#2563eb", "#10b981", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444"];
 
@@ -93,7 +94,9 @@ export default function AssessmentStatsPage() {
   const typeResults = useMemo(() => allTypeResults.filter((r) => scopedUserIds.has(String(r.user_user_id))), [allTypeResults, scopedUserIds]);
   const goals = useMemo(() => allGoals.filter((g) => scopedUserIds.has(String(g.user_user_id))), [allGoals, scopedUserIds]);
 
-  const completedUserIds = useMemo(() => new Set(typeResults.map((r) => String(r.user_user_id))), [typeResults]);
+  // ผลล่าสุดของแบบทดสอบปัจจุบัน (มีคะแนน 6 ด้าน) คนละ 1 ผล — ผลจากระบบเดิมไม่นับว่าทำแล้ว
+  const latestResults = useMemo(() => latestCurrentResults(typeResults), [typeResults]);
+  const completedUserIds = useMemo(() => new Set(latestResults.keys()), [latestResults]);
   const goalUserIds = useMemo(() => new Set(goals.map((g) => String(g.user_user_id))), [goals]);
 
   const totalStudents = students.length;
@@ -113,22 +116,21 @@ export default function AssessmentStatsPage() {
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "th"));
   }, [students, gradeByUserId, classesList]);
 
-  // สัดส่วนกลุ่มบุคลิกภาพ (dynamic ตาม type จริงที่มีอยู่ ไม่ใช่ RIASEC ตายตัว เพราะระบบยังมีแค่ type ไม่ครบ 6 มิติ)
+  // สัดส่วนความสนใจอันดับ 1 (ตัวอักษรแรกของรหัส) จากผลล่าสุดของนักเรียนแต่ละคน
   const typeBreakdown = useMemo(() => {
-    const map = new Map();
-    typeResults.forEach((r) => {
-      const t = types.find((tt) => String(tt.type_id) === String(r.type_type_id));
-      const label = t?.type_name || "ไม่ระบุ";
-      map.set(label, (map.get(label) || 0) + 1);
+    const counts = Object.fromEntries(RIASEC_ORDER.map((c) => [c, 0]));
+    latestResults.forEach((r) => (counts[r.riasec.code[0]] += 1));
+    const total = latestResults.size || 1;
+    return RIASEC_ORDER.filter((c) => counts[c] > 0).map((c) => {
+      const t = types.find((tt) => tt.type_code === c);
+      return {
+        label: t?.type_name || c,
+        count: counts[c],
+        pct: Math.round((counts[c] / total) * 100),
+        color: DONUT_COLORS[RIASEC_ORDER.indexOf(c) % DONUT_COLORS.length],
+      };
     });
-    const total = typeResults.length || 1;
-    return Array.from(map.entries()).map(([label, count], i) => ({
-      label,
-      count,
-      pct: Math.round((count / total) * 100),
-      color: DONUT_COLORS[i % DONUT_COLORS.length],
-    }));
-  }, [typeResults, types]);
+  }, [latestResults, types]);
 
   // คณะที่นักเรียนสนใจมากที่สุด (จาก goal.faculty_name จริง)
   const facultyInterest = useMemo(() => {
@@ -154,30 +156,18 @@ export default function AssessmentStatsPage() {
   const alignment = useMemo(() => {
     const out = { high: 0, medium: 0, low: 0, unmatched: 0, noScores: 0, total: 0 };
     if (!riasecData) return out;
-    const parse = (v) => {
-      if (!v) return null;
-      if (typeof v === "object") return v;
-      try {
-        return JSON.parse(v);
-      } catch {
-        return null;
-      }
-    };
+    const legacy = legacyOnlyUserIds(typeResults, latestResults);
     const primaryGoals = [...new Set(goals.map((g) => String(g.user_user_id)))].map((id) => primaryGoalOf(goals, id));
     primaryGoals.forEach((g) => {
-      const rows = typeResults
-        .filter((r) => String(r.user_user_id) === String(g.user_user_id))
-        .sort((x, y) => new Date(y.test_date) - new Date(x.test_date) || y.result_id - x.result_id);
-      if (!rows.length) return; // ยังไม่ได้ทำแบบประเมิน ไม่นับ
-      const scores = parse(rows[0].scores_json);
-      if (!scores) return void (out.noScores += 1); // ผลเก่าที่ไม่มีคะแนนรายด้าน
+      const latest = latestResults.get(String(g.user_user_id));
+      if (!latest) return void (legacy.has(String(g.user_user_id)) && (out.noScores += 1)); // ยังไม่ได้ทำ / มีแต่ผลระบบเดิม
       const target = goalTargets(riasecData, { faculty_name: g.faculty_name, goal_text: g.goal_text })[0];
       if (!target) return void (out.unmatched += 1);
-      out[analyzeTarget(riasecData, resultFromScores(scores), target).displayLevel] += 1;
+      out[analyzeTarget(riasecData, latest.riasec, target).displayLevel] += 1;
     });
     out.total = out.high + out.medium + out.low;
     return out;
-  }, [goals, typeResults, riasecData]);
+  }, [goals, typeResults, latestResults, riasecData]);
 
   const notDoneList = useMemo(
     () => students.filter((s) => !completedUserIds.has(String(s.user_id))).slice(0, 5),
@@ -252,15 +242,15 @@ export default function AssessmentStatsPage() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
               {/* โดนัท กลุ่มบุคลิกภาพ */}
               <div className="rounded-2xl border border-gray-200 p-5">
-                <div className="text-[15.5px] font-semibold text-gray-900 mb-1">สัดส่วนกลุ่มบุคลิกภาพของนักเรียนที่ทำแบบประเมินแล้ว</div>
-                <div className="text-[13.5px] text-gray-400 mb-5">จากผลแบบประเมิน Holland Code จริง {typeResults.length} คน</div>
+                <div className="text-[15.5px] font-semibold text-gray-900 mb-1">สัดส่วนความสนใจอันดับ 1 ของนักเรียนที่ทำแบบประเมินแล้ว</div>
+                <div className="text-[13.5px] text-gray-400 mb-5">จากผลล่าสุดของ{RIASEC_TEST_TITLE} {latestResults.size} คน (ตัวอักษรแรกของรหัส)</div>
                 {typeBreakdown.length === 0 ? (
                   <div className="text-center text-gray-400 py-10 text-[14.5px]">ยังไม่มีนักเรียนทำแบบประเมิน</div>
                 ) : (
                   <div className="flex items-center gap-8 flex-wrap">
                     <div className="w-40 h-40 rounded-full shrink-0 ring-4 ring-white shadow-sm relative flex items-center justify-center" style={{ background: `conic-gradient(${donutStops})` }}>
                       <div className="w-24 h-24 rounded-full bg-white flex flex-col items-center justify-center">
-                        <div className="text-[19.5px] font-bold text-gray-900">{typeResults.length}</div>
+                        <div className="text-[19.5px] font-bold text-gray-900">{latestResults.size}</div>
                         <div className="text-[12px] text-gray-400">คน</div>
                       </div>
                     </div>
