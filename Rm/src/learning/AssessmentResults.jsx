@@ -4,12 +4,10 @@ import { exportReportPdf, safeFileName, todayStamp } from "../utils/reportPdf.js
 import { exportReportExcel } from "../utils/reportExcel.js";
 import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
 import { isBelowXl } from "../utils/breakpoints.js";
-import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import {
-  FaSearch, FaTimes, FaUser, FaFolderOpen, FaCommentDots, FaCheck,
-  FaFileAlt, FaFilePdf, FaLink, FaVideo, FaPaperPlane, FaTrash,
+  FaSearch, FaTimes, FaUser, FaCommentDots, FaCheck, FaPaperPlane, FaTrash,
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
@@ -18,17 +16,14 @@ import Avatar from "../components/Avatar.jsx";
 import useStudentAvatars from "../hooks/useStudentAvatars.js";
 import {
   getStudent, getEnrollments, getClasses, getTypeResults,
-  getGoals, getPortfolioWorks, getPortfolioWorkFiles, getConsultationRequests,
+  getGoals,
   getAssessmentsList, getAssessmentAdvice, addAssessmentAdvice, deleteAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import PageLoading from "../components/PageLoading.jsx";
 import { getCurrentUser } from "../utils/auth.js";
-import { CONSULTATION_CATEGORIES, normalizeConsultation } from "../utils/consultationStore.js";
-import { API_BASE } from "../utils/feedShared.js";
-import { resolveFileUrl } from "../utils/media.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
-import { primaryGoalOf } from "../utils/goals.js";
+import { goalsOf, GOAL_RANK_LABEL } from "../utils/goals.js";
 import { latestCurrentResults, legacyOnlyUserIds, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
 import { RIASEC_ORDER, MAX_SCORE, denseRank, facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
 
@@ -54,21 +49,16 @@ const STATUS_META = {
 };
 
 const formatDateTime = (d) => (d ? new Date(d).toLocaleString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-");
-const formatDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-");
 
 export default function AssessmentResultsPage() {
-  const navigate = useNavigate();
-
   const [students, setStudents] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [classesList, setClassesList] = useState([]);
   const [typeResults, setTypeResults] = useState([]);
   const [riasecData, setRiasecData] = useState(null);
   const [goals, setGoals] = useState([]);
-  const [portfolioWorks, setPortfolioWorks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [selectedWorkFiles, setSelectedWorkFiles] = useState([]);
   const [adviceTick, setAdviceTick] = useState(0);
   const [adviceDialogOpen, setAdviceDialogOpen] = useState(false);
   const currentUser = getCurrentUser();
@@ -97,14 +87,13 @@ export default function AssessmentResultsPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [studentData, enrollData, gradeData, typeResultData, data, goalData, workData] = await Promise.all([
+        const [studentData, enrollData, gradeData, typeResultData, data, goalData] = await Promise.all([
           getStudent().catch(() => []),
           getEnrollments().catch(() => []),
           getClasses().catch(() => []),
           getTypeResults().catch(() => []),
           import("../data/riasec.json").then((m) => m.default).catch(() => null),
           getGoals().catch(() => []),
-          getPortfolioWorks().catch(() => []),
         ]);
         setStudents(studentData || []);
         setEnrollments(enrollData || []);
@@ -112,7 +101,6 @@ export default function AssessmentResultsPage() {
         setTypeResults(typeResultData || []);
         setRiasecData(data);
         setGoals(goalData || []);
-        setPortfolioWorks(workData || []);
       } finally {
         setLoading(false);
       }
@@ -194,39 +182,15 @@ export default function AssessmentResultsPage() {
     riasecData && res ? [...new Set(facultiesForCode(riasecData, res.riasec.code).flatMap((x) => x.rows.map((r) => r.name)))] : [];
   const selectedFaculties = codeFaculties(selected?.result);
 
-  const selectedGoal = useMemo(() => {
-    if (!selected) return null;
-    return primaryGoalOf(goals, selected.student.user_id);
-  }, [goals, selected]);
-
-  // ความสอดคล้องของเป้าหมายหลักกับผลล่าสุด — analyzeTarget เดียวกับหน้าผลของนักเรียน
-  const selectedAlignment = useMemo(() => {
-    if (!riasecData || !selected?.result || !selectedGoal) return null;
-    const target = goalTargets(riasecData, { faculty_name: selectedGoal.faculty_name, goal_text: selectedGoal.goal_text })[0];
-    return target ? analyzeTarget(riasecData, selected.result.riasec, target) : null;
-  }, [riasecData, selected, selectedGoal]);
-
-  const selectedLatestWork = useMemo(() => {
-    if (!selected) return null;
-    return portfolioWorks
-      .filter((w) => String(w.student_user_id) === String(selected.student.user_id))
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0] || null;
-  }, [portfolioWorks, selected]);
-
-  useEffect(() => {
-    setSelectedWorkFiles([]);
-    if (selectedLatestWork?.work_id) {
-      getPortfolioWorkFiles(selectedLatestWork.work_id).then(setSelectedWorkFiles).catch(() => setSelectedWorkFiles([]));
-    }
-  }, [selectedLatestWork?.work_id]);
-
-  const [selectedConsultations, setSelectedConsultations] = useState([]);
-  useEffect(() => {
-    if (!selected) { setSelectedConsultations([]); return; }
-    getConsultationRequests({ student_user_id: selected.student.user_id })
-      .then((data) => setSelectedConsultations((data || []).map(normalizeConsultation).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
-      .catch(() => setSelectedConsultations([]));
-  }, [selected]);
+  // เป้าหมายทั้งหมดของนักเรียน (เรียงเป้าหมายหลักก่อน) + ระดับความสอดคล้องกับผลล่าสุด — analyzeTarget เดียวกับหน้าผลของนักเรียน
+  const selectedGoals = useMemo(() => {
+    if (!selected) return [];
+    return goalsOf(goals, selected.student.user_id).map((g) => {
+      const target = riasecData ? goalTargets(riasecData, { faculty_name: g.faculty_name, goal_text: g.goal_text })[0] : null;
+      const level = target && selected.result ? analyzeTarget(riasecData, selected.result.riasec, target).displayLevel : null;
+      return { goal: g, level, unknown: Boolean(riasecData && !target) };
+    });
+  }, [goals, selected, riasecData]);
 
   const [selectedAdvice, setSelectedAdvice] = useState([]);
   useEffect(() => {
@@ -473,12 +437,6 @@ export default function AssessmentResultsPage() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 mb-5">
-                  <button type="button" onClick={() => navigate("/portfolio")} className="h-10 px-3.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 text-[14px] font-medium flex items-center gap-1.5">
-                    <FaFolderOpen size={12} /> ดู Portfolio
-                  </button>
-                </div>
-
                 {!selected.result ? (
                   <div className="rounded-xl bg-gray-50 text-gray-400 text-[14.5px] px-4 py-6 text-center">
                     นักเรียนคนนี้ยังไม่ได้ทำแบบประเมินนี้
@@ -542,58 +500,40 @@ export default function AssessmentResultsPage() {
                         </div>
                       )}
 
-                      {selectedGoal && (
-                        <div className="py-4">
-                          <div className="text-[14px] text-gray-500 mb-1.5 flex items-center gap-1.5">
-                            🚩 เป้าหมายหลักของนักเรียน
-                            {selectedAlignment && (
-                              <span className={`ml-auto rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${LEVEL_META[selectedAlignment.displayLevel].cls}`}>
-                                {LEVEL_META[selectedAlignment.displayLevel].label}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[15px] text-gray-900"><span className="text-gray-500">อยากเรียน:</span> <span className="font-medium">{selectedGoal.faculty_name}{selectedGoal.university_name ? ` • ${selectedGoal.university_name}` : ""}</span></div>
-                          {selectedGoal.career_field && <div className="text-[14.5px] text-gray-700 mt-0.5"><span className="text-gray-500">อาชีพที่สนใจ:</span> {selectedGoal.career_field}</div>}
-                          {selectedGoal.goal_text && <div className="text-[14px] text-gray-600 mt-1.5">{selectedGoal.goal_text}</div>}
-                        </div>
-                      )}
-
-                      <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Portfolio ล่าสุด */}
-                        <div>
-                          <div className="text-[14px] text-gray-500 mb-2">Portfolio ล่าสุด</div>
-                          {!selectedLatestWork ? (
-                            <div className="text-[13.5px] text-gray-400 py-4 text-center">ยังไม่มีผลงาน</div>
-                          ) : (
-                            <button type="button" onClick={() => navigate("/portfolio")} className="w-full text-left bg-transparent">
-                              <WorkThumb work={selectedLatestWork} file={selectedWorkFiles[0]} />
-                              <div className="text-[14px] text-gray-800 font-medium truncate mt-2">{selectedLatestWork.title}</div>
-                              <div className="text-[12.5px] text-gray-400">อัปโหลดเมื่อ {formatDate(selectedLatestWork.created_at)}</div>
-                            </button>
-                          )}
-                        </div>
-
-                        {/* ประวัติการให้คำปรึกษา */}
-                        <div>
-                          <div className="text-[14px] text-gray-500 mb-2">ประวัติการให้คำปรึกษา</div>
-                          {selectedConsultations.length === 0 ? (
-                            <div className="text-[13.5px] text-gray-400 py-4 text-center">ยังไม่มีประวัติ</div>
-                          ) : (
-                            <div className="flex flex-col gap-2">
-                              {selectedConsultations.slice(0, 3).map((c) => (
-                                <div key={c.id} className="text-[13px]">
-                                  <div className="text-gray-400">{formatDate(c.createdAt)}</div>
-                                  <div className="text-gray-700 truncate">เรื่อง: {c.subject || CONSULTATION_CATEGORIES[0]}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <button type="button" onClick={() => navigate("/consultations")} className="mt-2 text-[13.5px] text-pink-600 hover:underline bg-transparent">ดูทั้งหมด →</button>
-                        </div>
-                      </div>
                     </div>
                   </>
                 )}
+
+                {/* เป้าหมายการศึกษาต่อ — แสดงแม้ยังไม่ได้ทำแบบประเมิน */}
+                <div className="border-t border-gray-100 py-4 mb-2">
+                  <div className="text-[14px] text-gray-500 mb-2">🚩 เป้าหมายการศึกษาต่อของนักเรียน</div>
+                  {selectedGoals.length === 0 ? (
+                    <div className="text-[13.5px] text-gray-400">ยังไม่ได้ตั้งเป้าหมาย</div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {selectedGoals.map(({ goal: g, level, unknown }, i) => (
+                        <div key={g.goal_id} className={`rounded-xl border px-3.5 py-2.5 ${i === 0 ? "border-pink-100 bg-pink-50/30" : "border-gray-100"}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="text-[12.5px] text-gray-400">{GOAL_RANK_LABEL[i] || `อันดับ ${i + 1}`}</div>
+                              <div className="text-[15px] font-medium text-gray-900">
+                                {g.faculty_name || g.career_field || "-"}
+                                {g.university_name ? <span className="font-normal text-gray-500"> • {g.university_name}</span> : null}
+                              </div>
+                            </div>
+                            {level ? (
+                              <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[12.5px] font-semibold ${LEVEL_META[level].cls}`}>{LEVEL_META[level].label}</span>
+                            ) : unknown ? (
+                              <span className="shrink-0 text-[12px] text-gray-400">ไม่พบสาขานี้ในข้อมูล</span>
+                            ) : null}
+                          </div>
+                          {g.career_field && g.faculty_name && <div className="text-[13.5px] text-gray-600 mt-0.5">อาชีพที่สนใจ: {g.career_field}</div>}
+                          {g.goal_text && <div className="text-[13.5px] text-gray-500 mt-0.5">“{g.goal_text}”</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 {/* คำแนะนำถึงนักเรียน — ตรงข้ามกับโน้ตลับ นักเรียนเห็นข้อความนี้ได้ */}
                 <div className="rounded-2xl border border-pink-100 bg-pink-50/40 p-4 mt-1">
@@ -642,16 +582,6 @@ export default function AssessmentResultsPage() {
           onClose={() => setAdviceDialogOpen(false)}
         />
       )}
-    </div>
-  );
-}
-
-function WorkThumb({ work, file }) {
-  const cover = file?.cover_url || (file?.file_url ? resolveFileUrl(API_BASE, file.file_url) : null);
-  const Icon = work.file_type === "link" ? FaLink : work.file_type === "video" ? FaVideo : file?.file_type === "application/pdf" ? FaFilePdf : FaFileAlt;
-  return (
-    <div className="w-full aspect-video rounded-xl bg-gray-50 overflow-hidden flex items-center justify-center border border-gray-100">
-      {cover ? <img src={cover} className="w-full h-full object-cover" /> : <Icon className="text-gray-300" size={22} />}
     </div>
   );
 }
