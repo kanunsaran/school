@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header";
-import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
+import { getGoals, getStudentGrades, getAssessmentAdvice } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
 import { careerEmoji, emojiSrc, DIM_ICON } from "../../utils/careerEmoji.js";
@@ -479,6 +479,16 @@ export default function ResultPage() {
     const studentId = getCurrentUser()?.user_id;
     if (!studentId) return setGrades(null);
     getStudentGrades(studentId).then(setGrades).catch(() => setGrades(null));
+  }, []);
+
+  // คำแนะนำที่ครูเขียนถึงนักเรียนจากหน้าผลการประเมินฝั่งครู (ตาราง assessment_advice)
+  const [teacherAdvice, setTeacherAdvice] = useState([]);
+  useEffect(() => {
+    const studentId = getCurrentUser()?.user_id;
+    if (!studentId) return;
+    getAssessmentAdvice(studentId)
+      .then((rows) => setTeacherAdvice(rows || []))
+      .catch(() => setTeacherAdvice([]));
   }, []);
 
   useEffect(() => {
@@ -991,6 +1001,23 @@ export default function ResultPage() {
 
       {/* ===== แนวทางดำเนินการต่อ — ปรับตามสถานะของนักเรียน ===== */}
       <GroupLabel>แนวทางดำเนินการต่อ</GroupLabel>
+      {teacherAdvice.length > 0 && (
+        <div className={CARD}>
+          <SectionHeader emoji="💬" title="คำแนะนำจากครูแนะแนว" subtitle="ครูเขียนถึงคุณจากผลแบบประเมินและเป้าหมายของคุณ" />
+          <div className="grid gap-2.5">
+            {teacherAdvice.map((a) => (
+              <div key={a.advice_id} className="rounded-xl bg-white/80 border border-pink-100 px-4 py-3">
+                <span className="rounded-full bg-pink-50 px-2.5 py-0.5 text-[13px] font-medium text-pink-700">{a.topic || "คำแนะนำ"}</span>
+                <p className="mt-2 text-[15px] text-gray-700 leading-7 whitespace-pre-line">{a.advice_text}</p>
+                <p className="mt-1 text-[12.5px] text-gray-400">
+                  {a.teacher_name ? `${a.teacher_name} · ` : ""}
+                  {thaiDate(a.updated_at || a.created_at)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className={CARD}>
         <SectionHeader emoji="👣" title="ขั้นตอนถัดไปที่แนะนำ" subtitle="เลือกทำตามที่เหมาะกับคุณ — ระบบไม่ได้ตัดสินใจแทน" />
         <ol className="space-y-2 text-[15px] text-gray-700 list-decimal pl-5 marker:font-semibold marker:text-pink-500">

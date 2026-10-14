@@ -11,19 +11,19 @@ import {
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
-import PromptModal from "../components/PromptModal.jsx";
 import Avatar from "../components/Avatar.jsx";
 import useStudentAvatars from "../hooks/useStudentAvatars.js";
 import {
   getStudent, getEnrollments, getClasses, getTypeResults,
   getGoals,
-  getAssessmentsList, getAssessmentAdvice, addAssessmentAdvice, deleteAssessmentAdvice,
+  getAssessmentsList, getAssessmentAdvice, addAssessmentAdvice, updateAssessmentAdvice, deleteAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import PageLoading from "../components/PageLoading.jsx";
 import { getCurrentUser } from "../utils/auth.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
-import { goalsOf, GOAL_RANK_LABEL } from "../utils/goals.js";
+import { goalsOf } from "../utils/goals.js";
+import { ADVICE_TOPICS, ADVICE_MAX } from "../utils/adviceTopics.js";
 import { latestCurrentResults, legacyOnlyUserIds, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
 import { RIASEC_ORDER, MAX_SCORE, denseRank, facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
 
@@ -34,8 +34,6 @@ const LEVEL_META = {
 };
 const BAR = { R: "bg-red-400", I: "bg-blue-400", A: "bg-yellow-400", S: "bg-green-400", E: "bg-purple-400", C: "bg-gray-400" };
 
-// แปลงแถวดิบจาก GET /assessment-advice (advice_id, advice_text, created_at, ...) ให้เป็น shape เดิม {id, text, createdAt}
-const normalizeAdvice = (raw) => ({ id: raw.advice_id, text: raw.advice_text, createdAt: raw.created_at });
 
 const STATUS_FILTER_OPTIONS = [
   { value: "", label: "สถานะ: ทั้งหมด" },
@@ -59,8 +57,6 @@ export default function AssessmentResultsPage() {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [adviceTick, setAdviceTick] = useState(0);
-  const [adviceDialogOpen, setAdviceDialogOpen] = useState(false);
   const currentUser = getCurrentUser();
 
   const [customAssessments, setCustomAssessments] = useState([]);
@@ -191,35 +187,6 @@ export default function AssessmentResultsPage() {
       return { goal: g, level, unknown: Boolean(riasecData && !target) };
     });
   }, [goals, selected, riasecData]);
-
-  const [selectedAdvice, setSelectedAdvice] = useState([]);
-  useEffect(() => {
-    if (!selected) { setSelectedAdvice([]); return; }
-    getAssessmentAdvice(selected.student.user_id)
-      .then((data) => setSelectedAdvice((data || []).map(normalizeAdvice)))
-      .catch(() => setSelectedAdvice([]));
-  }, [selected, adviceTick]);
-
-  const confirmAddAdvice = async (text) => {
-    if (!selected) return;
-    try {
-      await addAssessmentAdvice({ teacher_user_id: currentUser?.user_id, student_user_id: selected.student.user_id, advice_text: text });
-      setAdviceTick((t) => t + 1);
-      setAdviceDialogOpen(false);
-    } catch {
-      Swal.fire({ icon: "error", title: "บันทึกคำแนะนำไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
-    }
-  };
-
-  const handleDeleteAdvice = async (adviceId) => {
-    if (!selected) return;
-    try {
-      await deleteAssessmentAdvice(adviceId);
-      setAdviceTick((t) => t + 1);
-    } catch {
-      Swal.fire({ icon: "error", title: "ลบคำแนะนำไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
-    }
-  };
 
   // ---------- ส่งออกรายงานผลการประเมิน (PDF อ่านง่าย / Excel) ----------
   const resultsReport = () => {
@@ -487,9 +454,13 @@ export default function AssessmentResultsPage() {
                     })()}
 
                     <div className="divide-y divide-gray-100 border-t border-gray-100 mb-4">
-                      {selectedFaculties.length > 0 && (
+                      {selectedFaculties.length === 0 ? (
+                        <div className="py-4 text-[13.5px] text-gray-400">ไม่มีข้อมูลสาขาที่ระบบแนะนำสำหรับรหัส {selected.result.riasec.code}</div>
+                      ) : (
                         <div className="py-4">
-                          <div className="text-[14px] text-gray-500 mb-2">สาขาที่แนะนำสำหรับรหัส {selected.result.riasec.code}</div>
+                          <div className="text-[14px] text-gray-500 mb-2">
+                            สาขาที่ระบบแนะนำ <span className="text-gray-400">(ตามรหัส {selected.result.riasec.code} — ไม่ใช่เป้าหมายของนักเรียน)</span>
+                          </div>
                           <div className="flex flex-wrap gap-1.5">
                             {selectedFaculties.map((name) => (
                               <span key={name} className="rounded-lg bg-gray-50 border border-gray-100 px-2.5 py-1 text-[14px] text-gray-800">
@@ -506,7 +477,7 @@ export default function AssessmentResultsPage() {
 
                 {/* เป้าหมายการศึกษาต่อ — แสดงแม้ยังไม่ได้ทำแบบประเมิน */}
                 <div className="border-t border-gray-100 py-4 mb-2">
-                  <div className="text-[14px] text-gray-500 mb-2">🚩 เป้าหมายการศึกษาต่อของนักเรียน</div>
+                  <div className="text-[14px] text-gray-500 mb-2">🚩 สาขาที่นักเรียนตั้งเป้าหมายเอง</div>
                   {selectedGoals.length === 0 ? (
                     <div className="text-[13.5px] text-gray-400">ยังไม่ได้ตั้งเป้าหมาย</div>
                   ) : (
@@ -515,7 +486,7 @@ export default function AssessmentResultsPage() {
                         <div key={g.goal_id} className={`rounded-xl border px-3.5 py-2.5 ${i === 0 ? "border-pink-100 bg-pink-50/30" : "border-gray-100"}`}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="text-[12.5px] text-gray-400">{GOAL_RANK_LABEL[i] || `อันดับ ${i + 1}`}</div>
+                              <div className="text-[12.5px] text-gray-400">{i === 0 ? "เป้าหมายหลัก" : `เป้าหมายสำรอง (อันดับ ${i + 1})`}</div>
                               <div className="text-[15px] font-medium text-gray-900">
                                 {g.faculty_name || g.career_field || "-"}
                                 {g.university_name ? <span className="font-normal text-gray-500"> • {g.university_name}</span> : null}
@@ -535,34 +506,8 @@ export default function AssessmentResultsPage() {
                   )}
                 </div>
 
-                {/* คำแนะนำถึงนักเรียน — ตรงข้ามกับโน้ตลับ นักเรียนเห็นข้อความนี้ได้ */}
-                <div className="rounded-2xl border border-pink-100 bg-pink-50/40 p-4 mt-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-[14px] text-pink-700 font-medium flex items-center gap-1.5">
-                      <FaCommentDots size={12} /> คำแนะนำถึงนักเรียน (นักเรียนเห็นได้)
-                    </div>
-                    <button type="button" onClick={() => setAdviceDialogOpen(true)} className="h-8 px-2.5 rounded-full border border-pink-200 bg-white text-pink-700 text-[12.5px] font-medium flex items-center gap-1">
-                      <FaPaperPlane size={10} /> ให้คำแนะนำ
-                    </button>
-                  </div>
-                  {selectedAdvice.length === 0 ? (
-                    <div className="text-[13.5px] text-gray-400">ยังไม่มีคำแนะนำ</div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {selectedAdvice.map((n) => (
-                        <div key={n.id} className="flex items-start justify-between gap-2 rounded-lg bg-white px-3 py-2">
-                          <div className="min-w-0">
-                            <div className="text-[14px] text-gray-700 whitespace-pre-line">{n.text}</div>
-                            <div className="text-[12px] text-gray-400 mt-1">{formatDateTime(n.createdAt)}</div>
-                          </div>
-                          <button type="button" onClick={() => handleDeleteAdvice(n.id)} className="text-gray-300 hover:text-red-500 shrink-0 bg-transparent">
-                            <FaTrash size={10} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {/* คำแนะนำถึงนักเรียน — บันทึกลงตาราง assessment_advice และแสดงในหน้าผลแบบประเมินของนักเรียน */}
+                <AdviceEditor key={selected.student.user_id} studentId={selected.student.user_id} currentUserId={currentUser?.user_id} />
               </>
             )}
           </div>
@@ -571,17 +516,195 @@ export default function AssessmentResultsPage() {
         </div>
       </main>
 
-      {adviceDialogOpen && (
-        <PromptModal
-          title="ให้คำแนะนำ"
-          label="คำแนะนำ"
-          placeholder="นักเรียนจะเห็นข้อความนี้..."
-          confirmLabel="ส่งคำแนะนำ"
-          multiline
-          onConfirm={confirmAddAdvice}
-          onClose={() => setAdviceDialogOpen(false)}
-        />
+    </div>
+  );
+}
+
+const formatDateTimeShort = (d) => (d ? new Date(d).toLocaleString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
+const toast = (icon, title) => Swal.fire({ toast: true, position: "top-end", icon, title, showConfirmButton: false, timer: 2200 });
+const apiError = (e, fallback) => e?.response?.data?.message || fallback;
+
+// คำแนะนำถึงนักเรียน: เลือกหัวข้อ + เขียนข้อความ → บันทึกลงฐานข้อมูล (นักเรียนเห็นในหน้าผลแบบประเมิน)
+// ครูแก้ไข/ลบได้เฉพาะคำแนะนำที่ตัวเองเขียน (ตรวจซ้ำที่ backend)
+function AdviceEditor({ studentId, currentUserId }) {
+  const [items, setItems] = useState(null); // null = กำลังโหลด
+  const [loadError, setLoadError] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [text, setText] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = () => {
+    setLoadError(false);
+    getAssessmentAdvice(studentId)
+      .then((rows) => setItems(rows || []))
+      .catch(() => {
+        setItems([]);
+        setLoadError(true);
+      });
+  };
+  useEffect(load, [studentId]);
+
+  const reset = () => {
+    setTopic("");
+    setText("");
+    setEditingId(null);
+  };
+  const canSave = topic && text.trim() && !saving;
+
+  const save = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      if (editingId) await updateAssessmentAdvice(editingId, { topic, advice_text: text.trim() });
+      else await addAssessmentAdvice({ student_user_id: studentId, topic, advice_text: text.trim() });
+      toast("success", editingId ? "บันทึกการแก้ไขแล้ว" : "บันทึกคำแนะนำแล้ว นักเรียนจะเห็นในหน้าผลแบบประเมิน");
+      reset();
+      load();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "บันทึกไม่สำเร็จ", text: apiError(e, "ลองใหม่อีกครั้ง") });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (a) => {
+    const ok = await Swal.fire({
+      title: "ลบคำแนะนำนี้?",
+      text: "นักเรียนจะไม่เห็นคำแนะนำนี้อีก",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "ลบ",
+      cancelButtonText: "ยกเลิก",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!ok.isConfirmed) return;
+    try {
+      await deleteAssessmentAdvice(a.advice_id);
+      if (editingId === a.advice_id) reset();
+      toast("success", "ลบคำแนะนำแล้ว");
+      load();
+    } catch (e) {
+      Swal.fire({ icon: "error", title: "ลบไม่สำเร็จ", text: apiError(e, "ลองใหม่อีกครั้ง") });
+    }
+  };
+
+  const latest = items?.length ? items.reduce((m, a) => (new Date(a.updated_at) > new Date(m.updated_at) ? a : m)) : null;
+
+  return (
+    <div className="rounded-2xl border border-pink-100 bg-pink-50/40 p-4 mt-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="text-[14.5px] text-pink-700 font-semibold flex items-center gap-1.5">
+          <FaCommentDots size={12} /> คำแนะนำถึงนักเรียน (นักเรียนเห็นได้)
+        </div>
+        {items !== null && (
+          <span className={`rounded-full px-2.5 py-0.5 text-[12.5px] font-medium ${latest ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+            {latest ? `ให้คำแนะนำแล้ว · ล่าสุด ${formatDateTimeShort(latest.updated_at)}` : "ยังไม่มีคำแนะนำ"}
+          </span>
+        )}
+      </div>
+
+      {items === null ? (
+        <div className="text-[13.5px] text-gray-400 mb-3">กำลังโหลด...</div>
+      ) : loadError ? (
+        <div className="text-[13.5px] text-red-600 mb-3">
+          โหลดคำแนะนำไม่สำเร็จ{" "}
+          <button type="button" onClick={load} className="underline bg-transparent !p-0">
+            ลองใหม่
+          </button>
+        </div>
+      ) : (
+        items.length > 0 && (
+          <div className="flex flex-col gap-2 mb-3">
+            {items.map((a) => {
+              const mine = String(a.teacher_user_id) === String(currentUserId);
+              const edited = a.updated_at && a.created_at && new Date(a.updated_at) - new Date(a.created_at) > 1000;
+              return (
+                <div key={a.advice_id} className={`rounded-xl bg-white px-3.5 py-2.5 ${editingId === a.advice_id ? "ring-2 ring-pink-300" : ""}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="rounded-full bg-pink-50 px-2 py-0.5 text-[12px] font-medium text-pink-700">{a.topic || "ไม่ระบุหัวข้อ"}</span>
+                    {mine && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingId(a.advice_id);
+                            setTopic(ADVICE_TOPICS.includes(a.topic) ? a.topic : "");
+                            setText(a.advice_text);
+                          }}
+                          className="h-7 px-2 rounded-lg text-[12.5px] text-gray-500 hover:bg-gray-100 bg-transparent"
+                        >
+                          แก้ไข
+                        </button>
+                        <button type="button" onClick={() => remove(a)} className="h-7 w-7 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 bg-transparent grid place-items-center">
+                          <FaTrash size={10} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-1.5 text-[14px] text-gray-700 whitespace-pre-line">{a.advice_text}</div>
+                  <div className="mt-1 text-[12px] text-gray-400">
+                    {a.teacher_name ? `โดย ${a.teacher_name} · ` : ""}
+                    {formatDateTimeShort(a.created_at)}
+                    {edited ? ` · แก้ไขล่าสุด ${formatDateTimeShort(a.updated_at)}` : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
       )}
+
+      <div className="rounded-xl bg-white p-3.5">
+        <div className="text-[13.5px] font-semibold text-gray-700">{editingId ? "แก้ไขคำแนะนำ" : latest ? "เพิ่มคำแนะนำ" : "เขียนคำแนะนำ"}</div>
+        <label className="mt-2 block text-[13px] text-gray-500" htmlFor="advice-topic">
+          หัวข้อคำแนะนำ
+        </label>
+        <select
+          id="advice-topic"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-2.5 text-[14px] outline-none focus:border-pink-400"
+        >
+          <option value="">เลือกหัวข้อ</option>
+          {ADVICE_TOPICS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <label className="mt-2.5 block text-[13px] text-gray-500" htmlFor="advice-text">
+          คำแนะนำ
+        </label>
+        <textarea
+          id="advice-text"
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, ADVICE_MAX))}
+          rows={4}
+          placeholder="เช่น ลองศึกษาหลักสูตรที่สนใจจากลิงก์ myTCAS และเริ่มเก็บผลงานที่เกี่ยวข้อง"
+          className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-[14px] outline-none focus:border-pink-400 resize-y"
+        />
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[12px] text-gray-400">
+            {text.length}/{ADVICE_MAX} ตัวอักษร
+          </span>
+          <div className="flex items-center gap-2">
+            {editingId && (
+              <button type="button" onClick={reset} disabled={saving} className="h-9 px-3.5 rounded-lg border border-gray-200 bg-white text-[13.5px] text-gray-600 hover:bg-gray-50">
+                ยกเลิก
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={save}
+              disabled={!canSave}
+              className="h-9 px-4 rounded-lg !bg-pink-500 hover:!bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[13.5px] font-medium flex items-center gap-1.5"
+            >
+              <FaPaperPlane size={10} /> {saving ? "กำลังบันทึก..." : editingId ? "บันทึกการแก้ไข" : "บันทึกคำแนะนำ"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

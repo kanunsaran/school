@@ -2195,7 +2195,10 @@ export async function deleteTeacherNote(id) {
 // ================= ASSESSMENT ADVICE (คำแนะนำของครูต่อผลประเมิน — นักเรียนอ่านได้) =================
 export async function getAssessmentAdvice(studentUserId) {
   try {
-    const response = await axios.get(`${api}/assessment-advice`, { params: { student_user_id: studentUserId } });
+    const response = await axios.get(`${api}/assessment-advice`, {
+      params: { student_user_id: studentUserId },
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+    });
     return response.data;
   } catch (error) {
     console.error("Error getAssessmentAdvice:", error.response?.data || error);
@@ -2203,16 +2206,31 @@ export async function getAssessmentAdvice(studentUserId) {
   }
 }
 
-export async function addAssessmentAdvice({ teacher_user_id, student_user_id, advice_text }) {
+// ผู้ให้คำแนะนำ = ครูที่ล็อกอิน (backend ใช้จาก token)
+export async function addAssessmentAdvice({ student_user_id, topic, advice_text }) {
   try {
     const response = await axios.post(
       `${api}/assessment-advice`,
-      { teacher_user_id, student_user_id, advice_text },
+      { student_user_id, topic, advice_text },
       { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
     );
     return response.data;
   } catch (error) {
     console.error("Error addAssessmentAdvice:", error.response?.data || error);
+    throw error;
+  }
+}
+
+export async function updateAssessmentAdvice(id, { topic, advice_text }) {
+  try {
+    const response = await axios.put(
+      `${api}/assessment-advice/${id}`,
+      { topic, advice_text },
+      { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error updateAssessmentAdvice:", error.response?.data || error);
     throw error;
   }
 }
