@@ -710,16 +710,14 @@ export default function ResultPage() {
                   const g = DIM_ACTIVITY[x.dim];
                   return (
                     <div key={x.dim} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 leading-7 text-[15px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13.5px] font-semibold text-pink-600">
-                          {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]}
-                        </span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11.5px] ${x.text ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
-                          {x.text ? "ข้อมูลโรงเรียน" : "คำแนะนำทั่วไป"}
-                        </span>
+                      <div className="text-[13.5px] font-semibold text-pink-600">
+                        {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]}
                       </div>
                       <div className="mt-1 font-semibold text-gray-900">{x.text || g.act}</div>
-                      <div className="mt-1 text-gray-700">💭 {g.question}</div>
+                      <div className="mt-1 text-gray-700">
+                        <span className="font-medium text-gray-500">ลองถามตัวเอง: </span>
+                        {g.question}
+                      </div>
                       <details className="mt-1 text-[13.5px] text-gray-500">
                         <summary className="cursor-pointer select-none">รายละเอียด</summary>
                         {!x.text && <div>วิธีลงมือทำ: {g.how}</div>}
@@ -946,7 +944,7 @@ export default function ResultPage() {
           <li>แหล่งอ้างอิงที่ระบุในไฟล์ข้อมูลของโรงเรียน: {data.sources.map((s) => s.name).join(", ")}</li>
           <li>ความรู้ที่ใช้ของแต่ละสาขา: อาชีพตัวแทนจาก O*NET OnLine (กระทรวงแรงงานสหรัฐฯ) ตรวจเมื่อ {thaiDate(onet.checkedAt)}</li>
           <li>วิธีคิดคะแนน: รวมคะแนนรายด้าน ด้านละ 10 ข้อ (10–50) ตามแนวคิด RIASEC ของ John Holland</li>
-          <li>รูปอิโมจิอาชีพ: Microsoft Fluent Emoji (MIT License)</li>
+          <li>รูปอิโมจิอาชีพ: Twemoji โดย Twitter, Inc. และผู้ร่วมพัฒนา (github.com/jdecked/twemoji) สัญญาอนุญาต CC BY 4.0</li>
         </ul>
       </details>
 

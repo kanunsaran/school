@@ -40,10 +40,10 @@
    "checked": "198 ลิงก์หลักสูตร ตรงกับ courses.json"
   },
   {
-   "id": "fluent-emoji",
-   "name": "Microsoft Fluent Emoji (3D)",
-   "url": "https://github.com/microsoft/fluentui-emoji",
-   "use": "รูปประกอบอาชีพ (เก็บไว้ในเว็บที่ public/emoji/fluent — MIT License)",
+   "id": "twemoji",
+   "name": "Twemoji 16.0.1 (Twitter, Inc. และผู้ร่วมพัฒนา)",
+   "url": "https://github.com/jdecked/twemoji",
+   "use": "รูปประกอบอาชีพ (เก็บไว้ในเว็บที่ public/emoji/twemoji — กราฟิก CC BY 4.0)",
    "checkedAt": "2026-10-14"
   }
  ]
