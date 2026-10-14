@@ -137,11 +137,32 @@ const personVariant = (code, i) => {
 const isPerson = (code) => code.startsWith("1f9d1-200d-") || code === "1f477";
 
 export const emojiSrc = (code) => `/emoji/twemoji/${code}.svg`;
+
+// ไอคอนประจำด้าน RIASEC และไอคอนหัวข้อในหน้าผล
+export const DIM_ICON = { R: "1f6e0", I: "1f52c", A: "1f3a8", S: "1f91d", E: "1f3af", C: "1f5c3" };
+export const UI_ICON = { activity: "1f9e9", faculty: "1f393", career: "1f4bc", why: "1f50d", try: "1f6a9", alt: "1f9ed", info: "2139" };
+// ไอคอนสาขา (เป็นสิ่งของ) — ใช้คำในชื่อสาขาก่อน ไม่พบ = ป้ายอาชีพ → รูปอาชีพ → ไอคอนประจำด้าน
+export const FACULTY_RULES = [
+  [/สัตวแพทย/, "1f43e"], [/ทันต/, "1f9b7"], [/วนศาสตร์/, "1f332"], [/ดุริยางค/, "1f3b5"], [/การออกแบบอุตสาหกรรม/, "1f4e6"],
+  [/การพิมพ์/, "1f5a8"], [/อีเวนต์/, "1f389"], [/ภัยพิบัติ/, "1f6a8"], [/ทรัพยากรมนุษย์/, "1f465"], [/บันเทิง/, "1f3a4"],
+  [/อุตสาหกรรมสร้างสรรค์/, "1f4a1"], [/การจัดการอุตสาหกรรม/, "1f3ed"], [/การจัดการเทคโนโลยี/, "1f9e9"],
+  [/ครุศาสตร์|ศึกษาศาสตร์/, "1f4da"], [/ปฐมวัย/, "1f9f8"], [/ศิลปศึกษา/, "1f58d"], [/แพทยศาสตร์$/, "1fa7a"], [/พยาบาล/, "1fa7a"],
+  [/กิจกรรมบำบัด/, "1f932"], [/กายภาพ/, "1f9b5"], [/เภสัช/, "1f48a"],
+  [/นิติ/, "2696"], [/รัฐศาสตร์|รัฐประศาสน/, "1f3db"], [/บัญชี/, "1f9ee"], [/การเงิน|ธนาคาร/, "1f4b0"], [/เศรษฐ/, "1f4b9"],
+  [/สถาปัตย/, "1f4d0"], [/จิตวิทยา/, "1f9e0"], [/ดนตรี/, "1f3b5"], [/นาฏ|การแสดง/, "1f3ad"], [/วิศวกรรมโยธา/, "1f3d7"],
+  [/วิศวกรรมไฟฟ้า/, "26a1"], [/วิศวกรรมเครื่องกล/, "2699"], [/วิศวกรรมคอมพิวเตอร์|วิทยาการคอมพิวเตอร์/, "1f4bb"],
+  [/เทคโนโลยีสารสนเทศ/, "1f310"], [/อักษร|ภาษา/, "1f4d6"], [/สื่อสารมวลชน|นิเทศ|วารสาร/, "1f4f0"], [/ภาพยนตร์/, "1f3ac"],
+  [/เกษตร/, "1f33e"], [/ประมง/, "1f41f"], [/สิ่งแวดล้อม/, "1f30d"], [/อาหาร|โภชนา/, "1f957"], [/การโรงแรม|ท่องเที่ยว/, "1f3e8"],
+  [/การบิน/, "2708"], [/โลจิสติกส์/, "1f69a"], [/การตลาด/, "1f4e3"], [/บริหารธุรกิจ|การจัดการ/, "1f4bc"],
+];
 export const emojiFile = (name) => emojiSrc(EMOJI_CODE[name]);
 // รหัสทุกรูปที่หน้าเว็บอาจใช้ (ให้สคริปต์ดาวน์โหลด)
 export const ALL_EMOJI = [...new Set([...CAREER_EMOJI_RULES.map(([, name]) => name), ...Object.values(DIM_FALLBACK_EMOJI)])];
 export const ALL_CODES = [
   ...new Set([
+    ...Object.values(DIM_ICON),
+    ...Object.values(UI_ICON),
+    ...FACULTY_RULES.map(([, code]) => code),
     ...ALL_EMOJI.flatMap((n) => [0, 1, 2].map((i) => personVariant(EMOJI_CODE[n], i))),
     ...BADGE_RULES.map(([, code]) => code),
   ]),
@@ -154,4 +175,15 @@ export const careerEmoji = (title, dim, i = 0) => {
   const code = personVariant(EMOJI_CODE[name], i);
   const badge = BADGE_RULES.find(([re]) => re.test(t))?.[1];
   return { name, src: emojiSrc(code), person: isPerson(EMOJI_CODE[name]), badge: badge && badge !== EMOJI_CODE[name] ? emojiSrc(badge) : null };
+};
+
+export const facultyEmoji = (name, dim) => {
+  const t = name || "";
+  const code =
+    FACULTY_RULES.find(([re]) => re.test(t))?.[1] ||
+    BADGE_RULES.find(([re]) => re.test(t))?.[1] ||
+    EMOJI_CODE[CAREER_EMOJI_RULES.find(([re]) => re.test(t))?.[1]] ||
+    DIM_ICON[dim] ||
+    UI_ICON.faculty;
+  return emojiSrc(code);
 };

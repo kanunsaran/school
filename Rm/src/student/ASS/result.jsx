@@ -5,7 +5,7 @@ import Header from "../../Header";
 import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
-import { careerEmoji } from "../../utils/careerEmoji.js";
+import { careerEmoji, facultyEmoji, emojiSrc, DIM_ICON, UI_ICON } from "../../utils/careerEmoji.js";
 import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY } from "../../data/guidanceTexts.js";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
@@ -29,6 +29,23 @@ const colorMap = {
   C: ["from-gray-300", "to-gray-400"],
 };
 const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂️" };
+// สีอ่อนประจำด้าน (โทนเดียวกับแถบคะแนน) ใช้กับการ์ดกิจกรรมและสาขา
+const DIM_THEME = {
+  R: { card: "bg-rose-50/70 border-rose-100", text: "text-rose-600", icon: "bg-rose-100/80", pill: "border-rose-200 text-rose-600 hover:bg-rose-50" },
+  I: { card: "bg-sky-50/70 border-sky-100", text: "text-sky-700", icon: "bg-sky-100/80", pill: "border-sky-200 text-sky-700 hover:bg-sky-50" },
+  A: { card: "bg-amber-50/70 border-amber-100", text: "text-amber-700", icon: "bg-amber-100/80", pill: "border-amber-200 text-amber-700 hover:bg-amber-50" },
+  S: { card: "bg-emerald-50/70 border-emerald-100", text: "text-emerald-700", icon: "bg-emerald-100/80", pill: "border-emerald-200 text-emerald-700 hover:bg-emerald-50" },
+  E: { card: "bg-violet-50/70 border-violet-100", text: "text-violet-700", icon: "bg-violet-100/80", pill: "border-violet-200 text-violet-700 hover:bg-violet-50" },
+  C: { card: "bg-slate-50 border-slate-200/70", text: "text-slate-600", icon: "bg-slate-200/70", pill: "border-slate-300 text-slate-600 hover:bg-slate-50" },
+};
+// สีของระดับความสอดคล้องในการ์ดเป้าหมาย
+const LEVEL_THEME = {
+  high: { head: "from-emerald-50", ring: "border-emerald-200", pill: "bg-emerald-500 text-white" },
+  medium: { head: "from-amber-50", ring: "border-amber-200", pill: "bg-amber-500 text-white" },
+  low: { head: "from-slate-100", ring: "border-slate-200", pill: "bg-slate-500 text-white" },
+};
+const Icon = ({ code, className = "h-5 w-5" }) => <img src={emojiSrc(code)} alt="" className={className} />;
+const SUMMARY_PLAIN = "list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden";
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
@@ -47,12 +64,6 @@ const roadmapFor = (goalName) => [
 
 // ข้อค้นพบความเชื่อมโยงระหว่างความสนใจกับสาขาเป้าหมาย (findingKind ใน riasecScoring.js) — เงื่อนไขตรวจสอบได้จากข้อมูล ไม่ใช่การให้คะแนน
 const LEVEL_TH = { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" };
-const FINDING_META = {
-  recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", box: "bg-white/70 border-emerald-100" },
-  main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "text-pink-700 bg-pink-50 border-pink-200", box: "bg-white/70 border-pink-100" },
-  partial: { label: "เชื่อมโยงบางด้าน", cls: "text-amber-700 bg-amber-50 border-amber-200", box: "bg-white/70 border-amber-100" },
-  none: { label: "ยังไม่พบความเชื่อมโยงชัดเจน", cls: "text-gray-600 bg-gray-50 border-gray-200", box: "bg-white/70 border-gray-200" },
-};
 const CONSISTENCY_META = {
   high: { label: "สูง", text: "ความสนใจ 2 อันดับแรกอยู่ติดกันบนหกเหลี่ยม RIASEC จึงไปในทิศทางเดียวกันชัดเจน" },
   medium: { label: "ปานกลาง", text: "ความสนใจ 2 อันดับแรกอยู่ห่างกัน 1 ช่องบนหกเหลี่ยม RIASEC มีความเกี่ยวข้องกันพอสมควร" },
@@ -120,12 +131,20 @@ function GroupLabel({ children }) {
 }
 
 
-function AdviceBox({ n, title, source, wide, children }) {
+function AdviceBox({ n, title, subtitle, icon, source, wide, children }) {
   return (
-    <div className={`bg-white/70 rounded-xl p-4 min-w-0 flex flex-col ${wide ? "lg:col-span-2" : ""}`}>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="h-6 w-6 rounded-full bg-pink-500 text-white text-[12.5px] font-bold flex items-center justify-center shrink-0">{n}</span>
-        <h3 className="text-[16px] font-semibold text-gray-800">{title}</h3>
+    <div className={`bg-white/80 border border-gray-100 rounded-2xl p-4 min-w-0 flex flex-col ${wide ? "lg:col-span-2" : ""}`}>
+      <div className={`flex items-center gap-2.5 ${icon ? "mb-3" : "mb-2"}`}>
+        <span className="h-7 w-7 rounded-full bg-pink-500 text-white text-[13px] font-bold flex items-center justify-center shrink-0">{n}</span>
+        {icon && (
+          <span className="h-9 w-9 rounded-full bg-pink-50 grid place-items-center shrink-0">
+            <Icon code={icon} />
+          </span>
+        )}
+        <div className="min-w-0">
+          <h3 className="text-[16.5px] font-semibold text-gray-800">{title}</h3>
+          {subtitle && <p className="text-[13px] text-gray-500">{subtitle}</p>}
+        </div>
       </div>
       <ul className="space-y-2 text-[15px] text-gray-700 flex-1">{children}</ul>
       {source && <div className="mt-2 pt-2 border-t border-gray-100 text-[11.5px] text-gray-400">ที่มา: ไฟล์ข้อมูลคณะ–อาชีพ • {source}</div>}
@@ -199,14 +218,21 @@ function GoalHeader({ goal, onEdit }) {
   );
 }
 
-function Block({ title, children }) {
+function Block({ title, icon, tone, children }) {
   return (
-    <div className="mt-4">
-      <div className="text-[15.5px] font-semibold text-gray-800">{title}</div>
+    <div className={`mt-3 rounded-xl border px-4 py-3 ${tone.box}`}>
+      <div className={`flex items-center gap-2 text-[15.5px] font-semibold ${tone.title}`}>
+        <Icon code={icon} className="h-[18px] w-[18px]" />
+        {title}
+      </div>
       <div className="text-[15px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
     </div>
   );
 }
+const TONE = {
+  why: { box: "bg-sky-50/60 border-sky-100", title: "text-sky-800" },
+  try: { box: "bg-pink-50/60 border-pink-100", title: "text-pink-700" },
+};
 
 // การ์ดเป้าหมาย 1 สาขา — ตอบว่า "ความสนใจจากผล RIASEC เชื่อมกับสาขาเป้าหมายอย่างไร"
 // แยกจากความพร้อมด้านวิชาการ/การสมัคร (อยู่ใน "แนวทางเตรียมตัวไปสู่เป้าหมาย")
@@ -228,25 +254,33 @@ function Finding({ ok, children }) {
 function AlignmentCard({ a, latest, scores, alternatives, university }) {
   const f = a.faculty;
   const dim = f.dim;
-  const meta = FINDING_META[a.kind];
   const codes = [latest.code, ...latest.alternativeCodes];
   const dimMine = denseRank(scores, dim) <= 3;
   // ความเชื่อมโยงหลัก: ด้านหลักของสาขาก่อน (ถ้าเชื่อมได้) — ไม่ไล่จับคู่ทุกคุณลักษณะกับทุกด้าน
   const link = a.links.find((x) => x.code === dim) || a.links[0];
   const steps = adviceSteps(f.advice).slice(0, 2);
 
+  const lt = LEVEL_THEME[a.displayLevel];
   return (
-    <div className={`rounded-2xl border px-4 py-4 sm:px-5 ${meta.box}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[13px] text-gray-500">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
-          <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
+    <div className={`rounded-2xl border bg-white overflow-hidden ${lt.ring}`}>
+      <div className={`bg-gradient-to-r ${lt.head} to-white px-4 py-4 sm:px-5 flex items-start gap-3.5`}>
+        <span className="h-14 w-14 shrink-0 rounded-2xl bg-white shadow-sm ring-1 ring-black/5 grid place-items-center">
+          <img src={facultyEmoji(f.name, dim)} alt="" className="h-8 w-8" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[13px] text-gray-500">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
+              <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
+            </div>
+            <span className={`shrink-0 rounded-full px-3 py-1 text-[14px] font-semibold shadow-sm ${lt.pill}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
+          </div>
+          <p className="mt-1 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
         </div>
-        <span className={`shrink-0 rounded-full border px-3 py-1 text-[14px] font-semibold ${meta.cls}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
       </div>
-      <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
 
-      <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
+      <div className="px-4 pb-4 sm:px-5">
+      <Block title="ทำไมสาขานี้จึงน่าสำรวจ" icon={UI_ICON.why} tone={TONE.why}>
         <p>
           {link
             ? `สาขานี้เน้น${joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน${TRAIT_NOUN[link.code]}ของคุณ`
@@ -261,26 +295,35 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
         )}
       </Block>
 
-      <Block title="สิ่งที่ลองทำได้">
-        <ul className="list-disc pl-5 space-y-0.5">
-          {steps.map((x) => (
-            <li key={x}>{x}</li>
+      <Block title="สิ่งที่ลองทำได้" icon={UI_ICON.try} tone={TONE.try}>
+        <ul className="space-y-1">
+          {[...steps, `ตรวจสอบเกณฑ์รับเข้าของ${university ? ` ${university}` : "หลักสูตรเป้าหมาย"} จากประกาศ myTCAS ในส่วน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง`].map((x, k) => (
+            <li key={x} className="flex items-start gap-2.5">
+              <span className="mt-[3px] h-5 w-5 shrink-0 rounded-full bg-pink-500 text-white text-[11.5px] font-bold grid place-items-center">{k + 1}</span>
+              <span>{x}</span>
+            </li>
           ))}
-          <li>ตรวจสอบเกณฑ์รับเข้าของ{university ? ` ${university}` : "หลักสูตรเป้าหมาย"} จากประกาศ myTCAS ในส่วน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</li>
         </ul>
       </Block>
 
       {alternatives.length > 0 && (
-        <details className="mt-4">
-          <summary className="cursor-pointer select-none text-[14.5px] font-semibold text-gray-800">สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
-          <div className="mt-2 space-y-2">
+        <details className="group mt-3 rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-2.5">
+          <summary className={`${SUMMARY_PLAIN} flex items-center gap-2 text-[15px] font-semibold text-violet-800`}>
+            <Icon code={UI_ICON.alt} className="h-[18px] w-[18px]" />
+            สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})
+            <span className="ml-auto text-violet-400 transition group-open:rotate-90">›</span>
+          </summary>
+          <div className="mt-2 mb-1 space-y-2">
             {alternatives.slice(0, 2).map((x) => (
-              <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
+              <div key={x.row.name} className="flex items-start gap-3 rounded-xl bg-white border border-violet-100 px-3.5 py-2.5">
+                <img src={facultyEmoji(x.row.name, x.row.dim)} alt="" className="mt-1 h-7 w-7 shrink-0" />
+                <div className="min-w-0">
                 <div className="text-[15px] font-semibold text-gray-800">{x.row.name}</div>
                 <p className="text-[14.5px] text-gray-700 leading-7">
                   เหมาะสำหรับการสำรวจเพิ่มเติม หากสนใจงานด้าน{joinTh(x.shared)}
                   {x.differs.length > 0 ? ` โดยมีส่วนที่แตกต่างจาก${nm(f.name)}คือการเรียนด้าน${joinTh(x.differs)}` : ""}
                 </p>
+                </div>
               </div>
             ))}
           </div>
@@ -305,6 +348,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
           ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม และไม่ได้ทำนายความสำเร็จในการเรียน • ความพร้อมด้านวิชาการและเกณฑ์รับเข้าดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”
         </p>
       </details>
+      </div>
     </div>
   );
 }
@@ -349,10 +393,19 @@ function ProgramPick({ faculty, goalUni, compact = false }) {
       <div className="text-[13.5px]">
         {pick ? (
           <>
-            <a href={pick.link} target="_blank" rel="noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-700">
-              ดูหลักสูตร{faculty.name}ของ{pick.uni}บน myTCAS ↗
+            <div className="flex items-center gap-1.5 text-gray-700">
+              <Icon code="1f3db" className="h-4 w-4 shrink-0" />
+              <span>{pick.uni}</span>
+            </div>
+            <a
+              href={pick.link}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-0.5 text-[12.5px] font-medium text-sky-700 hover:bg-sky-50"
+            >
+              ดูหลักสูตรบน myTCAS ↗
             </a>
-            <div className="text-[11.5px] text-gray-400">{fromGoal ? "มหาวิทยาลัยเดียวกับในเป้าหมายของคุณ" : "ตัวอย่างจากข้อมูลแนะแนว ไม่ได้หมายความว่าดีที่สุด"}</div>
+            <div className="mt-0.5 text-[11.5px] text-gray-400">{fromGoal ? "มหาวิทยาลัยเดียวกับในเป้าหมายของคุณ" : "ตัวอย่างจากข้อมูลแนะแนว ไม่ได้หมายความว่าดีที่สุด"}</div>
           </>
         ) : (
           <div className="text-gray-500">ยังไม่มีหลักสูตรตัวอย่างที่ตรวจสอบแล้ว</div>
@@ -710,40 +763,52 @@ export default function ResultPage() {
       <div className={CARD}>
         <SectionHeader emoji="💡" title="เข้าใจความสนใจของตัวเอง" subtitle="ลองทำกิจกรรม ดูสาขา และอาชีพที่เกี่ยวข้องกับความสนใจของคุณ" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" wide>
+          <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" subtitle="เลือกกิจกรรมที่สนใจ แล้วลองสำรวจตัวเองจากประสบการณ์จริง" icon={UI_ICON.activity} wide>
             <li className="list-none">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {activities.map((x) => {
                   const g = DIM_ACTIVITY[x.dim];
+                  const t = DIM_THEME[x.dim];
                   return (
-                    <div key={x.dim} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 leading-7 text-[15px]">
-                      <div className="text-[13.5px] font-semibold text-pink-600">
-                        {EMOJI[x.dim]} ด้าน{TRAIT_NOUN[x.dim]}
+                    <div key={x.dim} className={`flex gap-3.5 rounded-2xl border px-4 py-3.5 ${t.card}`}>
+                      <span className={`h-12 w-12 shrink-0 rounded-full grid place-items-center ${t.icon}`}>
+                        <Icon code={DIM_ICON[x.dim]} className="h-7 w-7" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className={`text-[14px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</div>
+                        <div className="mt-0.5 text-[15.5px] font-semibold text-gray-900 leading-6">{x.text || g.act}</div>
+                        <div className="mt-1 text-[14.5px] text-gray-600 leading-6">
+                          <span className="font-medium text-gray-500">ลองถามตัวเอง: </span>
+                          {g.question}
+                        </div>
+                        <details className="group mt-2 text-[13.5px] text-gray-600">
+                          <summary className={`${SUMMARY_PLAIN} inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1 text-[12.5px] font-medium ${t.pill}`}>
+                            ดูรายละเอียด <span className="transition group-open:rotate-90">›</span>
+                          </summary>
+                          <div className="mt-2 space-y-0.5 rounded-xl bg-white/80 px-3 py-2 leading-6">
+                            {!x.text && <div>วิธีลงมือทำ: {g.how}</div>}
+                            <div>ได้สำรวจ: {g.skill}</div>
+                            {x.forGoal && <div>เป็นด้านที่สาขาเป้าหมายของคุณใช้</div>}
+                            {x.text ? (
+                              <div className="text-gray-400">ข้อความต้นฉบับ (สาขา{x.faculty.name}): “{x.faculty.advice}”</div>
+                            ) : (
+                              <div className="text-gray-400">คำแนะนำทั่วไปของระบบ ยังไม่ผ่านการตรวจสอบจากครูแนะแนว</div>
+                            )}
+                          </div>
+                        </details>
                       </div>
-                      <div className="mt-1 font-semibold text-gray-900">{x.text || g.act}</div>
-                      <div className="mt-1 text-gray-700">
-                        <span className="font-medium text-gray-500">ลองถามตัวเอง: </span>
-                        {g.question}
-                      </div>
-                      <details className="mt-1 text-[13.5px] text-gray-500">
-                        <summary className="cursor-pointer select-none">รายละเอียด</summary>
-                        {!x.text && <div>วิธีลงมือทำ: {g.how}</div>}
-                        <div>ได้สำรวจ: {g.skill}</div>
-                        {x.forGoal && <div>เป็นด้านที่สาขาเป้าหมายของคุณใช้</div>}
-                        {x.text ? (
-                          <div className="text-gray-400">ข้อความต้นฉบับ (สาขา{x.faculty.name}): “{x.faculty.advice}”</div>
-                        ) : (
-                          <div className="text-gray-400">คำแนะนำทั่วไปของระบบ ยังไม่ผ่านการตรวจสอบจากครูแนะแนว</div>
-                        )}
-                      </details>
                     </div>
                   );
                 })}
               </div>
+              <p className="mt-3 flex items-start gap-2 rounded-xl bg-pink-50/70 px-3.5 py-2 text-[13px] text-gray-600">
+                <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full bg-pink-400 text-white text-[10.5px] font-bold grid place-items-center">i</span>
+                เลือกทำเฉพาะกิจกรรมที่สนใจ — คำถามใช้สำรวจความสนใจ ไม่ได้ตัดสินว่าคุณเก่งหรือไม่เก่งด้านนั้น
+              </p>
             </li>
           </AdviceBox>
 
-          <AdviceBox n="2" title="สาขาที่ควรสำรวจ" wide>
+          <AdviceBox n="2" title="สาขาที่ควรสำรวจ" subtitle="สาขาที่เชื่อมโยงกับความสนใจเด่นของคุณในตอนนี้" icon={UI_ICON.faculty} wide>
             <li className="list-none">
               {latest.lowDifferentiation && (
                 <p className="mb-2 rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-sky-900">คะแนนทุกด้านของคุณใกล้กัน สาขาด้านล่างเป็นเพียงตัวอย่างให้เริ่มสำรวจ</p>
@@ -751,43 +816,56 @@ export default function ResultPage() {
               {explore.length === 0 ? (
                 <p className="text-gray-600">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                <div className="grid gap-3">
                   {explore.map(({ row, code, links }, i) => {
                     // เหตุผล = วลีของสาขานี้เอง (คุณลักษณะในข้อมูลแนะแนว) ที่เชื่อมกับความสนใจเด่น — ใช้ด้านหลักของสาขาก่อน
                     const link = links.find((l) => l.code === row.dim) || links[0];
+                    const t = DIM_THEME[row.dim];
                     return (
-                      <div key={row.name} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 min-w-0 leading-7 text-[15px]">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="text-[16px] font-semibold text-gray-900">
-                            {i + 1}. {row.name}
+                      <div key={row.name} className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-2.5 rounded-2xl border border-gray-100 bg-white p-2.5 min-w-0">
+                        <div className="flex gap-3.5 p-1.5 min-w-0">
+                          <span className={`h-16 w-16 shrink-0 rounded-2xl grid place-items-center ${t.icon}`}>
+                            <img src={facultyEmoji(row.name, row.dim)} alt="" className="h-9 w-9" />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="text-[16.5px] font-semibold text-gray-900">
+                                {i + 1}. {row.name}
+                              </span>
+                              <span className="rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
+                            </div>
+                            <p className="mt-1 text-[14.5px] text-gray-600 leading-6">
+                              เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
+                            </p>
                           </div>
-                          <span className="shrink-0 rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
                         </div>
-                        <p className="mt-1 text-gray-700">
-                          เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
-                        </p>
-                        <div className="mt-1.5 text-[14px] font-semibold text-gray-800">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
-                        <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
-                        <div className="mt-1.5">
-                          <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
+                        <div className={`rounded-xl border px-3.5 py-3 min-w-0 ${t.card}`}>
+                          <div className={`text-[14px] font-semibold ${t.text}`}>สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
+                          <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
+                          <div className="mt-2">
+                            <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
+                          </div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-              <a
-                href={MYTCAS_HOME}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14.5px] font-medium text-sky-700 hover:bg-sky-50"
-              >
-                🔎 ค้นหาหลักสูตรและมหาวิทยาลัยอื่นบน myTCAS ↗
-              </a>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <a
+                  href={MYTCAS_HOME}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14.5px] font-medium text-sky-700 hover:bg-sky-50"
+                >
+                  🔎 ค้นหาหลักสูตรและมหาวิทยาลัยอื่นบน myTCAS ↗
+                </a>
+                {explore.length > 0 && <span className="text-[12.5px] text-gray-400">“รหัส” คือรหัสความสนใจที่ใช้แนะนำสาขานั้น ไม่ใช่รหัสประจำสาขา</span>}
+              </div>
             </li>
           </AdviceBox>
 
-          <AdviceBox n="3" title="อาชีพตัวอย่าง" wide>
+          <AdviceBox n="3" title="อาชีพตัวอย่าง" subtitle="อาชีพจากสาขาด้านบน" icon={UI_ICON.career} wide>
             <li className="list-none">
               <CareerList items={resultCareers.map((c) => ({ ...c, reason: `ในสาขา${c.faculty.name}` }))} />
             </li>
