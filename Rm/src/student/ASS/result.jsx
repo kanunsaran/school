@@ -2,18 +2,20 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import SidebarNav from "../../navstudent.jsx";
 import Header from "../../Header";
-import { getGoals, getStudentGrades, getAssessmentAdvice } from "../../callapi/callapi_user.jsx";
+import { getGoals, getStudentGrades, getAssessmentAdvice, getConsultationRequests, createConsultationRequest } from "../../callapi/callapi_user.jsx";
+import { STATUS_META as CONSULT_STATUS } from "../../utils/consultationStore.js";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
 import { careerEmoji, emojiSrc, DIM_ICON } from "../../utils/careerEmoji.js";
-import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY, SKILL_DESC } from "../../data/guidanceTexts.js";
+import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, LEVEL_WHY, SKILL_DESC } from "../../data/guidanceTexts.js";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
+import { interestSummaryText } from "../../utils/riasecSummary.js";
 import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
 import AdmissionInfo from "../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, rankLabel, matchGoalFaculties, exploreFaculties, exploreActivities, adviceSteps, careersForGoal, interestSummary,
+  denseRank, tiedWith, rankLabel, matchGoalFaculties, exploreFaculties, exploreActivities, adviceSteps, careersForGoal,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -630,18 +632,8 @@ export default function ResultPage() {
     latest.lowDifferentiation && "คะแนนแต่ละด้านใกล้กัน ลองกิจกรรมหลายแบบก่อนตัดสินใจเลือกสาขา",
     "ปรึกษาครูแนะแนวเมื่อยังไม่แน่ใจ หรืออยากได้มุมมองเพิ่มเติม",
   ].filter(Boolean);
-  // สรุปเป็นภาษาธรรมชาติจากคะแนนจริง (interestSummary) — "ใกล้เคียงกัน" เฉพาะเมื่อคะแนนต่างกันไม่เกิน 2
-  const sum = interestSummary(scores);
-  const plain = (list) => (list.length === 2 && !/\s/.test(PLAIN[list[0]]) ? `${PLAIN[list[0]]}และ${PLAIN[list[1]]}` : joinTh(list.map((c) => PLAIN[c])));
-  const summary =
-    `คุณมีความสนใจเด่นด้าน${plain(sum.lead)}${sum.leadClose ? "ในระดับใกล้เคียงกัน" : ""}` +
-    (sum.rest.length === 0
-      ? ""
-      : sum.rest.length === 1
-      ? ` รองลงมาคือด้าน${plain(sum.rest)}`
-      : sum.restClose
-      ? ` ขณะเดียวกันก็มีความสนใจด้าน${plain(sum.rest)}${sum.leadClose ? "พอ ๆ กัน" : "ในระดับใกล้เคียงกัน"}`
-      : ` รองลงมาคือด้าน${plain(sum.rest)}`);
+  // สรุปเป็นภาษาธรรมชาติจากคะแนนจริง — ใช้ข้อความเดียวกับหน้าผลฝั่งครู (utils/riasecSummary.js)
+  const summary = interestSummaryText(scores, "คุณ");
 
   return (
     <Shell>
@@ -1007,8 +999,8 @@ export default function ResultPage() {
           <div className="grid gap-2.5">
             {teacherAdvice.map((a) => (
               <div key={a.advice_id} className="rounded-xl bg-white/80 border border-pink-100 px-4 py-3">
-                <span className="rounded-full bg-pink-50 px-2.5 py-0.5 text-[13px] font-medium text-pink-700">{a.topic || "คำแนะนำ"}</span>
-                <p className="mt-2 text-[15px] text-gray-700 leading-7 whitespace-pre-line">{a.advice_text}</p>
+                {a.topic && <span className="rounded-full bg-pink-50 px-2.5 py-0.5 text-[13px] font-medium text-pink-700">{a.topic}</span>}
+                <p className={`${a.topic ? "mt-2" : ""} text-[15px] text-gray-700 leading-7 whitespace-pre-line`}>{a.advice_text}</p>
                 <p className="mt-1 text-[12.5px] text-gray-400">
                   {a.teacher_name ? `${a.teacher_name} · ` : ""}
                   {thaiDate(a.updated_at || a.created_at)}
@@ -1044,6 +1036,9 @@ export default function ResultPage() {
           </div>
         </details>
       </div>
+
+      {/* ความต้องการปรึกษา → ส่งเป็นคำขอปรึกษาในระบบเดิม (ครูเห็นในหน้าคำขอปรึกษาและหน้าผลการประเมิน) */}
+      <ConsultNeed onOpen={() => navigate("/studentconsultations")} />
 
       <details className="px-1 text-[12px] text-gray-500">
         <summary className="cursor-pointer select-none">แหล่งข้อมูลและวันที่ตรวจสอบ (สำหรับครู/ผู้ตรวจ)</summary>
@@ -1082,5 +1077,107 @@ export default function ResultPage() {
         </button>
       </div>
     </Shell>
+  );
+}
+
+// หัวข้อความต้องการปรึกษา → หมวดของระบบคำขอปรึกษาเดิม (CONSULTATION_CATEGORIES)
+const CONSULT_NEEDS = [
+  { label: "ยังไม่แน่ใจว่าจะเลือกคณะหรือสาขาไหนดี", category: "การเลือกคณะ" },
+  { label: "ต้องการแนวทางเตรียมตัวเข้าศึกษาต่อ", category: "TCAS" },
+  { label: "ต้องการข้อมูลเกี่ยวกับอาชีพที่สนใจ", category: "อาชีพในอนาคต" },
+  { label: "ต้องการปรึกษาเรื่องอื่น ๆ", category: "อื่นๆ" },
+];
+
+function ConsultNeed({ onOpen }) {
+  const studentId = getCurrentUser()?.user_id;
+  const [open, setOpen] = useState(null); // คำขอที่ยังไม่เสร็จ
+  const [pick, setPick] = useState(null);
+  const [detail, setDetail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState(null); // { ok, text }
+
+  const load = () =>
+    getConsultationRequests({ student_user_id: studentId })
+      .then((rows) => setOpen((rows || []).filter((r) => r.status !== "done").sort((a, b) => new Date(b.created_at) - new Date(a.created_at))))
+      .catch(() => setOpen([]));
+  useEffect(() => {
+    if (studentId) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId]);
+  if (!studentId) return null;
+
+  const needDetail = pick?.category === "อื่นๆ";
+  const canSend = pick && (!needDetail || detail.trim()) && !sending;
+  const send = async () => {
+    if (!canSend) return;
+    setSending(true);
+    setMsg(null);
+    try {
+      await createConsultationRequest({ student_user_id: studentId, category: pick.category, subject: pick.label, message: detail.trim() || pick.label });
+      setMsg({ ok: true, text: "ส่งถึงครูแนะแนวแล้ว ติดตามคำตอบได้ที่หน้าคำขอปรึกษา" });
+      setPick(null);
+      setDetail("");
+      load();
+    } catch {
+      setMsg({ ok: false, text: "ส่งไม่สำเร็จ ลองใหม่อีกครั้ง" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className={CARD}>
+      <SectionHeader emoji="🙋" title="อยากปรึกษาครูแนะแนวเรื่องไหน" subtitle="เลือกเรื่องที่อยากได้ความช่วยเหลือ ครูจะเห็นพร้อมผลแบบประเมินของคุณ" />
+      {open?.length > 0 && (
+        <div className="mb-3 rounded-xl bg-pink-50/60 border border-pink-100 px-4 py-2.5 text-[14px] text-gray-700">
+          คำขอที่รอคำตอบ:{" "}
+          {open.slice(0, 2).map((r, i) => (
+            <span key={r.request_id}>
+              {i > 0 && " • "}
+              {r.subject || r.category} <span className="text-gray-500">({CONSULT_STATUS[r.status]?.label || r.status})</span>
+            </span>
+          ))}{" "}
+          <button type="button" onClick={onOpen} className="text-pink-600 hover:underline bg-transparent !p-0">
+            ดูทั้งหมด →
+          </button>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {CONSULT_NEEDS.map((n) => (
+          <button
+            key={n.label}
+            type="button"
+            onClick={() => setPick(pick?.label === n.label ? null : n)}
+            className={`rounded-full border px-3.5 py-1.5 text-[14px] ${pick?.label === n.label ? "!bg-pink-500 border-pink-500 text-white" : "bg-white border-gray-200 text-gray-700 hover:border-pink-300"}`}
+          >
+            {n.label}
+          </button>
+        ))}
+      </div>
+      {pick && (
+        <div className="mt-3">
+          <label className="block text-[13.5px] text-gray-600" htmlFor="consult-detail">
+            รายละเอียดเพิ่มเติม{needDetail ? "" : " (ไม่บังคับ)"}
+          </label>
+          <textarea
+            id="consult-detail"
+            value={detail}
+            onChange={(e) => setDetail(e.target.value.slice(0, 1000))}
+            rows={3}
+            placeholder="เช่น สนใจทั้งแพทย์และวิศวะ แต่ยังไม่รู้ว่าเหมาะกับแบบไหน"
+            className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[14.5px] outline-none focus:border-pink-400"
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={!canSend}
+            className="mt-2 px-4 py-2 rounded-xl !bg-pink-500 hover:!bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-[14px] font-medium"
+          >
+            {sending ? "กำลังส่ง..." : "ส่งถึงครูแนะแนว"}
+          </button>
+        </div>
+      )}
+      {msg && <p className={`mt-2 text-[13.5px] ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>{msg.text}</p>}
+    </div>
   );
 }

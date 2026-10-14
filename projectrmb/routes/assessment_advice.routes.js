@@ -4,7 +4,7 @@ const { pool } = require('../db');
 const { authRequired, requireRole } = require('../middlewares/auth');
 
 // คำแนะนำจากครูถึงนักเรียน (หน้าผลการประเมินฝั่งครู → แสดงในหน้าผลแบบประเมินของนักเรียน)
-// หัวข้อคำแนะนำ (topic) เพิ่มทีหลัง — แถวเก่าที่ไม่มีหัวข้อยังใช้ได้
+// หัวข้อคำแนะนำ (topic) ไม่บังคับ — ครูพิมพ์คำแนะนำได้เลย (หน้าเว็บตอนนี้ไม่ส่งหัวข้อ)
 pool
   .query('ALTER TABLE assessment_advice ADD COLUMN IF NOT EXISTS topic VARCHAR(100) NULL AFTER student_user_id')
   .catch((e) => console.error('add assessment_advice.topic failed:', e.message));
@@ -22,7 +22,7 @@ const isTeacher = (req) => req.user?.role === 'teacher';
 
 // ตรวจข้อมูลที่ส่งมา คืนข้อความผิดพลาด หรือ null
 const validate = ({ topic, advice_text }) => {
-  if (!TOPICS.includes(topic)) return 'กรุณาเลือกหัวข้อคำแนะนำ';
+  if (topic != null && topic !== '' && !TOPICS.includes(topic)) return 'หัวข้อคำแนะนำไม่ถูกต้อง';
   const text = String(advice_text || '').trim();
   if (!text) return 'กรุณาเขียนคำแนะนำ';
   if (text.length > MAX_TEXT) return `คำแนะนำยาวได้ไม่เกิน ${MAX_TEXT} ตัวอักษร`;
@@ -51,7 +51,8 @@ router.get('/', authRequired, async (req, res) => {
 // ---------------------- POST เพิ่มคำแนะนำ (ครูเท่านั้น — ผู้ให้คำแนะนำ = ครูที่ล็อกอิน) ----------------------
 router.post('/', authRequired, requireRole('teacher'), async (req, res) => {
   try {
-    const { student_user_id, topic } = req.body;
+    const { student_user_id } = req.body;
+    const topic = req.body.topic || null;
     if (!student_user_id) return res.status(400).json({ message: 'student_user_id จำเป็น' });
     const err = validate(req.body);
     if (err) return res.status(400).json({ message: err });
@@ -67,7 +68,7 @@ router.post('/', authRequired, requireRole('teacher'), async (req, res) => {
     // กันกดบันทึกซ้ำ: ข้อความเดียวกันจากครูคนเดิมถึงนักเรียนคนเดิมภายใน 1 นาที
     const [dup] = await pool.query(
       `SELECT advice_id FROM assessment_advice
-       WHERE teacher_user_id = ? AND student_user_id = ? AND topic = ? AND advice_text = ? AND created_at > NOW() - INTERVAL 1 MINUTE`,
+       WHERE teacher_user_id = ? AND student_user_id = ? AND topic <=> ? AND advice_text = ? AND created_at > NOW() - INTERVAL 1 MINUTE`,
       [req.user.id, student_user_id, topic, text]
     );
     if (dup.length) return res.status(409).json({ message: 'บันทึกคำแนะนำนี้ไปแล้ว' });
@@ -94,8 +95,9 @@ router.put('/:id', authRequired, requireRole('teacher'), async (req, res) => {
     if (String(found[0].teacher_user_id) !== String(req.user.id)) {
       return res.status(403).json({ message: 'แก้ไขได้เฉพาะคำแนะนำที่คุณเขียน' });
     }
-    await pool.query('UPDATE assessment_advice SET topic = ?, advice_text = ? WHERE advice_id = ?', [
-      req.body.topic,
+    // ไม่ส่งหัวข้อมา = คงหัวข้อเดิมไว้
+    await pool.query('UPDATE assessment_advice SET topic = COALESCE(?, topic), advice_text = ? WHERE advice_id = ?', [
+      req.body.topic || null,
       String(req.body.advice_text).trim(),
       req.params.id,
     ]);

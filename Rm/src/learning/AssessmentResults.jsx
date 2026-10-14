@@ -5,6 +5,7 @@ import { exportReportExcel } from "../utils/reportExcel.js";
 import ResponsiveSheet from "../components/ResponsiveSheet.jsx";
 import { isBelowXl } from "../utils/breakpoints.js";
 import Swal from "sweetalert2";
+import { useNavigate } from "react-router-dom";
 import Select from "react-select";
 import {
   FaSearch, FaTimes, FaUser, FaCommentDots, FaCheck, FaPaperPlane, FaTrash,
@@ -15,17 +16,19 @@ import Avatar from "../components/Avatar.jsx";
 import useStudentAvatars from "../hooks/useStudentAvatars.js";
 import {
   getStudent, getEnrollments, getClasses, getTypeResults,
-  getGoals,
+  getGoals, getConsultationRequests,
   getAssessmentsList, getAssessmentAdvice, addAssessmentAdvice, updateAssessmentAdvice, deleteAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import PageLoading from "../components/PageLoading.jsx";
 import { getCurrentUser } from "../utils/auth.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
-import { goalsOf } from "../utils/goals.js";
-import { ADVICE_TOPICS, ADVICE_MAX } from "../utils/adviceTopics.js";
+import { goalsOf, fullUniName } from "../utils/goals.js";
+import { ADVICE_MAX } from "../utils/adviceTopics.js";
+import { normalizeConsultation, STATUS_META as CONSULT_STATUS } from "../utils/consultationStore.js";
+import { interestSummaryText, joinTh, TRAIT_NOUN } from "../utils/riasecSummary.js";
 import { latestCurrentResults, legacyOnlyUserIds, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
-import { RIASEC_ORDER, MAX_SCORE, denseRank, facultiesForCode, goalTargets, analyzeTarget } from "../utils/riasecScoring.js";
+import { RIASEC_ORDER, MAX_SCORE, denseRank, facultiesForCode, goalTargets, analyzeTarget, exploreFaculties } from "../utils/riasecScoring.js";
 
 const LEVEL_META = {
   high: { label: "สอดคล้องสูง", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -58,6 +61,7 @@ export default function AssessmentResultsPage() {
   const [loading, setLoading] = useState(true);
 
   const currentUser = getCurrentUser();
+  const navigate = useNavigate();
 
   const [customAssessments, setCustomAssessments] = useState([]);
   useEffect(() => {
@@ -176,7 +180,6 @@ export default function AssessmentResultsPage() {
   // สาขาที่ข้อมูลแนะแนวแนะนำสำหรับรหัสของนักเรียน (เกณฑ์เดียวกับหน้าผลของนักเรียน)
   const codeFaculties = (res) =>
     riasecData && res ? [...new Set(facultiesForCode(riasecData, res.riasec.code).flatMap((x) => x.rows.map((r) => r.name)))] : [];
-  const selectedFaculties = codeFaculties(selected?.result);
 
   // เป้าหมายทั้งหมดของนักเรียน (เรียงเป้าหมายหลักก่อน) + ระดับความสอดคล้องกับผลล่าสุด — analyzeTarget เดียวกับหน้าผลของนักเรียน
   const selectedGoals = useMemo(() => {
@@ -184,9 +187,30 @@ export default function AssessmentResultsPage() {
     return goalsOf(goals, selected.student.user_id).map((g) => {
       const target = riasecData ? goalTargets(riasecData, { faculty_name: g.faculty_name, goal_text: g.goal_text })[0] : null;
       const level = target && selected.result ? analyzeTarget(riasecData, selected.result.riasec, target).displayLevel : null;
-      return { goal: g, level, unknown: Boolean(riasecData && !target) };
+      // สาขาในฐานข้อมูลที่ตรงกับเป้าหมาย (เป้าหมายกว้างหลายแขนง → แขนงที่ analyzeTarget เลือก)
+      const faculty = target ? (selected.result ? analyzeTarget(riasecData, selected.result.riasec, target).faculty : target.match.rows[0]) : null;
+      return { goal: g, level, faculty, unknown: Boolean(riasecData && !target) };
     });
   }, [goals, selected, riasecData]);
+
+  // สาขาที่ระบบแนะนำ (≤ 3) ไม่รวมสาขาที่เป็นเป้าหมายอยู่แล้ว — exploreFaculties เดียวกับหน้าผลของนักเรียน
+  const selectedExplore = useMemo(() => {
+    if (!riasecData || !selected?.result) return [];
+    const goalNames = selectedGoals.flatMap((x) => (x.faculty ? [x.faculty.name] : []));
+    return exploreFaculties(riasecData, selected.result.riasec, goalNames, 3);
+  }, [riasecData, selected, selectedGoals]);
+  const mainGoalFaculty = selectedGoals[0]?.faculty || null;
+
+  // ความต้องการปรึกษา = คำขอปรึกษาที่นักเรียนส่งในระบบคำขอปรึกษาเดิม (ตาราง consultation_requests)
+  const [consults, setConsults] = useState(null);
+  const selectedStudentId = selected?.student.user_id;
+  useEffect(() => {
+    if (!selectedStudentId) return;
+    setConsults(null);
+    getConsultationRequests({ student_user_id: selectedStudentId })
+      .then((rows) => setConsults((rows || []).map(normalizeConsultation).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
+      .catch(() => setConsults([]));
+  }, [selectedStudentId]);
 
   // ---------- ส่งออกรายงานผลการประเมิน (PDF อ่านง่าย / Excel) ----------
   const resultsReport = () => {
@@ -385,56 +409,56 @@ export default function AssessmentResultsPage() {
                   </button>
                 </div>
 
+                {/* ① ข้อมูลนักเรียน */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-start gap-3 min-w-0 max-w-70">
                     <Avatar src={avatarByUser[String(selected.student.user_id)]} name={selected.student.fullname} size={56} />
                     <div className="min-w-0">
                       <div className="text-[16.5px] font-bold text-gray-900 truncate">{selected.student.fullname}</div>
                       <div className="text-[13.5px] text-gray-500 truncate">
-                        {selected.seatNo != null && `เลขที่ ${selected.seatNo} · `}{selectedGrade ? gradeLabel(selectedGrade) : "ยังไม่ระบุห้อง"}
+                        {selected.seatNo != null ? `เลขที่ ${selected.seatNo} · ` : ""}
+                        {selectedGrade ? gradeLabel(selectedGrade) : "ไม่มีข้อมูลห้อง"}
                       </div>
-                      <div className="text-[13.5px] text-gray-500 truncate">รหัสนักเรียน {selected.student.student_code}</div>
+                      <div className="text-[13.5px] text-gray-500 truncate">รหัสนักเรียน {selected.student.student_code || "-"}</div>
                     </div>
                   </div>
-                  {selected.result && (
-                    <div className="text-right shrink-0">
-                      <span className={`inline-block text-[12.5px] font-medium px-2.5 py-1 rounded-full ${STATUS_META[selected.status].cls}`}>{STATUS_META[selected.status].label}</span>
-                      <div className="text-[12.5px] text-gray-400 mt-1">{formatDateTime(selected.result.test_date)}</div>
-                    </div>
-                  )}
+                  <div className="text-right shrink-0">
+                    <span className={`inline-block text-[12.5px] font-medium px-2.5 py-1 rounded-full ${STATUS_META[selected.status].cls}`}>{STATUS_META[selected.status].label}</span>
+                    {selected.result && <div className="text-[12.5px] text-gray-400 mt-1">ทำล่าสุด {formatDateTime(selected.result.test_date)}</div>}
+                  </div>
                 </div>
 
-                {!selected.result ? (
-                  <div className="rounded-xl bg-gray-50 text-gray-400 text-[14.5px] px-4 py-6 text-center">
-                    นักเรียนคนนี้ยังไม่ได้ทำแบบประเมินนี้
-                    {legacyOnly.has(String(selected.student.user_id)) && (
-                      <div className="mt-1 text-[13px]">มีผลจากระบบเดิมที่ไม่มีคะแนนราย 6 ด้าน — ให้นักเรียนทำแบบทดสอบใหม่</div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {/* กล่องไฮไลต์เดียวที่ยังใช้กรอบ — ที่เหลือคั่นด้วยเส้นแบ่งแทน กันดูรก */}
-                    {(() => {
+                {/* ② ผลความสนใจ */}
+                <PanelSection title="ผลความสนใจ (RIASEC)">
+                  {!selected.result ? (
+                    <div className="rounded-xl bg-gray-50 text-gray-400 text-[14px] px-4 py-5 text-center">
+                      นักเรียนคนนี้ยังไม่ได้ทำแบบประเมินนี้
+                      {legacyOnly.has(String(selected.student.user_id)) && (
+                        <div className="mt-1 text-[13px]">มีผลจากระบบเดิมที่ไม่มีคะแนนราย 6 ด้าน — ให้นักเรียนทำแบบทดสอบใหม่</div>
+                      )}
+                    </div>
+                  ) : (
+                    (() => {
                       const res = selected.result.riasec;
                       const sc = selected.result.scores;
                       const dims = riasecData?.dimensions || {};
                       const top = res.ranked.filter((c) => denseRank(sc, c) <= 3);
                       return (
-                        <div className="rounded-2xl border border-pink-100 bg-pink-50/50 p-5 mb-4">
-                          <div className="text-[14px] text-pink-700/70">รหัสความสนใจ (ผลครั้งล่าสุด)</div>
+                        <div className="rounded-2xl border border-pink-100 bg-pink-50/50 p-4">
                           <div className="flex flex-wrap items-end gap-x-2.5">
-                            <span className="text-[28px] font-bold tracking-wider text-pink-800">{res.code}</span>
+                            <span className="text-[28px] leading-none font-bold tracking-wider text-pink-800">{res.code}</span>
                             {res.alternativeCodes.length > 0 && res.alternativeCodes.length <= 2 && (
-                              <span className="pb-1.5 text-[13.5px] text-gray-400">หรือ {res.alternativeCodes.join(", ")}</span>
+                              <span className="text-[13.5px] text-gray-400">หรือ {res.alternativeCodes.join(", ")}</span>
                             )}
+                            <span className="ml-auto flex flex-wrap gap-1.5">
+                              {top.map((c) => (
+                                <span key={c} className="rounded-full bg-white px-2.5 py-0.5 text-[12.5px] font-medium text-gray-700 shadow-sm">
+                                  {dims[c]?.nameTh || c}
+                                </span>
+                              ))}
+                            </span>
                           </div>
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {top.map((c) => (
-                              <span key={c} className="rounded-full bg-white px-2.5 py-0.5 text-[13px] font-medium text-gray-700 shadow-sm">
-                                {dims[c]?.nameTh || c}
-                              </span>
-                            ))}
-                          </div>
+                          <p className="mt-2.5 text-[14px] text-gray-700 leading-6">{interestSummaryText(sc, "นักเรียน")}</p>
                           <div className="mt-3 space-y-1.5">
                             {RIASEC_ORDER.map((c) => (
                               <div key={c} className="flex items-center gap-2 text-[13px]">
@@ -444,42 +468,24 @@ export default function AssessmentResultsPage() {
                                 <span className="h-2 flex-1 rounded-full bg-white">
                                   <span className={`block h-2 rounded-full ${BAR[c]}`} style={{ width: `${(sc[c] / MAX_SCORE) * 100}%` }} />
                                 </span>
-                                <span className="w-12 shrink-0 text-right font-medium text-gray-700">{sc[c]}/{MAX_SCORE}</span>
+                                <span className="w-12 shrink-0 text-right font-medium text-gray-700">
+                                  {sc[c]}/{MAX_SCORE}
+                                </span>
                               </div>
                             ))}
                           </div>
                           {res.lowDifferentiation && <div className="mt-2 text-[12.5px] text-sky-700">คะแนนทุกด้านใกล้เคียงกัน</div>}
+                          <div className="mt-2 text-[12px] text-gray-400">บอกความสนใจ ไม่ได้วัดความสามารถ</div>
                         </div>
                       );
-                    })()}
+                    })()
+                  )}
+                </PanelSection>
 
-                    <div className="divide-y divide-gray-100 border-t border-gray-100 mb-4">
-                      {selectedFaculties.length === 0 ? (
-                        <div className="py-4 text-[13.5px] text-gray-400">ไม่มีข้อมูลสาขาที่ระบบแนะนำสำหรับรหัส {selected.result.riasec.code}</div>
-                      ) : (
-                        <div className="py-4">
-                          <div className="text-[14px] text-gray-500 mb-2">
-                            สาขาที่ระบบแนะนำ <span className="text-gray-400">(ตามรหัส {selected.result.riasec.code} — ไม่ใช่เป้าหมายของนักเรียน)</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedFaculties.map((name) => (
-                              <span key={name} className="rounded-lg bg-gray-50 border border-gray-100 px-2.5 py-1 text-[14px] text-gray-800">
-                                {name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                    </div>
-                  </>
-                )}
-
-                {/* เป้าหมายการศึกษาต่อ — แสดงแม้ยังไม่ได้ทำแบบประเมิน */}
-                <div className="border-t border-gray-100 py-4 mb-2">
-                  <div className="text-[14px] text-gray-500 mb-2">🚩 สาขาที่นักเรียนตั้งเป้าหมายเอง</div>
+                {/* ③ เป้าหมายที่นักเรียนตั้งเอง */}
+                <PanelSection title="🚩 เป้าหมายที่นักเรียนตั้งเอง">
                   {selectedGoals.length === 0 ? (
-                    <div className="text-[13.5px] text-gray-400">ยังไม่ได้ตั้งเป้าหมาย</div>
+                    <div className="text-[13.5px] text-gray-400">นักเรียนยังไม่ได้ตั้งเป้าหมาย</div>
                   ) : (
                     <div className="flex flex-col gap-2">
                       {selectedGoals.map(({ goal: g, level, unknown }, i) => (
@@ -489,7 +495,7 @@ export default function AssessmentResultsPage() {
                               <div className="text-[12.5px] text-gray-400">{i === 0 ? "เป้าหมายหลัก" : `เป้าหมายสำรอง (อันดับ ${i + 1})`}</div>
                               <div className="text-[15px] font-medium text-gray-900">
                                 {g.faculty_name || g.career_field || "-"}
-                                {g.university_name ? <span className="font-normal text-gray-500"> • {g.university_name}</span> : null}
+                                <span className="font-normal text-gray-500"> • {g.university_name || "ยังไม่เลือกมหาวิทยาลัย"}</span>
                               </div>
                             </div>
                             {level ? (
@@ -502,10 +508,84 @@ export default function AssessmentResultsPage() {
                           {g.goal_text && <div className="text-[13.5px] text-gray-500 mt-0.5">“{g.goal_text}”</div>}
                         </div>
                       ))}
+                      {!selectedGoals.some((x) => x.goal.career_field) && <div className="text-[13px] text-gray-400">นักเรียนยังไม่ได้ระบุอาชีพที่สนใจ</div>}
                     </div>
                   )}
-                </div>
+                </PanelSection>
 
+                {/* ④ ความต้องการปรึกษา — จากระบบคำขอปรึกษาเดิม */}
+                <PanelSection title="💬 ความต้องการปรึกษาของนักเรียน">
+                  {consults === null ? (
+                    <div className="text-[13.5px] text-gray-400">กำลังโหลด...</div>
+                  ) : consults.length === 0 ? (
+                    <div className="text-[13.5px] text-gray-400">นักเรียนยังไม่ได้ระบุความต้องการปรึกษา</div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {consults.slice(0, 3).map((c) => {
+                        const first = c.messages.find((m) => m.sender === "student");
+                        return (
+                          <div key={c.id} className="rounded-xl border border-gray-100 px-3.5 py-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="text-[14.5px] font-medium text-gray-900">{c.subject || c.category}</div>
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium ${CONSULT_STATUS[c.status]?.cls || "bg-gray-100 text-gray-500"}`}>
+                                {CONSULT_STATUS[c.status]?.label || c.status}
+                              </span>
+                            </div>
+                            {first?.text && first.text !== c.subject && <div className="mt-0.5 text-[13.5px] text-gray-600 whitespace-pre-line line-clamp-3">{first.text}</div>}
+                            <div className="mt-0.5 text-[12px] text-gray-400">
+                              {c.category} · ส่งเมื่อ {formatDateTime(c.createdAt)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button type="button" onClick={() => navigate("/consultations")} className="self-start text-[13.5px] text-pink-600 hover:underline bg-transparent !p-0">
+                        ตอบคำขอที่หน้าคำขอปรึกษา →
+                      </button>
+                    </div>
+                  )}
+                </PanelSection>
+
+                {/* ⑤ ข้อมูลประกอบการแนะแนว */}
+                <PanelSection title="ข้อมูลประกอบการแนะแนว">
+                  <div className="text-[13.5px] font-semibold text-gray-700">
+                    สาขาที่ระบบแนะนำ <span className="font-normal text-gray-400">(จากผลความสนใจ — ไม่ใช่เป้าหมายของนักเรียน)</span>
+                  </div>
+                  {!selected.result ? (
+                    <div className="mt-1 text-[13.5px] text-gray-400">ต้องมีผลแบบประเมินก่อน</div>
+                  ) : selectedExplore.length === 0 ? (
+                    <div className="mt-1 text-[13.5px] text-gray-400">ไม่มีข้อมูลสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน</div>
+                  ) : (
+                    <ol className="mt-1.5 space-y-1.5">
+                      {selectedExplore.map(({ row, code, links }, i) => {
+                        const link = links.find((l) => l.code === row.dim) || links[0];
+                        return (
+                          <li key={row.name} className="text-[14px] text-gray-700 leading-6">
+                            <span className="font-medium text-gray-900">
+                              {i + 1}. {row.name}
+                            </span>{" "}
+                            <span className="text-[12px] text-pink-600">รหัส {code}</span>
+                            <div className="text-[13.5px] text-gray-500">
+                              เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+
+                  <div className="mt-4 text-[13.5px] font-semibold text-gray-700">
+                    แนวทางเตรียมตัวสำหรับเป้าหมายหลัก{mainGoalFaculty ? `: ${mainGoalFaculty.name}` : ""}
+                  </div>
+                  {!mainGoalFaculty ? (
+                    <div className="mt-1 text-[13.5px] text-gray-400">
+                      {selectedGoals.length ? "ไม่พบสาขาเป้าหมายหลักในข้อมูลแนะแนว" : "นักเรียนยังไม่ได้ตั้งเป้าหมาย"}
+                    </div>
+                  ) : (
+                    <GoalPrep faculty={mainGoalFaculty} goalUni={selectedGoals[0].goal.university_name} />
+                  )}
+                </PanelSection>
+
+                {/* ⑥ ประวัติคำแนะนำจากครู */}
                 {/* คำแนะนำถึงนักเรียน — บันทึกลงตาราง assessment_advice และแสดงในหน้าผลแบบประเมินของนักเรียน */}
                 <AdviceEditor key={selected.student.user_id} studentId={selected.student.user_id} currentUserId={currentUser?.user_id} />
               </>
@@ -529,7 +609,6 @@ const apiError = (e, fallback) => e?.response?.data?.message || fallback;
 function AdviceEditor({ studentId, currentUserId }) {
   const [items, setItems] = useState(null); // null = กำลังโหลด
   const [loadError, setLoadError] = useState(false);
-  const [topic, setTopic] = useState("");
   const [text, setText] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -546,18 +625,17 @@ function AdviceEditor({ studentId, currentUserId }) {
   useEffect(load, [studentId]);
 
   const reset = () => {
-    setTopic("");
     setText("");
     setEditingId(null);
   };
-  const canSave = topic && text.trim() && !saving;
+  const canSave = text.trim() && !saving;
 
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
     try {
-      if (editingId) await updateAssessmentAdvice(editingId, { topic, advice_text: text.trim() });
-      else await addAssessmentAdvice({ student_user_id: studentId, topic, advice_text: text.trim() });
+      if (editingId) await updateAssessmentAdvice(editingId, { advice_text: text.trim() });
+      else await addAssessmentAdvice({ student_user_id: studentId, advice_text: text.trim() });
       toast("success", editingId ? "บันทึกการแก้ไขแล้ว" : "บันทึกคำแนะนำแล้ว นักเรียนจะเห็นในหน้าผลแบบประเมิน");
       reset();
       load();
@@ -595,7 +673,7 @@ function AdviceEditor({ studentId, currentUserId }) {
     <div className="rounded-2xl border border-pink-100 bg-pink-50/40 p-4 mt-1">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <div className="text-[14.5px] text-pink-700 font-semibold flex items-center gap-1.5">
-          <FaCommentDots size={12} /> คำแนะนำถึงนักเรียน (นักเรียนเห็นได้)
+          <FaCommentDots size={12} /> ประวัติคำแนะนำจากครู (นักเรียนเห็นได้)
         </div>
         {items !== null && (
           <span className={`rounded-full px-2.5 py-0.5 text-[12.5px] font-medium ${latest ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
@@ -622,14 +700,13 @@ function AdviceEditor({ studentId, currentUserId }) {
               return (
                 <div key={a.advice_id} className={`rounded-xl bg-white px-3.5 py-2.5 ${editingId === a.advice_id ? "ring-2 ring-pink-300" : ""}`}>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="rounded-full bg-pink-50 px-2 py-0.5 text-[12px] font-medium text-pink-700">{a.topic || "ไม่ระบุหัวข้อ"}</span>
+                    {a.topic ? <span className="rounded-full bg-pink-50 px-2 py-0.5 text-[12px] font-medium text-pink-700">{a.topic}</span> : <span />}
                     {mine && (
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => {
                             setEditingId(a.advice_id);
-                            setTopic(ADVICE_TOPICS.includes(a.topic) ? a.topic : "");
                             setText(a.advice_text);
                           }}
                           className="h-7 px-2 rounded-lg text-[12.5px] text-gray-500 hover:bg-gray-100 bg-transparent"
@@ -656,25 +733,8 @@ function AdviceEditor({ studentId, currentUserId }) {
       )}
 
       <div className="rounded-xl bg-white p-3.5">
-        <div className="text-[13.5px] font-semibold text-gray-700">{editingId ? "แก้ไขคำแนะนำ" : latest ? "เพิ่มคำแนะนำ" : "เขียนคำแนะนำ"}</div>
-        <label className="mt-2 block text-[13px] text-gray-500" htmlFor="advice-topic">
-          หัวข้อคำแนะนำ
-        </label>
-        <select
-          id="advice-topic"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          className="mt-1 w-full h-10 rounded-lg border border-gray-200 bg-white px-2.5 text-[14px] outline-none focus:border-pink-400"
-        >
-          <option value="">เลือกหัวข้อ</option>
-          {ADVICE_TOPICS.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-        <label className="mt-2.5 block text-[13px] text-gray-500" htmlFor="advice-text">
-          คำแนะนำ
+        <label className="text-[13.5px] font-semibold text-gray-700" htmlFor="advice-text">
+          {editingId ? "แก้ไขคำแนะนำ" : latest ? "เพิ่มคำแนะนำ" : "เขียนคำแนะนำ"}
         </label>
         <textarea
           id="advice-text"
@@ -705,6 +765,56 @@ function AdviceEditor({ studentId, currentUserId }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// หัวข้อย่อยในแผงขวา — คั่นด้วยเส้น ไม่ใช้การ์ดซ้อน
+function PanelSection({ title, children }) {
+  return (
+    <section className="border-t border-gray-100 py-4">
+      <h3 className="mb-2 text-[14.5px] font-semibold text-gray-800">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+// แนวทางเตรียมตัวแบบสรุปของสาขาเป้าหมายหลัก (ข้อมูลแนะแนวของโรงเรียน) + หลักสูตรใน myTCAS ถ้ามีลิงก์ที่ตรวจแล้ว
+function GoalPrep({ faculty, goalUni }) {
+  const programs = (faculty.programs || [])
+    .map((pg, k) => {
+      const [uni, ...rest] = pg.split(":");
+      return { uni: fullUniName(uni.trim()), name: rest.join(":").trim(), link: faculty.links?.[k] };
+    })
+    .filter((x) => x.link);
+  const fromGoal = goalUni ? programs.find((x) => x.uni === fullUniName(goalUni)) : null;
+  const pick = fromGoal || programs[0] || null;
+  const rows = [
+    ["วิชาที่ควรเน้น", (faculty.subjects || []).join(", ")],
+    ["สายการเรียนที่แนะนำ", faculty.track],
+    ["ทักษะที่ช่วยให้พร้อม", faculty.skills],
+    ["คำแนะนำการเตรียมสอบ (ทั่วไป ไม่ใช่เกณฑ์รับเข้า)", faculty.exam],
+  ].filter(([, v]) => v);
+  return (
+    <div className="mt-1.5 space-y-1 text-[13.5px] leading-6">
+      {rows.map(([k, v]) => (
+        <div key={k}>
+          <span className="text-gray-500">{k}: </span>
+          <span className="text-gray-800">{v}</span>
+        </div>
+      ))}
+      <div>
+        <span className="text-gray-500">หลักสูตรและเกณฑ์รับสมัคร: </span>
+        {pick ? (
+          <a href={pick.link} target="_blank" rel="noreferrer" className="text-sky-700 underline underline-offset-2 hover:text-sky-800">
+            {pick.uni} บน myTCAS ↗
+          </a>
+        ) : (
+          <span className="text-gray-400">ไม่มีข้อมูลหลักสูตรที่ตรวจสอบแล้ว</span>
+        )}
+        {pick && !fromGoal && goalUni && <span className="text-[12px] text-gray-400"> (ไม่พบหลักสูตรของ{goalUni}ในข้อมูล)</span>}
+      </div>
+      <div className="text-[12px] text-gray-400">ที่มา: ข้อมูลแนะแนวของโรงเรียน • หลักสูตรจาก myTCAS — ตรวจประกาศของมหาวิทยาลัยก่อนสมัคร</div>
     </div>
   );
 }
