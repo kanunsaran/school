@@ -31,12 +31,18 @@ const colorMap = {
 const EMOJI = { R: "🔧", I: "🔬", A: "🎨", S: "🤝", E: "🎯", C: "🗂️" };
 // สีอ่อนประจำด้าน (โทนเดียวกับแถบคะแนน) ใช้กับการ์ดกิจกรรมและสาขา
 const DIM_THEME = {
-  R: { card: "bg-rose-50/70 border-rose-100", text: "text-rose-600", icon: "bg-rose-100/80", pill: "border-rose-200 text-rose-600 hover:bg-rose-50" },
-  I: { card: "bg-sky-50/70 border-sky-100", text: "text-sky-700", icon: "bg-sky-100/80", pill: "border-sky-200 text-sky-700 hover:bg-sky-50" },
-  A: { card: "bg-amber-50/70 border-amber-100", text: "text-amber-700", icon: "bg-amber-100/80", pill: "border-amber-200 text-amber-700 hover:bg-amber-50" },
-  S: { card: "bg-emerald-50/70 border-emerald-100", text: "text-emerald-700", icon: "bg-emerald-100/80", pill: "border-emerald-200 text-emerald-700 hover:bg-emerald-50" },
-  E: { card: "bg-violet-50/70 border-violet-100", text: "text-violet-700", icon: "bg-violet-100/80", pill: "border-violet-200 text-violet-700 hover:bg-violet-50" },
-  C: { card: "bg-slate-50 border-slate-200/70", text: "text-slate-600", icon: "bg-slate-200/70", pill: "border-slate-300 text-slate-600 hover:bg-slate-50" },
+  R: { card: "bg-rose-50/70 border-rose-100", text: "text-rose-600", icon: "bg-rose-100/80", pill: "border-rose-200 text-rose-600 hover:bg-rose-50", accent: "border-t-rose-400" },
+  I: { card: "bg-sky-50/70 border-sky-100", text: "text-sky-700", icon: "bg-sky-100/80", pill: "border-sky-200 text-sky-700 hover:bg-sky-50", accent: "border-t-sky-400" },
+  A: { card: "bg-amber-50/70 border-amber-100", text: "text-amber-700", icon: "bg-amber-100/80", pill: "border-amber-200 text-amber-700 hover:bg-amber-50", accent: "border-t-amber-400" },
+  S: { card: "bg-emerald-50/70 border-emerald-100", text: "text-emerald-700", icon: "bg-emerald-100/80", pill: "border-emerald-200 text-emerald-700 hover:bg-emerald-50", accent: "border-t-emerald-400" },
+  E: { card: "bg-violet-50/70 border-violet-100", text: "text-violet-700", icon: "bg-violet-100/80", pill: "border-violet-200 text-violet-700 hover:bg-violet-50", accent: "border-t-violet-400" },
+  C: { card: "bg-slate-50 border-slate-200/70", text: "text-slate-600", icon: "bg-slate-200/70", pill: "border-slate-300 text-slate-600 hover:bg-slate-50", accent: "border-t-slate-400" },
+};
+// สีการ์ดเป้าหมายตามระดับความสอดคล้อง (ใช้สีเดียวต่อการ์ด)
+const LEVEL_TONE = {
+  high: { ring: "border-emerald-200", head: "bg-emerald-50/80 border-emerald-100", label: "text-emerald-700", pill: "bg-emerald-500", title: "text-emerald-700", bar: "bg-emerald-400", marker: "marker:text-emerald-400" },
+  medium: { ring: "border-amber-200", head: "bg-amber-50/80 border-amber-100", label: "text-amber-700", pill: "bg-amber-500", title: "text-amber-700", bar: "bg-amber-400", marker: "marker:text-amber-400" },
+  low: { ring: "border-slate-200", head: "bg-slate-50 border-slate-200", label: "text-slate-600", pill: "bg-slate-500", title: "text-slate-700", bar: "bg-slate-400", marker: "marker:text-slate-400" },
 };
 const Icon = ({ code, className = "h-5 w-5" }) => <img src={emojiSrc(code)} alt="" className={className} />;
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
@@ -211,11 +217,11 @@ function GoalHeader({ goal, onEdit }) {
   );
 }
 
-function Block({ title, children }) {
+function Block({ title, tone, children }) {
   return (
     <div className="mt-4">
-      <div className="flex items-center gap-2 text-[15.5px] font-semibold text-pink-700">
-        <span className="h-4 w-1 rounded-full bg-pink-400" />
+      <div className={`flex items-center gap-2 text-[15.5px] font-semibold ${tone.title}`}>
+        <span className={`h-4 w-1 rounded-full ${tone.bar}`} />
         {title}
       </div>
       <div className="text-[15px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
@@ -248,22 +254,23 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
   // ความเชื่อมโยงหลัก: ด้านหลักของสาขาก่อน (ถ้าเชื่อมได้) — ไม่ไล่จับคู่ทุกคุณลักษณะกับทุกด้าน
   const link = a.links.find((x) => x.code === dim) || a.links[0];
   const steps = adviceSteps(f.advice).slice(0, 2);
+  const tone = LEVEL_TONE[a.displayLevel];
 
   return (
-    <div className="rounded-2xl border border-pink-100 bg-white overflow-hidden">
-      <div className="bg-pink-50/70 border-b border-pink-100 px-4 py-4 sm:px-5">
+    <div className={`rounded-2xl border bg-white overflow-hidden ${tone.ring}`}>
+      <div className={`border-b px-4 py-4 sm:px-5 ${tone.head}`}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[13px] text-pink-600">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
+            <div className={`text-[13px] ${tone.label}`}>เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
             <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
           </div>
-          <span className="shrink-0 rounded-full bg-pink-500 px-3 py-1 text-[14px] font-semibold text-white">สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
+          <span className={`shrink-0 rounded-full px-3 py-1 text-[14px] font-semibold text-white ${tone.pill}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
         </div>
         <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
       </div>
       <div className="px-4 pb-4 sm:px-5">
 
-      <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
+      <Block title="ทำไมสาขานี้จึงน่าสำรวจ" tone={tone}>
         <p>
           {link
             ? `สาขานี้เน้น${joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน${TRAIT_NOUN[link.code]}ของคุณ`
@@ -278,8 +285,8 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
         )}
       </Block>
 
-      <Block title="สิ่งที่ลองทำได้">
-        <ul className="list-disc pl-5 space-y-0.5 marker:text-pink-400">
+      <Block title="สิ่งที่ลองทำได้" tone={tone}>
+        <ul className={`list-disc pl-5 space-y-0.5 ${tone.marker}`}>
           {steps.map((x) => (
             <li key={x}>{x}</li>
           ))}
@@ -289,7 +296,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
 
       {alternatives.length > 0 && (
         <details className="mt-4">
-          <summary className="cursor-pointer select-none text-[14.5px] font-semibold text-pink-700">สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
+          <summary className={`cursor-pointer select-none text-[14.5px] font-semibold ${tone.title}`}>สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
           <div className="mt-2 space-y-2">
             {alternatives.slice(0, 2).map((x) => (
               <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
@@ -736,7 +743,7 @@ export default function ResultPage() {
                   const g = DIM_ACTIVITY[x.dim];
                   const t = DIM_THEME[x.dim];
                   return (
-                    <div key={x.dim} className={`flex flex-col rounded-2xl border px-4 py-4 ${t.card}`}>
+                    <div key={x.dim} className={`flex flex-col rounded-2xl border border-gray-100 border-t-4 bg-white px-4 py-4 shadow-sm ${t.accent}`}>
                       <div className="flex items-center gap-2.5">
                         <span className={`h-10 w-10 shrink-0 rounded-full grid place-items-center ${t.icon}`}>
                           <Icon code={DIM_ICON[x.dim]} className="h-6 w-6" />
@@ -769,19 +776,22 @@ export default function ResultPage() {
                     // เหตุผล = วลีของสาขานี้เอง (คุณลักษณะในข้อมูลแนะแนว) ที่เชื่อมกับความสนใจเด่น — ใช้ด้านหลักของสาขาก่อน
                     const link = links.find((l) => l.code === row.dim) || links[0];
                     return (
-                      <div key={row.name} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 min-w-0 leading-7 text-[15px]">
+                      <div key={row.name} className="flex flex-col rounded-xl bg-white border border-gray-100 px-3.5 py-3 min-w-0 leading-7 text-[15px]">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="text-[16px] font-semibold text-gray-900">
-                            {i + 1}. {row.name}
+                          <div className="flex items-center gap-2 text-[16px] font-semibold text-gray-900">
+                            <span className="h-7 w-7 shrink-0 rounded-full bg-pink-100 text-pink-600 text-[13.5px] font-bold grid place-items-center">{i + 1}</span>
+                            {row.name}
                           </div>
                           <span className="shrink-0 rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
                         </div>
                         <p className="mt-1 text-gray-700">
                           เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
                         </p>
-                        <div className="mt-1.5 text-[14px] font-semibold text-gray-800">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
-                        <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
-                        <div className="mt-1.5">
+                        <div className="mt-2 flex-1 rounded-lg bg-gray-50 px-3 py-2">
+                          <div className="text-[14px] font-semibold text-gray-800">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
+                          <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
+                        </div>
+                        <div className="mt-2">
                           <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
                         </div>
                       </div>
