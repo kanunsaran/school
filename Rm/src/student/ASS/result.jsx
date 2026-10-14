@@ -39,7 +39,6 @@ const DIM_THEME = {
   C: { card: "bg-slate-50 border-slate-200/70", text: "text-slate-600", icon: "bg-slate-200/70", pill: "border-slate-300 text-slate-600 hover:bg-slate-50" },
 };
 const Icon = ({ code, className = "h-5 w-5" }) => <img src={emojiSrc(code)} alt="" className={className} />;
-const SUMMARY_PLAIN = "list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden";
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
@@ -58,12 +57,6 @@ const roadmapFor = (goalName) => [
 
 // ข้อค้นพบความเชื่อมโยงระหว่างความสนใจกับสาขาเป้าหมาย (findingKind ใน riasecScoring.js) — เงื่อนไขตรวจสอบได้จากข้อมูล ไม่ใช่การให้คะแนน
 const LEVEL_TH = { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" };
-const FINDING_META = {
-  recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", box: "bg-white/70 border-emerald-100" },
-  main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "text-pink-700 bg-pink-50 border-pink-200", box: "bg-white/70 border-pink-100" },
-  partial: { label: "เชื่อมโยงบางด้าน", cls: "text-amber-700 bg-amber-50 border-amber-200", box: "bg-white/70 border-amber-100" },
-  none: { label: "ยังไม่พบความเชื่อมโยงชัดเจน", cls: "text-gray-600 bg-gray-50 border-gray-200", box: "bg-white/70 border-gray-200" },
-};
 const CONSISTENCY_META = {
   high: { label: "สูง", text: "ความสนใจ 2 อันดับแรกอยู่ติดกันบนหกเหลี่ยม RIASEC จึงไปในทิศทางเดียวกันชัดเจน" },
   medium: { label: "ปานกลาง", text: "ความสนใจ 2 อันดับแรกอยู่ห่างกัน 1 ช่องบนหกเหลี่ยม RIASEC มีความเกี่ยวข้องกันพอสมควร" },
@@ -221,7 +214,10 @@ function GoalHeader({ goal, onEdit }) {
 function Block({ title, children }) {
   return (
     <div className="mt-4">
-      <div className="text-[15.5px] font-semibold text-gray-800">{title}</div>
+      <div className="flex items-center gap-2 text-[15.5px] font-semibold text-pink-700">
+        <span className="h-4 w-1 rounded-full bg-pink-400" />
+        {title}
+      </div>
       <div className="text-[15px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
     </div>
   );
@@ -247,7 +243,6 @@ function Finding({ ok, children }) {
 function AlignmentCard({ a, latest, scores, alternatives, university }) {
   const f = a.faculty;
   const dim = f.dim;
-  const meta = FINDING_META[a.kind];
   const codes = [latest.code, ...latest.alternativeCodes];
   const dimMine = denseRank(scores, dim) <= 3;
   // ความเชื่อมโยงหลัก: ด้านหลักของสาขาก่อน (ถ้าเชื่อมได้) — ไม่ไล่จับคู่ทุกคุณลักษณะกับทุกด้าน
@@ -255,15 +250,18 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
   const steps = adviceSteps(f.advice).slice(0, 2);
 
   return (
-    <div className={`rounded-2xl border px-4 py-4 sm:px-5 ${meta.box}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="text-[13px] text-gray-500">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
-          <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
+    <div className="rounded-2xl border border-pink-100 bg-white overflow-hidden">
+      <div className="bg-pink-50/70 border-b border-pink-100 px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[13px] text-pink-600">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
+            <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
+          </div>
+          <span className="shrink-0 rounded-full bg-pink-500 px-3 py-1 text-[14px] font-semibold text-white">สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
         </div>
-        <span className={`shrink-0 rounded-full border px-3 py-1 text-[14px] font-semibold ${meta.cls}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
+        <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
       </div>
-      <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
+      <div className="px-4 pb-4 sm:px-5">
 
       <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
         <p>
@@ -281,7 +279,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
       </Block>
 
       <Block title="สิ่งที่ลองทำได้">
-        <ul className="list-disc pl-5 space-y-0.5">
+        <ul className="list-disc pl-5 space-y-0.5 marker:text-pink-400">
           {steps.map((x) => (
             <li key={x}>{x}</li>
           ))}
@@ -291,7 +289,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
 
       {alternatives.length > 0 && (
         <details className="mt-4">
-          <summary className="cursor-pointer select-none text-[14.5px] font-semibold text-gray-800">สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
+          <summary className="cursor-pointer select-none text-[14.5px] font-semibold text-pink-700">สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
           <div className="mt-2 space-y-2">
             {alternatives.slice(0, 2).map((x) => (
               <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
@@ -324,6 +322,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
           ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม และไม่ได้ทำนายความสำเร็จในการเรียน • ความพร้อมด้านวิชาการและเกณฑ์รับเข้าดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”
         </p>
       </details>
+      </div>
     </div>
   );
 }
@@ -731,46 +730,29 @@ export default function ResultPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" subtitle="เลือกกิจกรรมที่สนใจ แล้วลองสำรวจตัวเองจากประสบการณ์จริง" wide>
             <li className="list-none">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* ค่าเริ่มต้น 3 กล่องต่อแถว • มี 4 กล่องพอดี = 2×2 */}
+              <div className={`grid grid-cols-1 gap-3 ${activities.length === 4 ? "md:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3"}`}>
                 {activities.map((x) => {
                   const g = DIM_ACTIVITY[x.dim];
                   const t = DIM_THEME[x.dim];
                   return (
-                    <div key={x.dim} className={`flex gap-3.5 rounded-2xl border px-4 py-3.5 ${t.card}`}>
-                      <span className={`h-12 w-12 shrink-0 rounded-full grid place-items-center ${t.icon}`}>
-                        <Icon code={DIM_ICON[x.dim]} className="h-7 w-7" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className={`text-[14px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</div>
-                        <div className="mt-0.5 text-[15.5px] font-semibold text-gray-900 leading-6">{x.text || g.act}</div>
-                        <div className="mt-1 text-[14.5px] text-gray-600 leading-6">
-                          <span className="font-medium text-gray-500">ลองถามตัวเอง: </span>
-                          {g.question}
-                        </div>
-                        <details className="group mt-2 text-[13.5px] text-gray-600">
-                          <summary className={`${SUMMARY_PLAIN} inline-flex items-center gap-1 rounded-full border bg-white px-3 py-1 text-[12.5px] font-medium ${t.pill}`}>
-                            ดูรายละเอียด <span className="transition group-open:rotate-90">›</span>
-                          </summary>
-                          <div className="mt-2 space-y-0.5 rounded-xl bg-white/80 px-3 py-2 leading-6">
-                            {!x.text && <div>วิธีลงมือทำ: {g.how}</div>}
-                            <div>ได้สำรวจ: {g.skill}</div>
-                            {x.forGoal && <div>เป็นด้านที่สาขาเป้าหมายของคุณใช้</div>}
-                            {x.text ? (
-                              <div className="text-gray-400">ข้อความต้นฉบับ (สาขา{x.faculty.name}): “{x.faculty.advice}”</div>
-                            ) : (
-                              <div className="text-gray-400">คำแนะนำทั่วไปของระบบ ยังไม่ผ่านการตรวจสอบจากครูแนะแนว</div>
-                            )}
-                          </div>
-                        </details>
+                    <div key={x.dim} className={`flex flex-col rounded-2xl border px-4 py-4 ${t.card}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className={`h-10 w-10 shrink-0 rounded-full grid place-items-center ${t.icon}`}>
+                          <Icon code={DIM_ICON[x.dim]} className="h-6 w-6" />
+                        </span>
+                        <span className={`text-[14px] font-semibold ${t.text}`}>ด้าน{TRAIT_NOUN[x.dim]}</span>
                       </div>
+                      <div className="mt-2.5 text-[16px] font-semibold text-gray-900 leading-6">{g.act}</div>
+                      <div className="mt-3 text-[13.5px] font-semibold text-gray-800">ลองทำกิจกรรมนี้</div>
+                      <p className="mt-0.5 text-[14.5px] text-gray-700 leading-6">{x.text || g.how}</p>
+                      <div className="mt-3 text-[13.5px] font-semibold text-gray-800">ลองสังเกตตัวเอง</div>
+                      <p className="mt-0.5 text-[14.5px] text-gray-700 leading-6">{g.question}</p>
+                      {!x.text && <p className="mt-auto pt-3 text-[12px] text-gray-400">คำแนะนำเบื้องต้นจากระบบ ยังไม่ได้ผ่านการตรวจสอบจากครูแนะแนว</p>}
                     </div>
                   );
                 })}
               </div>
-              <p className="mt-3 flex items-start gap-2 rounded-xl bg-pink-50/70 px-3.5 py-2 text-[13px] text-gray-600">
-                <span className="mt-0.5 h-4 w-4 shrink-0 rounded-full bg-pink-400 text-white text-[10.5px] font-bold grid place-items-center">i</span>
-                เลือกทำเฉพาะกิจกรรมที่สนใจ — คำถามใช้สำรวจความสนใจ ไม่ได้ตัดสินว่าคุณเก่งหรือไม่เก่งด้านนั้น
-              </p>
             </li>
           </AdviceBox>
 
