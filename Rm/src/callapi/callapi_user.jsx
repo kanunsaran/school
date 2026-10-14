@@ -2006,6 +2006,15 @@ export async function getAppointments({ teacher_user_id, student_user_id } = {})
   }
 }
 
+// ตรวจอีเมลของครูที่ล็อกอิน + นักเรียนที่เลือก ก่อนเปิด Gmail (มีอีเมลไหม / เคยเข้าสู่ระบบไหม)
+export async function checkAppointmentEmails(studentIds) {
+  const response = await axios.get(`${api}/appointment/email-check`, {
+    params: { student_ids: (studentIds || []).join(",") },
+    headers: { Authorization: `Bearer ${getCurrentUser()?.token}` },
+  });
+  return response.data;
+}
+
 export async function createAppointment({ teacher_user_id, student_user_id, appointment_date, appointment_time, note }) {
   try {
     const response = await axios.post(

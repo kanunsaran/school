@@ -17,6 +17,7 @@ import {
 import {
   getAppointments,
   createAppointment,
+  checkAppointmentEmails,
   updateAppointment,
   cancelAppointment,
   replyAppointment,
@@ -35,6 +36,7 @@ import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { emailNoticeText } from "../utils/emailNotice.js";
+import { appointmentEmail, gmailComposeLink } from "../utils/gmailCompose.js";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -183,6 +185,56 @@ export default function TeacherCalendar() {
   const goPrevMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const goNextMonth = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
+  // หลังสร้าง/ยกเลิกนัด: ตรวจอีเมลของครูและนักเรียนในระบบ แล้วให้ครูกดเปิด Gmail ของตัวเองพร้อมข้อความที่เขียนไว้แล้ว
+  const offerGmail = async ({ kind, title, studentIds, date, time, note }) => {
+    let check = null;
+    try {
+      check = await checkAppointmentEmails(studentIds);
+    } catch {
+      check = null;
+    }
+    const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    if (!check) return Swal.fire({ icon: "success", title, text: "ตรวจสอบอีเมลในระบบไม่สำเร็จ จึงยังเปิด Gmail ให้ไม่ได้" });
+    const teacher = check.teacher;
+    const rows = check.students
+      .map((st) => {
+        const status = !st.has_email
+          ? '<span style="color:#dc2626">ไม่มีอีเมลในระบบ</span>'
+          : st.logged_in_before
+          ? `${esc(st.email)} <span style="color:#059669">✓ เคยเข้าสู่ระบบ</span>`
+          : `${esc(st.email)} <span style="color:#d97706">ยังไม่เคยเข้าสู่ระบบ — ตรวจว่าอีเมลถูกต้อง</span>`;
+        return `<li style="margin:4px 0"><b>${esc(st.fullname)}</b><br/><span style="font-size:13.5px">${status}</span></li>`;
+      })
+      .join("");
+    const recipients = check.students.filter((st) => st.has_email);
+    let action;
+    if (!teacher?.has_email) {
+      action = '<p style="color:#dc2626;margin-top:10px">บัญชีครูของคุณยังไม่มีอีเมลในระบบ จึงเปิด Gmail ไม่ได้ — ติดต่อผู้ดูแลระบบเพื่อเพิ่มอีเมล</p>';
+    } else if (!recipients.length) {
+      action = '<p style="color:#6b7280;margin-top:10px">ไม่มีนักเรียนที่มีอีเมลในระบบ จึงยังส่งอีเมลไม่ได้</p>';
+    } else {
+      const { subject, body } = appointmentEmail({
+        kind,
+        teacherName: teacher.fullname,
+        studentName: recipients.length === 1 ? recipients[0].fullname : "",
+        date,
+        time,
+        note,
+        appUrl: window.location.origin,
+      });
+      const href = gmailComposeLink({ from: teacher.email, to: recipients.map((r) => r.email), subject, body });
+      action = `<a href="${esc(href)}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:12px;background:#ec4899;color:#fff;padding:10px 18px;border-radius:12px;font-weight:600;text-decoration:none">ส่งอีเมลจาก Gmail ของฉัน</a>
+        <div style="margin-top:6px;font-size:12.5px;color:#9ca3af">เปิด Gmail ด้วยบัญชี ${esc(teacher.email)} — ถ้ายังไม่ได้ล็อกอิน Google จะให้ล็อกอินบัญชีนี้ก่อน แล้วกด “ส่ง” ใน Gmail</div>`;
+    }
+    return Swal.fire({
+      icon: "success",
+      title,
+      html: `<div style="text-align:left;font-size:14.5px">${check.students.length ? `<div style="color:#6b7280">อีเมลนักเรียนในระบบ</div><ul style="padding-left:18px;margin:4px 0">${rows}</ul>` : ""}</div>${action}`,
+      confirmButtonText: "ปิด",
+      confirmButtonColor: "#9ca3af",
+    });
+  };
+
   const addAppointment = async () => {
     const missing = [];
     if (newStudentIds.length === 0) missing.push("นักเรียน");
@@ -235,17 +287,18 @@ export default function TeacherCalendar() {
           })
         )
       );
+      const made = { studentIds: [...newStudentIds], date: selectedKey, time: newTime, note: newNote.trim() };
       await loadAppointments();
       setNewStudentIds([]);
       setStudentQuery("");
       setNewNote("");
-      Swal.fire({
-        icon: "success",
-        title: "เพิ่มนัดหมายแล้ว",
-        text: emailNoticeText(created.map((r) => r?.email), "นักเรียน"),
-        timer: 3500,
-        showConfirmButton: false,
-      });
+      const emails = created.map((r) => r?.email);
+      // ระบบส่งอีเมลอัตโนมัติได้ครบแล้ว (ตั้งค่า SMTP ไว้) → ไม่ต้องเปิด Gmail ซ้ำ
+      if (emails.length && emails.every((e) => e?.sent)) {
+        Swal.fire({ icon: "success", title: "เพิ่มนัดหมายแล้ว", text: emailNoticeText(emails, "นักเรียน"), timer: 3500, showConfirmButton: false });
+      } else {
+        await offerGmail({ kind: "created", title: "เพิ่มนัดหมายแล้ว", ...made });
+      }
     } catch (err) {
       console.error("สร้างนัดหมายไม่สำเร็จ:", err);
       Swal.fire({ icon: "error", title: "สร้างนัดหมายไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
@@ -263,10 +316,14 @@ export default function TeacherCalendar() {
     });
     if (!result.isConfirmed) return;
     try {
+      const appt = appointments.find((a) => a.id === id);
       const res = await cancelAppointment(id);
       setAppointments((prev) => prev.filter((a) => a.id !== id));
-      const note = emailNoticeText([res?.email], "นักเรียน");
-      if (note) Swal.fire({ icon: "success", title: "ยกเลิกนัดหมายแล้ว", text: note, timer: 3000, showConfirmButton: false });
+      if (res?.email?.sent) {
+        Swal.fire({ icon: "success", title: "ยกเลิกนัดหมายแล้ว", text: emailNoticeText([res.email], "นักเรียน"), timer: 3000, showConfirmButton: false });
+      } else if (appt) {
+        await offerGmail({ kind: "cancelled", title: "ยกเลิกนัดหมายแล้ว", studentIds: [appt.studentId], date: appt.date, time: appt.time, note: appt.note });
+      }
     } catch (err) {
       console.error("ยกเลิกนัดหมายไม่สำเร็จ:", err);
       Swal.fire({ icon: "error", title: "ยกเลิกนัดหมายไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });

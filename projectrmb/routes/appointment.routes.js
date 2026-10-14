@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { authRequired } = require('../middlewares/auth');
+const { authRequired, requireRole } = require('../middlewares/auth');
 const { notifyAppointment } = require('../utils/appointmentMail');
 
 // คอลัมน์ผู้สร้างนัด (ครูนัดนักเรียน / นักเรียนขอนัดครู) — เพิ่มให้อัตโนมัติถ้ายังไม่มี (ไม่กระทบข้อมูลเดิม)
@@ -56,6 +56,45 @@ router.get('/', async (req, res) => {
     );
 
     res.json(await attachReplies(rows));
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ---------------------- GET ตรวจอีเมลก่อนเปิด Gmail ของครู (?student_ids=1,2) ----------------------
+// ครูที่ล็อกอิน + นักเรียนที่เลือก: มีอีเมลในระบบไหม รูปแบบถูกไหม และเคยเข้าสู่ระบบแล้วหรือยัง (จากตาราง tokens)
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+router.get('/email-check', authRequired, requireRole('teacher'), async (req, res) => {
+  try {
+    const ids = String(req.query.student_ids || '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(0, 100);
+    const lookup = async (userIds) => {
+      if (!userIds.length) return [];
+      const [rows] = await pool.query(
+        `SELECT u.user_id, u.fullname, u.email, MAX(t.created_at) AS last_login_at
+         FROM users u LEFT JOIN tokens t ON t.user_id = u.user_id
+         WHERE u.user_id IN (?) AND u.deleted_at IS NULL
+         GROUP BY u.user_id, u.fullname, u.email`,
+        [userIds]
+      );
+      return rows.map((r) => {
+        const email = String(r.email || '').trim();
+        return {
+          user_id: r.user_id,
+          fullname: r.fullname,
+          email: EMAIL_RE.test(email) ? email : null,
+          has_email: EMAIL_RE.test(email),
+          logged_in_before: Boolean(r.last_login_at),
+          last_login_at: r.last_login_at,
+        };
+      });
+    };
+    const [teacher] = await lookup([req.user.id]);
+    res.json({ teacher: teacher || null, students: await lookup(ids) });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Server error' });
