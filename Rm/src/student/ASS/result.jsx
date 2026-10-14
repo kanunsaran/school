@@ -6,14 +6,14 @@ import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
 import { careerEmoji, emojiSrc, DIM_ICON } from "../../utils/careerEmoji.js";
-import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY } from "../../data/guidanceTexts.js";
+import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY, SKILL_DESC } from "../../data/guidanceTexts.js";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
 import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../utils/goals.js";
 import AdmissionInfo from "../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, rankLabel, exploreFaculties, exploreActivities, adviceSteps, careersForGoal, interestSummary,
+  denseRank, tiedWith, rankLabel, matchGoalFaculties, exploreFaculties, exploreActivities, adviceSteps, careersForGoal, interestSummary,
 } from "../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -191,7 +191,7 @@ function Shell({ children }) {
 }
 
 // เป้าหมายที่นักเรียนตั้งไว้ (จากตาราง goal ของนักเรียนคนปัจจุบัน)
-function GoalHeader({ goal, onEdit }) {
+function GoalHeader({ goal, onEdit, textMismatch }) {
   return (
     <div className="rounded-xl bg-white/80 border border-gray-100 px-4 py-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -213,6 +213,12 @@ function GoalHeader({ goal, onEdit }) {
         </div>
       </div>
       {goal.goal_text && <p className="text-[14.5px] text-gray-500 mt-1.5">“{goal.goal_text}”</p>}
+      {textMismatch && (
+        <p className="mt-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2 text-[13.5px] text-amber-900">
+          ข้อความเป้าหมายพูดถึง “{textMismatch}” ซึ่งไม่ตรงกับคณะที่เลือก ({goal.faculty_name}) — ระบบเทียบผลกับคณะที่เลือกเท่านั้น
+          ถ้าเป้าหมายเปลี่ยนไปแล้ว กด “แก้ไขเป้าหมาย” เพื่อแก้ข้อความหรือคณะให้ตรงกัน
+        </p>
+      )}
     </div>
   );
 }
@@ -559,6 +565,10 @@ export default function ResultPage() {
   const allCodes = [latest.code, ...latest.alternativeCodes];
   // ด้านที่ทำให้รหัสเป็นได้หลายแบบ (อยู่ในบางรหัสแต่ไม่ครบทุกรหัส)
   const swingDims = RIASEC_ORDER.filter((c) => allCodes.some((x) => x.includes(c)) && !allCodes.every((x) => x.includes(c)));
+  // กลุ่มด้านในอันดับ 1–3 ที่คะแนนเท่ากัน — ใช้อธิบายว่าทำไมรหัสเรียงแบบนี้ (เช่น A = S อันดับร่วม 1 → ASC หรือ SAC)
+  const codeTies = [...new Set(topDims.map((c) => denseRank(scores, c)))]
+    .map((rank) => ({ rank, dims: RIASEC_ORDER.filter((c) => topDims.includes(c) && denseRank(scores, c) === rank) }))
+    .filter((g) => g.dims.length > 1);
   const dims = data.dimensions;
   // อันดับรูปแบบเดียวทั้งหน้า: "อันดับ 1" / "อันดับร่วม 3 (กับ A)" — คะแนนเท่ากันได้อันดับเดียวกัน
   const rankText = (c) => {
@@ -570,6 +580,14 @@ export default function ResultPage() {
   const atScore = (v) => RIASEC_ORDER.filter((c) => scores[c] === v).join("/");
   // ขั้นตอนถัดไปตามสถานะจริงของนักเรียน (ไม่ใช้รายการเดียวกันกับทุกคน)
   const goalA = analyses[0] || null;
+  // ข้อความเป้าหมายพูดถึงสาขาอื่นที่ไม่ใช่คณะที่เลือก (เช่น เลือกวิศวกรรมโยธา แต่เขียนว่าอยากเรียนกราฟิก)
+  const goalTextMismatch = (() => {
+    if (!myGoal?.faculty_name || !myGoal?.goal_text) return null;
+    const fac = matchGoalFaculties(data, myGoal.faculty_name);
+    const txt = matchGoalFaculties(data, myGoal.goal_text);
+    if (!fac || !txt) return null;
+    return txt.rows.some((r) => fac.rows.some((x) => x.name === r.name)) ? null : txt.label;
+  })();
   // ด้านที่คะแนนเท่ากัน: ด้านที่ทำให้รหัสเป็นได้หลายแบบก่อน ไม่มี = ด้านในความสนใจเด่นที่คะแนนเท่ากับด้านอื่น (คะแนนเท่ากันนอกอันดับ 1–3 ไม่ต้องแนะนำ)
   const tieDims = swingDims.length >= 2 ? swingDims : topDims.filter((c) => tiedWith(scores, c).some((d) => topDims.includes(d)));
   const nextSteps = [
@@ -605,12 +623,17 @@ export default function ResultPage() {
         <p className="text-[12.5px] uppercase tracking-widest text-gray-400 font-medium">ผลแบบสำรวจความสนใจ RIASEC • {thaiDate(latest.date)}</p>
         <div className="mt-1 flex flex-wrap items-end gap-x-3 gap-y-1">
           <p className="text-[36px] leading-tight font-bold text-black tracking-wider">{latest.code}</p>
-          {latest.hasTie && latest.alternativeCodes.length <= 2 && (
-            <p className="pb-1.5 text-[14px] text-gray-400" title="มีด้านที่คะแนนเท่ากัน รหัสจึงเขียนได้หลายแบบ (ผลชุดเดียวกัน)">
-              หรือ {latest.alternativeCodes.join(", ")}
+          {latest.hasTie && latest.alternativeCodes.length > 0 && (
+            <p className="pb-1.5 text-[14px] text-gray-400">
+              {latest.alternativeCodes.length <= 2 ? `หรือ ${latest.alternativeCodes.join(", ")}` : `เขียนได้ ${latest.alternativeCodes.length + 1} แบบ`}
             </p>
           )}
         </div>
+        {codeTies.length > 0 && (
+          <p className="mt-0.5 text-[13px] text-gray-500">
+            {codeTies.map((g) => `${g.dims.join(" และ ")} อันดับร่วม ${g.rank}`).join(" • ")} — ด้านที่คะแนนเท่ากันเรียงตามลำดับ R-I-A-S-E-C
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {topDims.map((c) => (
             <span key={c} className="inline-flex items-center gap-1.5 bg-white/80 rounded-full px-3.5 py-1.5 text-[13.5px] font-medium shadow-sm">
@@ -867,7 +890,7 @@ export default function ResultPage() {
           </p>
         ) : (
           <div className="grid gap-4">
-            <GoalHeader goal={myGoal} onEdit={() => navigate("/studentgoal")} />
+            <GoalHeader goal={myGoal} onEdit={() => navigate("/studentgoal")} textMismatch={goalTextMismatch} />
             {analyses.map((a, i) => (
               <AlignmentCard key={a.faculty.name} a={a} latest={latest} scores={scores} alternatives={altsByCard[i]} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} />
             ))}
@@ -887,7 +910,7 @@ export default function ResultPage() {
                     <b>{f.subjects.join(", ")}</b>
                   </div>
                   <div className="text-gray-600">สายการเรียนที่แนะนำ: {f.track}</div>
-                  <div className="text-[13px] text-gray-400">คำแนะนำทั่วไป ไม่ใช่ข้อกำหนด — วิชาสอบจริงดูในข้อ 3</div>
+                  <div className="mt-1 text-[13px] text-gray-500">คำแนะนำทั่วไป ไม่ใช่ข้อกำหนดการรับเข้า — วิชาสอบจริงให้ตรวจจากประกาศของมหาวิทยาลัย (ดูข้อ 3)</div>
                 </FacultyItem>
               ))}
             </AdviceBox>
@@ -895,7 +918,15 @@ export default function ResultPage() {
             <AdviceBox n="2" title="ทักษะที่ควรพัฒนา">
               {advice.perFaculty.map((f) => (
                 <FacultyItem key={f.name} name={f.name} multi={advice.perFaculty.length > 1}>
-                  <div>{f.skills}</div>
+                  <ul className="space-y-1">
+                    {f.skills.split(/,\s*/).map((sk) => (
+                      <li key={sk}>
+                        <b className="font-semibold text-gray-800">{sk}</b>
+                        {SKILL_DESC[sk] && <span className="text-gray-600"> — {SKILL_DESC[sk]}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-1 text-[13px] text-gray-500">แนวทางเตรียมความพร้อม ไม่ใช่เงื่อนไขบังคับในการสมัคร • คำอธิบายทักษะเขียนโดยระบบ ยังไม่ผ่านการตรวจจากครูแนะแนว</div>
                 </FacultyItem>
               ))}
             </AdviceBox>
@@ -904,13 +935,15 @@ export default function ResultPage() {
             <AdviceBox n="3" title="การเตรียมสอบ / Portfolio และการสมัคร" wide>
               {advice.perFaculty.map((f) => (
                 <FacultyItem key={f.name} name={f.name} multi={advice.perFaculty.length > 1}>
-                  <div>
-                    <span className="text-gray-500">คำแนะนำทั่วไปจากข้อมูลแนะแนว: </span>
-                    {f.exam}
+                  <div className="rounded-lg bg-gray-50 px-3 py-2">
+                    <div className="text-[13.5px] font-semibold text-gray-600">คำแนะนำทั่วไปจากข้อมูลแนะแนว (ไม่ใช่เกณฑ์รับเข้า)</div>
+                    <div className="mt-0.5">{f.exam}</div>
                   </div>
+                  <div className="mt-3 text-[13.5px] font-semibold text-sky-800">เกณฑ์รับเข้าจริง — จากประกาศ myTCAS</div>
+                  <div className="text-[13px] text-gray-500">GPAX ขั้นต่ำ วิชาสอบ และเงื่อนไข Portfolio แสดงเฉพาะที่มหาวิทยาลัยประกาศใน myTCAS แล้วเท่านั้น</div>
                   <ProgramPick faculty={f} goalUni={myGoal?.university_name} />
                   <details className="mt-2" open={Boolean(myGoal?.university_name)}>
-                    <summary className="cursor-pointer select-none text-[13.5px] font-medium text-sky-700">ดูข้อกำหนดการรับเข้าจริง (ประกาศ myTCAS)</summary>
+                    <summary className="cursor-pointer select-none text-[13.5px] font-medium text-sky-700">ดูเกณฑ์รับเข้าแต่ละรอบ</summary>
                     <div className="mt-2">
                       <AdmissionInfo facultyName={f.name} university={myGoal?.university_name ? fullUniName(myGoal.university_name) : null} hideTitle />
                     </div>
@@ -926,9 +959,16 @@ export default function ResultPage() {
               </li>
             </AdviceBox>
           </div>
-          <p className="text-[12.5px] text-gray-500 mt-3">
-            ที่มา: ไฟล์ข้อมูลคณะ–อาชีพของงานแนะแนว (วิชาที่ควรเน้น, สายการเรียนที่แนะนำ, ทักษะที่ควรพัฒนา, สิ่งที่ควรเตรียมสอบ, อาชีพที่เกี่ยวข้อง) • หลักสูตรและเกณฑ์รับเข้าจาก myTCAS (ทปอ.) — เกณฑ์เปลี่ยนตามปีและรอบ ควรตรวจประกาศล่าสุดก่อนสมัคร
-          </p>
+          <div className="mt-3 space-y-0.5 text-[12.5px] text-gray-500">
+            <p>
+              <b className="font-semibold">ข้อมูลแนะแนวทั่วไป:</b> ไฟล์ข้อมูลคณะ–อาชีพของงานแนะแนวโรงเรียน (RIASEC-ข้อมูลคำแนะนำ-ครบ120รหัส) — วิชาที่ควรเน้น สายการเรียน ทักษะ
+              คำแนะนำการเตรียมสอบ และอาชีพที่เกี่ยวข้อง • คำอธิบายทักษะเขียนโดยระบบ
+            </p>
+            <p>
+              <b className="font-semibold">ข้อมูลทางการ:</b> หลักสูตรและเกณฑ์รับเข้าจาก myTCAS (ทปอ.) — ปีการศึกษาและรอบรับสมัครแสดงในข้อ 3 เกณฑ์อาจเปลี่ยนระหว่างปี
+              ตรวจประกาศฉบับเต็มของมหาวิทยาลัยก่อนสมัครทุกครั้ง
+            </p>
+          </div>
         </div>
       )}
 
