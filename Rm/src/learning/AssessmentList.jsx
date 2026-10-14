@@ -5,7 +5,7 @@ import Select from "react-select";
 import {
   FaPlus, FaSearch, FaEye, FaPen, FaEllipsisV, FaStar, FaHeart,
   FaLightbulb, FaBullseye, FaBrain, FaFileAlt, FaClipboardList, FaUserFriends, FaRegClock,
-  FaEdit, FaRocket, FaCopy, FaTrash, FaHistory,
+  FaRocket, FaCopy, FaTrash,
 } from "react-icons/fa";
 import SidebarNav from "../nav.jsx";
 import Header from "../Header";
@@ -19,7 +19,7 @@ import { notAvailableYet } from "../utils/feedShared.js";
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import PageLoading from "../components/PageLoading.jsx";
 import { latestCurrentResults, RIASEC_TEST_TITLE } from "../utils/riasecResults.js";
-import { getActivityLog, logActivity } from "../utils/assessmentStore.js";
+import { logActivity } from "../utils/assessmentStore.js";
 
 // แปลงแถวดิบจาก GET /assessments (assessment_id, open_date, target_grade_ids, question_count, response_count, ...)
 // ให้เป็น shape เดิม {id, openDate, targetGradeIds, ...} ที่หน้านี้ใช้อยู่แล้ว
@@ -55,20 +55,11 @@ const STATUS_META = {
   closed: { label: "ปิดการใช้งาน", cls: "bg-amber-50 text-amber-700" },
 };
 
-const ACTIVITY_META = {
-  create: { icon: FaEdit, cls: "bg-blue-50 text-blue-600", verb: "สร้างแบบประเมินใหม่" },
-  edit: { icon: FaPen, cls: "bg-amber-50 text-amber-600", verb: "แก้ไขแบบประเมิน" },
-  publish: { icon: FaRocket, cls: "bg-emerald-50 text-emerald-600", verb: "เผยแพร่แบบประเมิน" },
-  duplicate: { icon: FaCopy, cls: "bg-purple-50 text-purple-600", verb: "ทำสำเนาแบบประเมิน" },
-  delete: { icon: FaTrash, cls: "bg-red-50 text-red-600", verb: "ลบแบบประเมิน" },
-};
-
 const HOLLAND_ID = "holland-riasec";
 
 const STATUS_OPTIONS = [{ value: "", label: "สถานะ: ทั้งหมด" }, ...Object.entries(STATUS_META).map(([k, v]) => ({ value: k, label: v.label }))];
 
 const formatDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "");
-const formatDateTime = (d) => new Date(d).toLocaleString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 const daysLeftLabel = (closeDate) => {
   if (!closeDate) return "ไม่กำหนด";
@@ -86,7 +77,6 @@ export default function AssessmentListPage() {
   const [classesList, setClassesList] = useState([]);
   const [studentCount, setStudentCount] = useState(0);
   const [hollandRespondedCount, setHollandRespondedCount] = useState(0);
-  const [activityLog, setActivityLog] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [tab, setTab] = useState("all"); // all | mine | system
@@ -99,7 +89,6 @@ export default function AssessmentListPage() {
     getAssessmentsList({ created_by_user_id: currentUser?.user_id })
       .then((data) => setCustomList((data || []).map(normalizeAssessment)))
       .catch(() => setCustomList([]));
-    setActivityLog(getActivityLog());
   };
 
   useEffect(() => {
@@ -258,7 +247,7 @@ export default function AssessmentListPage() {
           <StatCard icon={FaRegClock} cardCls="bg-amber-50" iconCls="bg-amber-100 text-amber-600" label="รอเปิดใช้งาน" value={`${stats.waiting} แบบ`} sub="ยังไม่ถึงกำหนดเปิด/เป็นร่าง" />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-6 items-start">
+        <div className="min-w-0">
           <div className="min-w-0">
             {/* ===== Filters ===== */}
             <div className="flex flex-wrap items-center gap-2.5 mb-4">
@@ -413,39 +402,8 @@ export default function AssessmentListPage() {
               )}
               </div>
             </div>
-
-            <div className="mt-3 text-[13.5px] text-gray-400 flex items-center gap-1.5">
-              <FaHistory size={10} /> แบบประเมิน "ของฉัน" บันทึกไว้ในเบราว์เซอร์นี้เท่านั้น (ระบบยังไม่มีตารางเก็บแบบประเมินหลายชุดฝั่ง backend)
-            </div>
           </div>
 
-          {/* ===== Right sidebar ===== */}
-          <div className="flex flex-col gap-5">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="text-[15.5px] font-semibold text-gray-900 mb-4">การใช้งานล่าสุดของฉัน</div>
-              {activityLog.length === 0 ? (
-                <div className="text-[14px] text-gray-400">ยังไม่มีการใช้งาน</div>
-              ) : (
-                <div className="flex flex-col gap-3.5">
-                  {activityLog.slice(0, 6).map((entry) => {
-                    const meta = ACTIVITY_META[entry.action] || ACTIVITY_META.edit;
-                    return (
-                      <div key={entry.id} className="flex items-start gap-2.5">
-                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${meta.cls}`}>
-                          <meta.icon size={12} />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[14px] text-gray-700">{meta.verb}</div>
-                          <div className="text-[13.5px] text-gray-500 truncate">{entry.title}</div>
-                          <div className="text-[12.5px] text-gray-300 mt-0.5">{formatDateTime(entry.at)}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </main>
     </div>
