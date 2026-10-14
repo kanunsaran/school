@@ -491,11 +491,9 @@ export default function AssessmentResultsPage() {
                               <span className="shrink-0 text-[12px] text-gray-400">ไม่พบสาขานี้ในข้อมูล</span>
                             ) : null}
                           </div>
-                          {g.career_field && g.faculty_name && <div className="text-[13.5px] text-gray-600 mt-0.5">อาชีพที่สนใจ: {g.career_field}</div>}
                           {g.goal_text && <div className="text-[13.5px] text-gray-500 mt-0.5">“{g.goal_text}”</div>}
                         </div>
                       ))}
-                      {!selectedGoals.some((x) => x.goal.career_field) && <div className="text-[13px] text-gray-400">นักเรียนยังไม่ได้ระบุอาชีพที่สนใจ</div>}
                     </div>
                   )}
                 </PanelSection>
