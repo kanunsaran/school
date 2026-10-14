@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authRequired } = require('../middlewares/auth');
+const { notifyAppointment } = require('../utils/appointmentMail');
 
 // คอลัมน์ผู้สร้างนัด (ครูนัดนักเรียน / นักเรียนขอนัดครู) — เพิ่มให้อัตโนมัติถ้ายังไม่มี (ไม่กระทบข้อมูลเดิม)
 pool
@@ -106,7 +107,11 @@ router.post('/', authRequired, async (req, res) => {
       [teacher_user_id, student_user_id, appointment_date, appointment_time, note || null, created_by_user_id]
     );
 
+    // แจ้งอีกฝ่ายทางอีเมล (ไม่ได้ตั้งค่า SMTP / ไม่มีอีเมล → ข้าม แต่สร้างนัดสำเร็จตามปกติ)
+    const email = await notifyAppointment(result.insertId, 'created', created_by_user_id);
+
     res.status(201).json({
+      email,
       appointment_id: result.insertId,
       teacher_user_id,
       student_user_id,
@@ -132,6 +137,10 @@ router.put('/:id', authRequired, async (req, res) => {
       status = null,
     } = req.body;
     const id = req.params.id;
+    const [[before]] = await pool.query(
+      `SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS d, TIME_FORMAT(appointment_time, '%H:%i') AS t, status FROM appointment WHERE appointment_id = ?`,
+      [id]
+    );
 
     const [result] = await pool.query(
       `UPDATE appointment
@@ -148,7 +157,12 @@ router.put('/:id', authRequired, async (req, res) => {
       return res.status(404).json({ message: 'Not found' });
     }
 
-    res.json({ message: 'Updated' });
+    // แจ้งทางอีเมลเมื่อเลื่อนวัน/เวลา หรือยกเลิก (แก้แค่หมายเหตุไม่ส่ง)
+    const moved = (appointment_date && appointment_date !== before?.d) || (appointment_time && String(appointment_time).slice(0, 5) !== before?.t);
+    const cancelled = status === 'cancelled' && before?.status !== 'cancelled';
+    const email = cancelled || moved ? await notifyAppointment(id, cancelled ? 'cancelled' : 'updated', req.user?.id) : null;
+
+    res.json({ message: 'Updated', email });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Server error' });
@@ -159,15 +173,18 @@ router.put('/:id', authRequired, async (req, res) => {
 router.delete('/:id', authRequired, async (req, res) => {
   try {
     const [result] = await pool.query(
-      `UPDATE appointment SET status = 'cancelled', updated_at = NOW() WHERE appointment_id = ?`,
+      `UPDATE appointment SET status = 'cancelled', updated_at = NOW() WHERE appointment_id = ? AND status <> 'cancelled'`,
       [req.params.id]
     );
 
     if (!result.affectedRows) {
-      return res.status(404).json({ message: 'Not found' });
+      const [exists] = await pool.query('SELECT 1 FROM appointment WHERE appointment_id = ?', [req.params.id]);
+      if (!exists.length) return res.status(404).json({ message: 'Not found' });
+      return res.json({ message: 'Cancelled', email: null }); // ยกเลิกไปแล้ว ไม่ส่งซ้ำ
     }
 
-    res.json({ message: 'Cancelled' });
+    const email = await notifyAppointment(req.params.id, 'cancelled', req.user?.id);
+    res.json({ message: 'Cancelled', email });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Server error' });

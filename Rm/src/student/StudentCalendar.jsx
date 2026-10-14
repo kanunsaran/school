@@ -20,6 +20,7 @@ import ThaiTimeField from "../components/ThaiTimeField.jsx";
 import Avatar from "../components/Avatar.jsx";
 import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
+import { emailNoticeText } from "../utils/emailNotice.js";
 
 // ปฏิทินนัดหมายฝั่งนักเรียน — หน้าตาเหมือนปฏิทินครู: เห็นนัดที่ครูนัดมา + นัดที่ตัวเองขอนัดครู และขอนัดครูใหม่ได้
 
@@ -130,7 +131,7 @@ export default function StudentCalendarPage() {
     }
     setSaving(true);
     try {
-      await createAppointment({
+      const created = await createAppointment({
         teacher_user_id: newTeacherId,
         student_user_id: myId,
         appointment_date: selectedKey,
@@ -143,8 +144,8 @@ export default function StudentCalendarPage() {
       Swal.fire({
         icon: "success",
         title: "ส่งนัดหมายให้ครูแล้ว",
-        text: `${teacherName} • ${selectedDate.getDate()} ${THAI_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear() + 543} • ${formatThaiTimeLabel(newTime)}`,
-        timer: 2200,
+        text: [`${teacherName} • ${selectedDate.getDate()} ${THAI_MONTHS[selectedDate.getMonth()]} ${selectedDate.getFullYear() + 543} • ${formatThaiTimeLabel(newTime)}`, emailNoticeText([created?.email], "ครู")].filter(Boolean).join("\n"),
+        timer: 3000,
         showConfirmButton: false,
       });
     } catch (err) {

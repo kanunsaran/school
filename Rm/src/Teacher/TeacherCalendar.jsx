@@ -34,6 +34,7 @@ import ThaiTimeField from "../components/ThaiTimeField.jsx";
 import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import Avatar from "../components/Avatar.jsx";
+import { emailNoticeText } from "../utils/emailNotice.js";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -223,7 +224,7 @@ export default function TeacherCalendar() {
     if (!confirmResult.isConfirmed) return;
 
     try {
-      await Promise.all(
+      const created = await Promise.all(
         newStudentIds.map((studentId) =>
           createAppointment({
             teacher_user_id: CURRENT_TEACHER_ID,
@@ -238,6 +239,13 @@ export default function TeacherCalendar() {
       setNewStudentIds([]);
       setStudentQuery("");
       setNewNote("");
+      Swal.fire({
+        icon: "success",
+        title: "เพิ่มนัดหมายแล้ว",
+        text: emailNoticeText(created.map((r) => r?.email), "นักเรียน"),
+        timer: 3500,
+        showConfirmButton: false,
+      });
     } catch (err) {
       console.error("สร้างนัดหมายไม่สำเร็จ:", err);
       Swal.fire({ icon: "error", title: "สร้างนัดหมายไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
@@ -255,8 +263,10 @@ export default function TeacherCalendar() {
     });
     if (!result.isConfirmed) return;
     try {
-      await cancelAppointment(id);
+      const res = await cancelAppointment(id);
       setAppointments((prev) => prev.filter((a) => a.id !== id));
+      const note = emailNoticeText([res?.email], "นักเรียน");
+      if (note) Swal.fire({ icon: "success", title: "ยกเลิกนัดหมายแล้ว", text: note, timer: 3000, showConfirmButton: false });
     } catch (err) {
       console.error("ยกเลิกนัดหมายไม่สำเร็จ:", err);
       Swal.fire({ icon: "error", title: "ยกเลิกนัดหมายไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
