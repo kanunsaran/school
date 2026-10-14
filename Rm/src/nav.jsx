@@ -132,8 +132,10 @@ export default function SidebarNav() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
+      {/* จอใหญ่: เมนูยึดติดซ้ายตลอดเวลาเลื่อน (fixed) — ช่องว่างนี้กันที่ให้เนื้อหา เพราะหลายหน้ามี overflow-hidden ที่ทำให้ sticky ไม่ทำงาน */}
+      <div aria-hidden className="hidden lg:block w-[270px] shrink-0" />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-[270px] max-w-[85vw] shrink-0 bg-white border-r border-gray-200 h-screen overflow-y-auto pt-20 lg:pt-23 transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-[270px] max-w-[85vw] shrink-0 bg-white border-r border-gray-200 h-screen overflow-y-auto pt-20 lg:pt-23 transition-transform duration-200 lg:z-30 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
         }`}
       >

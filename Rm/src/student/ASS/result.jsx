@@ -5,7 +5,7 @@ import Header from "../../Header";
 import { getGoals, getStudentGrades } from "../../callapi/callapi_user.jsx";
 import dataSources from "../../data/data-sources.json";
 import onet from "../../data/onet-faculties.json";
-import { careerEmoji, facultyEmoji, emojiSrc, DIM_ICON, UI_ICON } from "../../utils/careerEmoji.js";
+import { careerEmoji, emojiSrc, DIM_ICON } from "../../utils/careerEmoji.js";
 import { DIM_ACTIVITY, KNOWLEDGE_TH, ONET_WORK, PLAIN, LEVEL_WHY } from "../../data/guidanceTexts.js";
 import { getCurrentUser } from "../../utils/auth.js";
 import useMyRiasec from "../../hooks/useMyRiasec.js";
@@ -38,12 +38,6 @@ const DIM_THEME = {
   E: { card: "bg-violet-50/70 border-violet-100", text: "text-violet-700", icon: "bg-violet-100/80", pill: "border-violet-200 text-violet-700 hover:bg-violet-50" },
   C: { card: "bg-slate-50 border-slate-200/70", text: "text-slate-600", icon: "bg-slate-200/70", pill: "border-slate-300 text-slate-600 hover:bg-slate-50" },
 };
-// สีของระดับความสอดคล้องในการ์ดเป้าหมาย
-const LEVEL_THEME = {
-  high: { head: "from-emerald-50", ring: "border-emerald-200", pill: "bg-emerald-500 text-white" },
-  medium: { head: "from-amber-50", ring: "border-amber-200", pill: "bg-amber-500 text-white" },
-  low: { head: "from-slate-100", ring: "border-slate-200", pill: "bg-slate-500 text-white" },
-};
 const Icon = ({ code, className = "h-5 w-5" }) => <img src={emojiSrc(code)} alt="" className={className} />;
 const SUMMARY_PLAIN = "list-none cursor-pointer select-none [&::-webkit-details-marker]:hidden";
 const RANK_TH = ["มากที่สุด", "รองลงมา", "อันดับสาม"];
@@ -64,6 +58,12 @@ const roadmapFor = (goalName) => [
 
 // ข้อค้นพบความเชื่อมโยงระหว่างความสนใจกับสาขาเป้าหมาย (findingKind ใน riasecScoring.js) — เงื่อนไขตรวจสอบได้จากข้อมูล ไม่ใช่การให้คะแนน
 const LEVEL_TH = { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" };
+const FINDING_META = {
+  recommended: { label: "แนะนำสำหรับรหัสของคุณ", cls: "text-emerald-700 bg-emerald-50 border-emerald-200", box: "bg-white/70 border-emerald-100" },
+  main: { label: "เชื่อมโยงกับความสนใจเด่น", cls: "text-pink-700 bg-pink-50 border-pink-200", box: "bg-white/70 border-pink-100" },
+  partial: { label: "เชื่อมโยงบางด้าน", cls: "text-amber-700 bg-amber-50 border-amber-200", box: "bg-white/70 border-amber-100" },
+  none: { label: "ยังไม่พบความเชื่อมโยงชัดเจน", cls: "text-gray-600 bg-gray-50 border-gray-200", box: "bg-white/70 border-gray-200" },
+};
 const CONSISTENCY_META = {
   high: { label: "สูง", text: "ความสนใจ 2 อันดับแรกอยู่ติดกันบนหกเหลี่ยม RIASEC จึงไปในทิศทางเดียวกันชัดเจน" },
   medium: { label: "ปานกลาง", text: "ความสนใจ 2 อันดับแรกอยู่ห่างกัน 1 ช่องบนหกเหลี่ยม RIASEC มีความเกี่ยวข้องกันพอสมควร" },
@@ -218,21 +218,14 @@ function GoalHeader({ goal, onEdit }) {
   );
 }
 
-function Block({ title, icon, tone, children }) {
+function Block({ title, children }) {
   return (
-    <div className={`mt-3 rounded-xl border px-4 py-3 ${tone.box}`}>
-      <div className={`flex items-center gap-2 text-[15.5px] font-semibold ${tone.title}`}>
-        <Icon code={icon} className="h-[18px] w-[18px]" />
-        {title}
-      </div>
+    <div className="mt-4">
+      <div className="text-[15.5px] font-semibold text-gray-800">{title}</div>
       <div className="text-[15px] text-gray-700 leading-7 mt-1 space-y-2">{children}</div>
     </div>
   );
 }
-const TONE = {
-  why: { box: "bg-sky-50/60 border-sky-100", title: "text-sky-800" },
-  try: { box: "bg-pink-50/60 border-pink-100", title: "text-pink-700" },
-};
 
 // การ์ดเป้าหมาย 1 สาขา — ตอบว่า "ความสนใจจากผล RIASEC เชื่อมกับสาขาเป้าหมายอย่างไร"
 // แยกจากความพร้อมด้านวิชาการ/การสมัคร (อยู่ใน "แนวทางเตรียมตัวไปสู่เป้าหมาย")
@@ -254,33 +247,25 @@ function Finding({ ok, children }) {
 function AlignmentCard({ a, latest, scores, alternatives, university }) {
   const f = a.faculty;
   const dim = f.dim;
+  const meta = FINDING_META[a.kind];
   const codes = [latest.code, ...latest.alternativeCodes];
   const dimMine = denseRank(scores, dim) <= 3;
   // ความเชื่อมโยงหลัก: ด้านหลักของสาขาก่อน (ถ้าเชื่อมได้) — ไม่ไล่จับคู่ทุกคุณลักษณะกับทุกด้าน
   const link = a.links.find((x) => x.code === dim) || a.links[0];
   const steps = adviceSteps(f.advice).slice(0, 2);
 
-  const lt = LEVEL_THEME[a.displayLevel];
   return (
-    <div className={`rounded-2xl border bg-white overflow-hidden ${lt.ring}`}>
-      <div className={`bg-gradient-to-r ${lt.head} to-white px-4 py-4 sm:px-5 flex items-start gap-3.5`}>
-        <span className="h-14 w-14 shrink-0 rounded-2xl bg-white shadow-sm ring-1 ring-black/5 grid place-items-center">
-          <img src={facultyEmoji(f.name, dim)} alt="" className="h-8 w-8" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[13px] text-gray-500">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
-              <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
-            </div>
-            <span className={`shrink-0 rounded-full px-3 py-1 text-[14px] font-semibold shadow-sm ${lt.pill}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
-          </div>
-          <p className="mt-1 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
+    <div className={`rounded-2xl border px-4 py-4 sm:px-5 ${meta.box}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[13px] text-gray-500">เป้าหมายของคุณ{a.source === "text" ? " (จากข้อความเป้าหมาย)" : ""}</div>
+          <div className="text-[19px] font-bold text-gray-900">{f.name}</div>
         </div>
+        <span className={`shrink-0 rounded-full border px-3 py-1 text-[14px] font-semibold ${meta.cls}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
       </div>
+      <p className="mt-1.5 text-[14.5px] text-gray-700 leading-7">{LEVEL_WHY[a.kind]}</p>
 
-      <div className="px-4 pb-4 sm:px-5">
-      <Block title="ทำไมสาขานี้จึงน่าสำรวจ" icon={UI_ICON.why} tone={TONE.why}>
+      <Block title="ทำไมสาขานี้จึงน่าสำรวจ">
         <p>
           {link
             ? `สาขานี้เน้น${joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน${TRAIT_NOUN[link.code]}ของคุณ`
@@ -295,35 +280,26 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
         )}
       </Block>
 
-      <Block title="สิ่งที่ลองทำได้" icon={UI_ICON.try} tone={TONE.try}>
-        <ul className="space-y-1">
-          {[...steps, `ตรวจสอบเกณฑ์รับเข้าของ${university ? ` ${university}` : "หลักสูตรเป้าหมาย"} จากประกาศ myTCAS ในส่วน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง`].map((x, k) => (
-            <li key={x} className="flex items-start gap-2.5">
-              <span className="mt-[3px] h-5 w-5 shrink-0 rounded-full bg-pink-500 text-white text-[11.5px] font-bold grid place-items-center">{k + 1}</span>
-              <span>{x}</span>
-            </li>
+      <Block title="สิ่งที่ลองทำได้">
+        <ul className="list-disc pl-5 space-y-0.5">
+          {steps.map((x) => (
+            <li key={x}>{x}</li>
           ))}
+          <li>ตรวจสอบเกณฑ์รับเข้าของ{university ? ` ${university}` : "หลักสูตรเป้าหมาย"} จากประกาศ myTCAS ในส่วน “แนวทางเตรียมตัวไปสู่เป้าหมาย” ด้านล่าง</li>
         </ul>
       </Block>
 
       {alternatives.length > 0 && (
-        <details className="group mt-3 rounded-xl border border-violet-100 bg-violet-50/50 px-4 py-2.5">
-          <summary className={`${SUMMARY_PLAIN} flex items-center gap-2 text-[15px] font-semibold text-violet-800`}>
-            <Icon code={UI_ICON.alt} className="h-[18px] w-[18px]" />
-            สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})
-            <span className="ml-auto text-violet-400 transition group-open:rotate-90">›</span>
-          </summary>
-          <div className="mt-2 mb-1 space-y-2">
+        <details className="mt-4">
+          <summary className="cursor-pointer select-none text-[14.5px] font-semibold text-gray-800">สาขาทางเลือกที่ใกล้เคียง ({Math.min(2, alternatives.length)})</summary>
+          <div className="mt-2 space-y-2">
             {alternatives.slice(0, 2).map((x) => (
-              <div key={x.row.name} className="flex items-start gap-3 rounded-xl bg-white border border-violet-100 px-3.5 py-2.5">
-                <img src={facultyEmoji(x.row.name, x.row.dim)} alt="" className="mt-1 h-7 w-7 shrink-0" />
-                <div className="min-w-0">
+              <div key={x.row.name} className="rounded-xl bg-pink-50/50 border border-pink-100 px-3.5 py-2.5">
                 <div className="text-[15px] font-semibold text-gray-800">{x.row.name}</div>
                 <p className="text-[14.5px] text-gray-700 leading-7">
                   เหมาะสำหรับการสำรวจเพิ่มเติม หากสนใจงานด้าน{joinTh(x.shared)}
                   {x.differs.length > 0 ? ` โดยมีส่วนที่แตกต่างจาก${nm(f.name)}คือการเรียนด้าน${joinTh(x.differs)}` : ""}
                 </p>
-                </div>
               </div>
             ))}
           </div>
@@ -348,7 +324,6 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
           ไม่ให้คะแนนหรือเปอร์เซ็นต์ความเหมาะสม และไม่ได้ทำนายความสำเร็จในการเรียน • ความพร้อมด้านวิชาการและเกณฑ์รับเข้าดูใน “แนวทางเตรียมตัวไปสู่เป้าหมาย”
         </p>
       </details>
-      </div>
     </div>
   );
 }
@@ -393,19 +368,10 @@ function ProgramPick({ faculty, goalUni, compact = false }) {
       <div className="text-[13.5px]">
         {pick ? (
           <>
-            <div className="flex items-center gap-1.5 text-gray-700">
-              <Icon code="1f3db" className="h-4 w-4 shrink-0" />
-              <span>{pick.uni}</span>
-            </div>
-            <a
-              href={pick.link}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 rounded-full border border-sky-200 bg-white px-3 py-0.5 text-[12.5px] font-medium text-sky-700 hover:bg-sky-50"
-            >
-              ดูหลักสูตรบน myTCAS ↗
+            <a href={pick.link} target="_blank" rel="noreferrer" className="text-sky-600 underline underline-offset-2 hover:text-sky-700">
+              ดูหลักสูตร{faculty.name}ของ{pick.uni}บน myTCAS ↗
             </a>
-            <div className="mt-0.5 text-[11.5px] text-gray-400">{fromGoal ? "มหาวิทยาลัยเดียวกับในเป้าหมายของคุณ" : "ตัวอย่างจากข้อมูลแนะแนว ไม่ได้หมายความว่าดีที่สุด"}</div>
+            <div className="text-[11.5px] text-gray-400">{fromGoal ? "มหาวิทยาลัยเดียวกับในเป้าหมายของคุณ" : "ตัวอย่างจากข้อมูลแนะแนว ไม่ได้หมายความว่าดีที่สุด"}</div>
           </>
         ) : (
           <div className="text-gray-500">ยังไม่มีหลักสูตรตัวอย่างที่ตรวจสอบแล้ว</div>
@@ -763,7 +729,7 @@ export default function ResultPage() {
       <div className={CARD}>
         <SectionHeader emoji="💡" title="เข้าใจความสนใจของตัวเอง" subtitle="ลองทำกิจกรรม ดูสาขา และอาชีพที่เกี่ยวข้องกับความสนใจของคุณ" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" subtitle="เลือกกิจกรรมที่สนใจ แล้วลองสำรวจตัวเองจากประสบการณ์จริง" icon={UI_ICON.activity} wide>
+          <AdviceBox n="1" title="กิจกรรมเพื่อสำรวจตัวเอง" subtitle="เลือกกิจกรรมที่สนใจ แล้วลองสำรวจตัวเองจากประสบการณ์จริง" wide>
             <li className="list-none">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {activities.map((x) => {
@@ -808,7 +774,7 @@ export default function ResultPage() {
             </li>
           </AdviceBox>
 
-          <AdviceBox n="2" title="สาขาที่ควรสำรวจ" subtitle="สาขาที่เชื่อมโยงกับความสนใจเด่นของคุณในตอนนี้" icon={UI_ICON.faculty} wide>
+          <AdviceBox n="2" title="สาขาที่ควรสำรวจ" wide>
             <li className="list-none">
               {latest.lowDifferentiation && (
                 <p className="mb-2 rounded-lg bg-sky-50 border border-sky-100 px-3 py-2 text-sky-900">คะแนนทุกด้านของคุณใกล้กัน สาขาด้านล่างเป็นเพียงตัวอย่างให้เริ่มสำรวจ</p>
@@ -816,56 +782,43 @@ export default function ResultPage() {
               {explore.length === 0 ? (
                 <p className="text-gray-600">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน (นอกเหนือจากเป้าหมายที่ตั้งไว้) — ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
               ) : (
-                <div className="grid gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {explore.map(({ row, code, links }, i) => {
                     // เหตุผล = วลีของสาขานี้เอง (คุณลักษณะในข้อมูลแนะแนว) ที่เชื่อมกับความสนใจเด่น — ใช้ด้านหลักของสาขาก่อน
                     const link = links.find((l) => l.code === row.dim) || links[0];
-                    const t = DIM_THEME[row.dim];
                     return (
-                      <div key={row.name} className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-2.5 rounded-2xl border border-gray-100 bg-white p-2.5 min-w-0">
-                        <div className="flex gap-3.5 p-1.5 min-w-0">
-                          <span className={`h-16 w-16 shrink-0 rounded-2xl grid place-items-center ${t.icon}`}>
-                            <img src={facultyEmoji(row.name, row.dim)} alt="" className="h-9 w-9" />
-                          </span>
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span className="text-[16.5px] font-semibold text-gray-900">
-                                {i + 1}. {row.name}
-                              </span>
-                              <span className="rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
-                            </div>
-                            <p className="mt-1 text-[14.5px] text-gray-600 leading-6">
-                              เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
-                            </p>
+                      <div key={row.name} className="rounded-xl bg-white/80 border border-gray-100 px-3.5 py-3 min-w-0 leading-7 text-[15px]">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="text-[16px] font-semibold text-gray-900">
+                            {i + 1}. {row.name}
                           </div>
+                          <span className="shrink-0 rounded-full bg-pink-50 border border-pink-100 px-2 py-0.5 text-[12px] font-medium text-pink-700">รหัส {code}</span>
                         </div>
-                        <div className={`rounded-xl border px-3.5 py-3 min-w-0 ${t.card}`}>
-                          <div className={`text-[14px] font-semibold ${t.text}`}>สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
-                          <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
-                          <div className="mt-2">
-                            <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
-                          </div>
+                        <p className="mt-1 text-gray-700">
+                          เกี่ยวข้องกับ{joinTh(link.phrases.slice(0, 2))} ซึ่งเชื่อมโยงกับความสนใจด้าน{TRAIT_NOUN[link.code]}ของคุณ
+                        </p>
+                        <div className="mt-1.5 text-[14px] font-semibold text-gray-800">สิ่งที่ควรศึกษาก่อนตัดสินใจ</div>
+                        <StudyBeforeDeciding faculty={row} skip={link.phrases.slice(0, 2)} />
+                        <div className="mt-1.5">
+                          <ProgramPick faculty={row} goalUni={myGoal?.university_name} compact />
                         </div>
                       </div>
                     );
                   })}
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <a
-                  href={MYTCAS_HOME}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14.5px] font-medium text-sky-700 hover:bg-sky-50"
-                >
-                  🔎 ค้นหาหลักสูตรและมหาวิทยาลัยอื่นบน myTCAS ↗
-                </a>
-                {explore.length > 0 && <span className="text-[12.5px] text-gray-400">“รหัส” คือรหัสความสนใจที่ใช้แนะนำสาขานั้น ไม่ใช่รหัสประจำสาขา</span>}
-              </div>
+              <a
+                href={MYTCAS_HOME}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white px-4 py-2 text-[14.5px] font-medium text-sky-700 hover:bg-sky-50"
+              >
+                🔎 ค้นหาหลักสูตรและมหาวิทยาลัยอื่นบน myTCAS ↗
+              </a>
             </li>
           </AdviceBox>
 
-          <AdviceBox n="3" title="อาชีพตัวอย่าง" subtitle="อาชีพจากสาขาด้านบน" icon={UI_ICON.career} wide>
+          <AdviceBox n="3" title="อาชีพตัวอย่าง" subtitle="อาชีพจากสาขาด้านบน" wide>
             <li className="list-none">
               <CareerList items={resultCareers.map((c) => ({ ...c, reason: `ในสาขา${c.faculty.name}` }))} />
             </li>
