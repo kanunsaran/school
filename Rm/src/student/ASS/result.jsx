@@ -260,6 +260,23 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
   // ความเชื่อมโยงหลัก: ด้านหลักของสาขาก่อน (ถ้าเชื่อมได้) — ไม่ไล่จับคู่ทุกคุณลักษณะกับทุกด้าน
   const link = a.links.find((x) => x.code === dim) || a.links[0];
   const steps = adviceSteps(f.advice).slice(0, 2);
+  // เหตุผลของระดับ จากผลจริงของนักเรียน: รหัสที่แนะนำสาขา และอันดับของด้านที่สาขาใช้เป็นหลัก
+  const fill = (t) =>
+    t
+      .replace("{ด้านของรหัส}", joinTh([...(a.viaCode || latest.code)].map((c) => TRAIT_NOUN[c])))
+      .replace("{ด้าน}", TRAIT_NOUN[dim])
+      .replace("{อันดับ}", rankLabel(scores, dim))
+      .replace("{รหัส}", latest.code)
+      // วลีที่ซ้ำกับชื่อด้าน (เช่น "ความเป็นระบบ") ไม่ต้องยกตัวอย่าง
+      .replace("{วลี}", (() => {
+        const ex = link ? link.phrases.filter((x) => !TRAIT_NOUN[link.code].includes(x) && !x.includes(TRAIT_NOUN[link.code])).slice(0, 2) : [];
+        return ex.length ? ` เช่น ${joinTh(ex)} ` : "";
+      })())
+      .replace("{ด้านที่เชื่อม}", link ? TRAIT_NOUN[link.code] : "");
+  const levelWhy =
+    a.kind === "recommended"
+      ? fill(LEVEL_WHY.recommended) + (dimMine ? fill(LEVEL_WHY.recommendedDim) : "")
+      : fill(LEVEL_WHY[a.kind === "partial" && !link ? "none" : a.kind]);
   const tone = LEVEL_TONE[a.displayLevel];
 
   return (
@@ -272,7 +289,7 @@ function AlignmentCard({ a, latest, scores, alternatives, university }) {
           </div>
           <span className={`shrink-0 rounded-full px-3 py-1 text-[14px] font-semibold text-white ${tone.pill}`}>สอดคล้อง{LEVEL_TH[a.displayLevel]}</span>
         </div>
-        <p className="mt-1.5 text-[14px] text-gray-600 leading-6">{LEVEL_WHY[a.kind].replace("{ด้าน}", TRAIT_NOUN[dim])}</p>
+        <p className="mt-1.5 text-[14px] text-gray-600 leading-6">{levelWhy}</p>
       </div>
       <div className="px-4 pb-4 sm:px-5">
 
