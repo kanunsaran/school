@@ -746,6 +746,8 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
         <div className="grid grid-cols-1 xl:grid-cols-[340px_1fr] gap-6">
           {/* ===== รายชื่อนักเรียน (ซ้าย) — เส้นคั่นแทนกรอบครอบ ให้ต่อเนื่องกับฝั่งขวา ===== */}
           <div className="xl:border-r xl:border-gray-200 xl:pr-6">
+            {/* จอใหญ่: รายชื่อติดอยู่กับที่ เลื่อนอ่านรายละเอียดด้านขวาได้โดยไม่ต้องเลื่อนกลับมาหารายชื่อ */}
+            <div className="xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
             <button
               type="button"
               onClick={toggleCheckAll}
@@ -756,7 +758,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
               </span>
               เลือกทั้งหมด{checkedIds.size > 0 && ` (เลือกแล้ว ${checkedIds.size})`}
             </button>
-            <div className="max-h-[720px] overflow-y-auto divide-y divide-gray-100">
+            <div className="max-h-[720px] overflow-y-auto xl:max-h-none xl:overflow-visible divide-y divide-gray-100">
               {pagedStudents.length === 0 ? (
                 <div className="text-center text-gray-400 py-10 text-[15px]">ไม่พบนักเรียน</div>
               ) : (
@@ -789,6 +791,7 @@ export default function StudentListPage({ embedded = false, gradeId: propGradeId
                   );
                 })
               )}
+            </div>
             </div>
           </div>
 
