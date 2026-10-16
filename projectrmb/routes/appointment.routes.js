@@ -9,6 +9,25 @@ pool
   .query('ALTER TABLE appointment ADD COLUMN IF NOT EXISTS created_by_user_id INT NULL')
   .catch((e) => console.error('add appointment.created_by_user_id failed:', e.message));
 
+// การตอบรับนัด: ฝ่ายที่ถูกนัดกดยืนยัน/ปฏิเสธ — ปฏิเสธพร้อมเหตุผลและวันเวลาที่สะดวกแทนได้
+// status: pending (รอยืนยัน) | confirmed | declined | cancelled
+pool
+  .query(
+    `ALTER TABLE appointment
+       ADD COLUMN IF NOT EXISTS response_note TEXT NULL,
+       ADD COLUMN IF NOT EXISTS proposed_date DATE NULL,
+       ADD COLUMN IF NOT EXISTS proposed_time VARCHAR(10) NULL,
+       ADD COLUMN IF NOT EXISTS responded_at DATETIME NULL`
+  )
+  .catch((e) => console.error('add appointment response columns failed:', e.message));
+
+const RESPONSE_COLS = `a.response_note, DATE_FORMAT(a.proposed_date, '%Y-%m-%d') AS proposed_date, a.proposed_time, a.responded_at`;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// ผู้สร้างนัด (นัดเก่าที่ไม่ได้บันทึกผู้สร้าง ถือว่าครูเป็นผู้นัด) — อีกฝ่ายคือผู้ถูกนัด
+const creatorOf = (a) => String(a.created_by_user_id ?? a.teacher_user_id);
+const inviteeOf = (a) => (creatorOf(a) === String(a.teacher_user_id) ? String(a.student_user_id) : String(a.teacher_user_id));
+
 async function attachReplies(rows) {
   if (!rows.length) return rows;
   const ids = rows.map((r) => r.appointment_id);
@@ -46,6 +65,7 @@ router.get('/', async (req, res) => {
               a.student_user_id, s.fullname AS student_name,
               a.appointment_date, a.appointment_time, a.note, a.status,
               a.created_by_user_id,
+              ${RESPONSE_COLS},
               a.created_at, a.updated_at
        FROM appointment a
        JOIN users t ON t.user_id = a.teacher_user_id
@@ -110,6 +130,7 @@ router.get('/:id', async (req, res) => {
               a.student_user_id, s.fullname AS student_name,
               a.appointment_date, a.appointment_time, a.note, a.status,
               a.created_by_user_id,
+              ${RESPONSE_COLS},
               a.created_at, a.updated_at
        FROM appointment a
        JOIN users t ON t.user_id = a.teacher_user_id
@@ -141,8 +162,8 @@ router.post('/', authRequired, async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO appointment (teacher_user_id, student_user_id, appointment_date, appointment_time, note, created_by_user_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO appointment (teacher_user_id, student_user_id, appointment_date, appointment_time, note, created_by_user_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
       [teacher_user_id, student_user_id, appointment_date, appointment_time, note || null, created_by_user_id]
     );
 
@@ -157,7 +178,7 @@ router.post('/', authRequired, async (req, res) => {
       appointment_date,
       appointment_time,
       note: note || null,
-      status: 'confirmed',
+      status: 'pending',
       created_by_user_id,
     });
   } catch (e) {
@@ -180,6 +201,15 @@ router.put('/:id', authRequired, async (req, res) => {
       `SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS d, TIME_FORMAT(appointment_time, '%H:%i') AS t, status FROM appointment WHERE appointment_id = ?`,
       [id]
     );
+
+    // เลื่อนวัน/เวลา → อีกฝ่ายต้องยืนยันใหม่ (ล้างคำขอเปลี่ยนเวลาเดิม)
+    const movedNow = (appointment_date && appointment_date !== before?.d) || (appointment_time && String(appointment_time).slice(0, 5) !== before?.t);
+    if (movedNow && !status && before?.status !== 'cancelled') {
+      await pool.query(
+        `UPDATE appointment SET status = 'pending', response_note = NULL, proposed_date = NULL, proposed_time = NULL, responded_at = NULL WHERE appointment_id = ?`,
+        [id]
+      );
+    }
 
     const [result] = await pool.query(
       `UPDATE appointment
@@ -224,6 +254,66 @@ router.delete('/:id', authRequired, async (req, res) => {
 
     const email = await notifyAppointment(req.params.id, 'cancelled', req.user?.id);
     res.json({ message: 'Cancelled', email });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ---------------------- POST ตอบรับนัด ----------------------
+// action: confirm | decline (ผู้ถูกนัด) • accept_proposal = ผู้นัดเลื่อนไปวันเวลาที่อีกฝ่ายเสนอ (ถือว่ายืนยันแล้ว)
+router.post('/:id/respond', authRequired, async (req, res) => {
+  try {
+    const { action } = req.body;
+    const me = String(req.user.id);
+    const [[a]] = await pool.query(
+      `SELECT appointment_id, teacher_user_id, student_user_id, created_by_user_id, status,
+              DATE_FORMAT(proposed_date, '%Y-%m-%d') AS proposed_date, proposed_time
+       FROM appointment WHERE appointment_id = ?`,
+      [req.params.id]
+    );
+    if (!a) return res.status(404).json({ message: 'ไม่พบนัดหมาย' });
+    if (![String(a.teacher_user_id), String(a.student_user_id)].includes(me)) return res.status(403).json({ message: 'ไม่ใช่นัดหมายของคุณ' });
+    if (a.status === 'cancelled') return res.status(409).json({ message: 'นัดหมายนี้ถูกยกเลิกแล้ว' });
+
+    if (action === 'confirm' || action === 'decline') {
+      if (inviteeOf(a) !== me) return res.status(403).json({ message: 'ผู้ที่ถูกนัดเท่านั้นที่ยืนยันหรือปฏิเสธได้' });
+      if (action === 'confirm') {
+        await pool.query(
+          `UPDATE appointment SET status = 'confirmed', response_note = NULL, proposed_date = NULL, proposed_time = NULL, responded_at = NOW() WHERE appointment_id = ?`,
+          [a.appointment_id]
+        );
+      } else {
+        const reason = String(req.body.reason || '').trim().slice(0, 500) || null;
+        const pDate = req.body.proposed_date || null;
+        const pTime = req.body.proposed_time ? String(req.body.proposed_time).slice(0, 5) : null;
+        if ((pDate && !DATE_RE.test(pDate)) || (pTime && !TIME_RE.test(pTime))) return res.status(400).json({ message: 'วันหรือเวลาที่เสนอไม่ถูกต้อง' });
+        if (pTime && !pDate) return res.status(400).json({ message: 'กรุณาเลือกวันที่สะดวกด้วย' });
+        const [[{ today }]] = await pool.query(`SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d') AS today`);
+        if (pDate && pDate < today) return res.status(400).json({ message: 'วันที่เสนอต้องเป็นวันนี้หรือหลังจากนี้' });
+        await pool.query(
+          `UPDATE appointment SET status = 'declined', response_note = ?, proposed_date = ?, proposed_time = ?, responded_at = NOW() WHERE appointment_id = ?`,
+          [reason, pDate, pTime, a.appointment_id]
+        );
+      }
+      const email = await notifyAppointment(a.appointment_id, action === 'confirm' ? 'confirmed' : 'declined', me);
+      return res.json({ status: action === 'confirm' ? 'confirmed' : 'declined', email });
+    }
+
+    if (action === 'accept_proposal') {
+      if (creatorOf(a) !== me) return res.status(403).json({ message: 'ผู้นัดเท่านั้นที่เลื่อนตามคำขอได้' });
+      if (a.status !== 'declined' || !a.proposed_date || !a.proposed_time) return res.status(409).json({ message: 'ไม่มีวันเวลาที่อีกฝ่ายเสนอไว้' });
+      await pool.query(
+        `UPDATE appointment SET appointment_date = proposed_date, appointment_time = proposed_time, status = 'confirmed',
+                response_note = NULL, proposed_date = NULL, proposed_time = NULL, responded_at = NOW()
+         WHERE appointment_id = ?`,
+        [a.appointment_id]
+      );
+      const email = await notifyAppointment(a.appointment_id, 'rescheduled', me);
+      return res.json({ status: 'confirmed', email });
+    }
+
+    res.status(400).json({ message: 'action ต้องเป็น confirm, decline หรือ accept_proposal' });
   } catch (e) {
     console.error(e);
     res.status(500).json({ message: 'Server error' });

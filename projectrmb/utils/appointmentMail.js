@@ -42,7 +42,14 @@ function buildIcs(a, kind) {
   ].join('\r\n');
 }
 
-const TITLE = { created: 'นัดหมายใหม่', updated: 'เลื่อนนัดหมาย', cancelled: 'ยกเลิกนัดหมาย' };
+const TITLE = {
+  created: 'นัดหมายใหม่',
+  updated: 'เลื่อนนัดหมาย',
+  cancelled: 'ยกเลิกนัดหมาย',
+  confirmed: 'ยืนยันนัดหมายแล้ว',
+  declined: 'ปฏิเสธนัดหมาย',
+  rescheduled: 'เลื่อนนัดตามที่ขอแล้ว',
+};
 
 // kind: created | updated | cancelled • actorId = ผู้ทำรายการ (ไม่ส่งหาตัวเอง)
 async function notifyAppointment(appointmentId, kind, actorId) {
@@ -50,7 +57,8 @@ async function notifyAppointment(appointmentId, kind, actorId) {
     const [rows] = await pool.query(
       `SELECT a.appointment_id AS id, DATE_FORMAT(a.appointment_date, '%Y-%m-%d') AS date, a.appointment_time AS time, a.note,
               a.teacher_user_id, t.fullname AS teacherName, t.email AS teacherEmail,
-              a.student_user_id, s.fullname AS studentName, s.email AS studentEmail
+              a.student_user_id, s.fullname AS studentName, s.email AS studentEmail,
+              a.response_note, DATE_FORMAT(a.proposed_date, '%Y-%m-%d') AS proposedDate, a.proposed_time AS proposedTime
        FROM appointment a
        JOIN users t ON t.user_id = a.teacher_user_id
        JOIN users s ON s.user_id = a.student_user_id
@@ -68,10 +76,21 @@ async function notifyAppointment(appointmentId, kind, actorId) {
       created: `${otherName} นัดหมายกับคุณ`,
       updated: `${otherName} เปลี่ยนวันหรือเวลานัดหมาย`,
       cancelled: `${otherName} ยกเลิกนัดหมาย`,
+      confirmed: `${otherName} ยืนยันว่าจะมาตามนัด`,
+      declined: `${otherName} ไม่สะดวกตามนัดนี้`,
+      rescheduled: `${otherName} เลื่อนนัดเป็นวันเวลาที่คุณขอแล้ว`,
     }[kind];
+    // ปฏิเสธ: เหตุผล + วันเวลาที่อีกฝ่ายสะดวก
+    const extra =
+      kind === 'declined'
+        ? [
+            a.response_note ? `เหตุผล: ${a.response_note}` : '',
+            a.proposedDate ? `ขอเปลี่ยนเป็น: ${thaiDate(a.proposedDate)}${a.proposedTime ? ` เวลา ${hhmm(a.proposedTime)} น.` : ''}` : '',
+          ].filter(Boolean)
+        : [];
     const link = appUrl() ? `${appUrl()}/${toStudent ? 'studentcalendar' : 'TeacherCalendar'}` : '';
     const subject = `${TITLE[kind]}: ${when}${a.note ? ` — ${a.note}` : ''}`;
-    const text = [`สวัสดี ${toName}`, '', intro, `วันเวลา: ${when}`, a.note ? `เรื่อง: ${a.note}` : '', link ? `ดูในระบบ: ${link}` : '', '', 'อีเมลนี้ส่งอัตโนมัติจากระบบแนะแนว กรุณาอย่าตอบกลับ']
+    const text = [`สวัสดี ${toName}`, '', intro, `วันเวลา: ${when}`, a.note ? `เรื่อง: ${a.note}` : '', ...extra, link ? `ดูในระบบ: ${link}` : '', '', 'อีเมลนี้ส่งอัตโนมัติจากระบบแนะแนว กรุณาอย่าตอบกลับ']
       .filter((x) => x !== '')
       .join('\n');
     const html = `<div style="font-family:Tahoma,sans-serif;font-size:15px;color:#222;line-height:1.6">
@@ -80,15 +99,18 @@ async function notifyAppointment(appointmentId, kind, actorId) {
   <table style="border-collapse:collapse;margin:8px 0">
     <tr><td style="padding:4px 12px 4px 0;color:#888">วันเวลา</td><td style="padding:4px 0"><b${kind === 'cancelled' ? ' style="text-decoration:line-through"' : ''}>${esc(when)}</b></td></tr>
     ${a.note ? `<tr><td style="padding:4px 12px 4px 0;color:#888">เรื่อง</td><td style="padding:4px 0">${esc(a.note)}</td></tr>` : ''}
+    ${extra.map((l) => { const [k, ...v] = l.split(': '); return `<tr><td style="padding:4px 12px 4px 0;color:#888">${esc(k)}</td><td style="padding:4px 0"><b>${esc(v.join(': '))}</b></td></tr>`; }).join('')}
     <tr><td style="padding:4px 12px 4px 0;color:#888">${toStudent ? 'ครู' : 'นักเรียน'}</td><td style="padding:4px 0">${esc(toStudent ? a.teacherName : a.studentName)}</td></tr>
   </table>
   ${link ? `<p><a href="${esc(link)}" style="display:inline-block;background:#ec4899;color:#fff;padding:8px 16px;border-radius:10px;text-decoration:none">ดูนัดหมายในระบบ</a></p>` : ''}
-  ${kind !== 'cancelled' ? '<p style="color:#888;font-size:13px">แนบไฟล์ปฏิทิน (.ics) — เปิดเพื่อเพิ่มนัดหมายลงปฏิทินของคุณ</p>' : ''}
+  ${['created', 'updated', 'rescheduled', 'confirmed'].includes(kind) ? '<p style="color:#888;font-size:13px">แนบไฟล์ปฏิทิน (.ics) — เปิดเพื่อเพิ่มนัดหมายลงปฏิทินของคุณ</p>' : ''}
   <p style="color:#aaa;font-size:12px">อีเมลนี้ส่งอัตโนมัติจากระบบแนะแนว กรุณาอย่าตอบกลับ</p>
 </div>`;
     // ผู้ส่งแสดงเป็นชื่อของฝ่ายที่นัด และตอบกลับถึงอีเมลของฝ่ายนั้นโดยตรง
     const sender = toStudent ? { name: `ครู${a.teacherName}`, email: a.teacherEmail } : { name: a.studentName, email: a.studentEmail };
-    const attachments = [{ filename: 'appointment.ics', content: buildIcs(a, kind), contentType: `text/calendar; charset=utf-8; method=${kind === 'cancelled' ? 'CANCEL' : 'PUBLISH'}` }];
+    // ไฟล์ปฏิทิน: นัดที่ยังมีผล → เพิ่มลงปฏิทิน • ยกเลิก/ปฏิเสธ → ลบออกจากปฏิทิน
+    const calKind = kind === 'cancelled' || kind === 'declined' ? 'cancelled' : 'created';
+    const attachments = [{ filename: 'appointment.ics', content: buildIcs(a, calKind), contentType: `text/calendar; charset=utf-8; method=${calKind === 'cancelled' ? 'CANCEL' : 'PUBLISH'}` }];
     // 1) ครูเป็นผู้นัด และเชื่อม Gmail ไว้ → ส่งจาก Gmail ของครูคนนั้นเอง
     if (toStudent) {
       const viaGmail = await sendFromTeacherGmail(a.teacher_user_id, { to, subject, text, html, attachments, fromName: `ครู${a.teacherName}` });

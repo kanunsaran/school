@@ -38,6 +38,7 @@ import Avatar from "../components/Avatar.jsx";
 import { emailNoticeText } from "../utils/emailNotice.js";
 import GmailConnect from "../components/GmailConnect.jsx";
 import { appointmentEmail, gmailComposeLink, mailtoLink } from "../utils/gmailCompose.js";
+import AppointmentResponse from "../components/AppointmentResponse.jsx";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -106,6 +107,10 @@ export default function TeacherCalendar() {
             time: a.appointment_time,
             studentId: a.student_user_id,
             note: a.note,
+            status: a.status,
+            responseNote: a.response_note,
+            proposedDate: a.proposed_date,
+            proposedTime: a.proposed_time,
             // นักเรียนเป็นคนขอนัดเอง (หน้า /studentcalendar)
             byStudent: a.created_by_user_id != null && String(a.created_by_user_id) === String(a.student_user_id),
             replies: (a.replies || []).map((r) => ({
@@ -504,6 +509,7 @@ export default function TeacherCalendar() {
                           </button>
                         </div>
 
+                        <AppointmentResponse appt={{ ...a, byMe: !a.byStudent }} otherLabel="นักเรียน" isPast={a.date < toDateKey(today)} onChanged={loadAppointments} />
                         <ReplyThread
                           replies={a.replies || []}
                           onAdd={(text) => addReply(a.id, text)}

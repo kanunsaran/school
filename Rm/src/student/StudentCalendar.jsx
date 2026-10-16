@@ -21,6 +21,7 @@ import Avatar from "../components/Avatar.jsx";
 import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import { emailNoticeText } from "../utils/emailNotice.js";
+import AppointmentResponse from "../components/AppointmentResponse.jsx";
 
 // ปฏิทินนัดหมายฝั่งนักเรียน — หน้าตาเหมือนปฏิทินครู: เห็นนัดที่ครูนัดมา + นัดที่ตัวเองขอนัดครู และขอนัดครูใหม่ได้
 
@@ -68,6 +69,10 @@ export default function StudentCalendarPage() {
             teacherId: a.teacher_user_id,
             teacher: a.teacher_name || "ครู",
             note: a.note,
+            status: a.status,
+            responseNote: a.response_note,
+            proposedDate: a.proposed_date,
+            proposedTime: a.proposed_time,
             byMe: a.created_by_user_id != null && String(a.created_by_user_id) === String(myId),
             replies: (a.replies || []).map((r) => ({ author: r.author_name || "-", text: r.content, time: replyTime(r.created_at) })),
           }))
@@ -309,6 +314,7 @@ export default function StudentCalendarPage() {
                         )}
                       </div>
 
+                      <AppointmentResponse appt={a} otherLabel="ครู" isPast={isPastSelectedDate} onChanged={loadAppointments} />
                       <ReplyThread replies={a.replies || []} onAdd={(text) => addReply(a.id, text)} placeholder="พิมพ์ตอบกลับนัดหมายนี้..." />
                     </div>
                   ))}

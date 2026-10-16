@@ -2027,6 +2027,14 @@ export async function checkAppointmentEmails(studentIds) {
   return response.data;
 }
 
+// ตอบรับนัด: { action: "confirm" | "decline" | "accept_proposal", reason?, proposed_date?, proposed_time? }
+export async function respondAppointment(id, body) {
+  const response = await axios.post(`${api}/appointment/${id}/respond`, body, {
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` },
+  });
+  return response.data;
+}
+
 export async function createAppointment({ teacher_user_id, student_user_id, appointment_date, appointment_time, note }) {
   try {
     const response = await axios.post(
