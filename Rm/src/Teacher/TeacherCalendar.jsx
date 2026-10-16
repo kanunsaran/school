@@ -36,6 +36,7 @@ import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { emailNoticeText } from "../utils/emailNotice.js";
+import GmailConnect from "../components/GmailConnect.jsx";
 import { appointmentEmail, gmailComposeLink, mailtoLink } from "../utils/gmailCompose.js";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
@@ -390,6 +391,11 @@ export default function TeacherCalendar() {
             <p className="page-subtitle mt-1">
               จัดตารางนัดหมายกับนักเรียนของคุณ
             </p>
+          </div>
+
+          {/* เชื่อมต่อ Gmail ของครู → ส่งอีเมลแจ้งนัดอัตโนมัติจากอีเมลของครูเอง */}
+          <div className="mt-5">
+            <GmailConnect />
           </div>
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-x-10 gap-y-10 items-start">

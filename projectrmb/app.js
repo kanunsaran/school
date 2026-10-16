@@ -64,6 +64,7 @@ const consultationRouter = require('./routes/consultation.routes');
 const teachingScheduleRouter = require('./routes/teaching_schedule.routes');
 const teacherNotesRouter = require('./routes/teacher_notes.routes');
 const assessmentAdviceRouter = require('./routes/assessment_advice.routes');
+const mailAccountRouter = require('./routes/mail_account.routes');
 const feedCategoriesRouter = require('./routes/feed_categories.routes');
 const schoolInfoRouter = require('./routes/school_info.routes');
 
@@ -127,6 +128,7 @@ app.use('/consultation', consultationRouter);
 app.use('/teaching-schedule', teachingScheduleRouter);
 app.use('/teacher-notes', teacherNotesRouter);
 app.use('/assessment-advice', assessmentAdviceRouter);
+app.use('/mail-account', mailAccountRouter);
 app.use('/feed-categories', feedCategoriesRouter);
 app.use('/school-info', schoolInfoRouter);
 app.use('/uploads', express.static('uploads'));

@@ -2006,6 +2006,18 @@ export async function getAppointments({ teacher_user_id, student_user_id } = {})
   }
 }
 
+// ===== การเชื่อมต่อ Gmail ของครู (ส่งอีเมลแจ้งนัดจากอีเมลของครูเอง) =====
+const authHeaders = () => ({ Authorization: `Bearer ${getCurrentUser()?.token}` });
+export async function getMailAccount() {
+  return (await axios.get(`${api}/mail-account`, { headers: authHeaders() })).data;
+}
+export async function connectGmailAccount(code) {
+  return (await axios.post(`${api}/mail-account/google`, { code }, { headers: authHeaders() })).data;
+}
+export async function disconnectGmailAccount() {
+  return (await axios.delete(`${api}/mail-account`, { headers: authHeaders() })).data;
+}
+
 // ตรวจอีเมลของครูที่ล็อกอิน + นักเรียนที่เลือก ก่อนเปิด Gmail (มีอีเมลไหม / เคยเข้าสู่ระบบไหม)
 export async function checkAppointmentEmails(studentIds) {
   const response = await axios.get(`${api}/appointment/email-check`, {

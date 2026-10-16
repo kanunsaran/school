@@ -2,6 +2,7 @@
 // ครูสร้างนัด → ส่งถึงนักเรียน • นักเรียนสร้างนัด → ส่งถึงครู • ไม่ส่งหาคนที่เป็นผู้กระทำเอง
 const { pool } = require('../db');
 const { sendMail, appUrl } = require('./mailer');
+const { sendFromTeacherGmail } = require('./gmailSender');
 
 const THAI_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 const thaiDate = (ymd) => {
@@ -87,6 +88,13 @@ async function notifyAppointment(appointmentId, kind, actorId) {
 </div>`;
     // ผู้ส่งแสดงเป็นชื่อของฝ่ายที่นัด และตอบกลับถึงอีเมลของฝ่ายนั้นโดยตรง
     const sender = toStudent ? { name: `ครู${a.teacherName}`, email: a.teacherEmail } : { name: a.studentName, email: a.studentEmail };
+    const attachments = [{ filename: 'appointment.ics', content: buildIcs(a, kind), contentType: `text/calendar; charset=utf-8; method=${kind === 'cancelled' ? 'CANCEL' : 'PUBLISH'}` }];
+    // 1) ครูเป็นผู้นัด และเชื่อม Gmail ไว้ → ส่งจาก Gmail ของครูคนนั้นเอง
+    if (toStudent) {
+      const viaGmail = await sendFromTeacherGmail(a.teacher_user_id, { to, subject, text, html, attachments, fromName: `ครู${a.teacherName}` });
+      if (viaGmail) return viaGmail;
+    }
+    // 2) ไม่ได้เชื่อม → บัญชีกลาง SMTP (ถ้าตั้งไว้) • ไม่ได้ตั้ง → คืน not_configured ให้หน้าเว็บเสนอเปิด Gmail เอง
     return await sendMail({
       to,
       fromName: `${sender.name} (ระบบแนะแนว)`,
@@ -94,7 +102,7 @@ async function notifyAppointment(appointmentId, kind, actorId) {
       subject,
       text,
       html,
-      attachments: [{ filename: 'appointment.ics', content: buildIcs(a, kind), contentType: `text/calendar; charset=utf-8; method=${kind === 'cancelled' ? 'CANCEL' : 'PUBLISH'}` }],
+      attachments,
     });
   } catch (e) {
     console.error('notifyAppointment failed:', e.message);
