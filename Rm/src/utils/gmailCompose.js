@@ -1,26 +1,13 @@
 // เปิดหน้าเขียนอีเมลใน Gmail ของครู (บัญชีตามอีเมลในระบบ — authuser) พร้อมข้อความแจ้งนัดหมาย
 // ครูกด "ส่ง" เองใน Gmail ระบบไม่ได้เก็บรหัสผ่านอีเมลของใคร
+// ข้อความต้องสั้น: บัญชีที่ล็อกอินผ่าน Microsoft (เช่น @kkumail.com) ส่งลิงก์ทั้งเส้นต่อไปหน้าล็อกอินของ Microsoft
+// ถ้ายาวเกิน จะเจอ AADSTS90015 (query string too long) — อักษรไทยในลิงก์ยาวขึ้น ~9 เท่า
 const THAI_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 const thaiDate = (ymd) => {
   const [y, m, d] = ymd.split("-").map(Number);
   return `${d} ${THAI_MONTHS[m - 1]} ${y + 543}`;
 };
 const hhmm = (t) => String(t).slice(0, 5);
-
-// เวลาไทย → UTC (ไทยไม่มีเวลาออมแสง) รูปแบบ 20261020T033000Z
-const utcStamp = (ymd, minutes) => {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d, 0, minutes - 7 * 60)).toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
-};
-
-// ลิงก์ "เพิ่มลง Google Calendar" (นัดละ 30 นาที)
-export const googleCalendarLink = ({ date, time, title, details }) => {
-  const [h, m] = hhmm(time).split(":").map(Number);
-  const start = utcStamp(date, h * 60 + m);
-  const end = utcStamp(date, h * 60 + m + 30);
-  const q = new URLSearchParams({ action: "TEMPLATE", text: title, dates: `${start}/${end}`, details: details || "" });
-  return `https://calendar.google.com/calendar/render?${q}`;
-};
 
 // ลิงก์เขียนอีเมลใน Gmail: นักเรียนคนเดียว = ส่งถึง (to) • หลายคน = สำเนาลับ (bcc) เพื่อไม่เปิดเผยอีเมลของกันและกัน
 export const gmailComposeLink = ({ from, to, subject, body }) => {
@@ -33,24 +20,23 @@ export const gmailComposeLink = ({ from, to, subject, body }) => {
   return `https://mail.google.com/mail/?${q}`;
 };
 
-// ข้อความอีเมลแจ้งนัดหมาย kind: created | cancelled
-export const appointmentEmail = ({ kind, teacherName, studentName, date, time, note, appUrl }) => {
-  const when = `${thaiDate(date)} เวลา ${hhmm(time)} น.`;
-  const title = `นัดหมาย: ${note || "พบครูแนะแนว"}`;
-  const subject = `${kind === "cancelled" ? "ยกเลิกนัดหมาย" : "นัดหมายกับครูแนะแนว"}: ${when}${note ? ` — ${note}` : ""}`;
-  // null = ไม่มีบรรทัดนี้ • "" = เว้นบรรทัด
+// ข้อความอีเมลแจ้งนัดหมาย (สั้นที่สุดที่ยังครบ) kind: created | cancelled
+export const appointmentEmail = ({ kind, teacherName, date, time, note, appUrl }) => {
+  const when = `${thaiDate(date)} ${hhmm(time)} น.`;
+  const subject = `${kind === "cancelled" ? "ยกเลิกนัด" : "นัดหมาย"} ${when}`;
   const body = [
-    `สวัสดี${studentName ? ` ${studentName}` : "นักเรียน"}`,
-    "",
-    kind === "cancelled" ? `ครูขอยกเลิกนัดหมายวันที่ ${when}` : `ครู${teacherName ? `${teacherName} ` : ""}นัดหมายกับคุณ`,
-    kind === "cancelled" ? null : `วันเวลา: ${when}`,
-    note ? `เรื่อง: ${note}` : null,
-    kind === "cancelled" ? null : `เพิ่มลงปฏิทิน: ${googleCalendarLink({ date, time, title, details: `ครู${teacherName || ""}` })}`,
-    appUrl ? `ดูในระบบ: ${appUrl}/studentcalendar` : null,
-    "",
-    `ครู${teacherName || ""}`,
+    kind === "cancelled" ? `ครูขอยกเลิกนัดวันที่ ${when}` : `ครูนัดพบวันที่ ${when}`,
+    note ? `เรื่อง: ${note.length > 80 ? `${note.slice(0, 80)}…` : note}` : null,
+    appUrl ? `ดูนัดในระบบ: ${appUrl}/studentcalendar` : null,
+    teacherName ? `ครู${teacherName}` : null,
   ]
-    .filter((x) => x !== null)
+    .filter(Boolean)
     .join("\n");
   return { subject, body };
 };
+
+// สำรอง: เปิดโปรแกรมอีเมลในเครื่อง (เช่น Outlook) — ใช้ข้อความเดียวกัน
+export const mailtoLink = ({ to, subject, body }) =>
+  `mailto:${to.length === 1 ? encodeURIComponent(to[0]) : ""}?${new URLSearchParams({ ...(to.length > 1 ? { bcc: to.join(",") } : {}), subject, body })
+    .toString()
+    .replace(/\+/g, "%20")}`;

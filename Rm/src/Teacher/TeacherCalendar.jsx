@@ -36,7 +36,7 @@ import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import Avatar from "../components/Avatar.jsx";
 import { emailNoticeText } from "../utils/emailNotice.js";
-import { appointmentEmail, gmailComposeLink } from "../utils/gmailCompose.js";
+import { appointmentEmail, gmailComposeLink, mailtoLink } from "../utils/gmailCompose.js";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -216,15 +216,17 @@ export default function TeacherCalendar() {
       const { subject, body } = appointmentEmail({
         kind,
         teacherName: teacher.fullname,
-        studentName: recipients.length === 1 ? recipients[0].fullname : "",
         date,
         time,
         note,
         appUrl: window.location.origin,
       });
-      const href = gmailComposeLink({ from: teacher.email, to: recipients.map((r) => r.email), subject, body });
+      const to = recipients.map((r) => r.email);
+      const href = gmailComposeLink({ from: teacher.email, to, subject, body });
+      const mailto = mailtoLink({ to, subject, body });
       action = `<a href="${esc(href)}" target="_blank" rel="noreferrer" style="display:inline-block;margin-top:12px;background:#ec4899;color:#fff;padding:10px 18px;border-radius:12px;font-weight:600;text-decoration:none">ส่งอีเมลจาก Gmail ของฉัน</a>
-        <div style="margin-top:6px;font-size:12.5px;color:#9ca3af">เปิด Gmail ด้วยบัญชี ${esc(teacher.email)} — ถ้ายังไม่ได้ล็อกอิน Google จะให้ล็อกอินบัญชีนี้ก่อน แล้วกด “ส่ง” ใน Gmail</div>`;
+        <div style="margin-top:6px;font-size:12.5px;color:#9ca3af">เปิด Gmail ด้วยบัญชี ${esc(teacher.email)} — ถ้ายังไม่ได้ล็อกอิน Google จะให้ล็อกอินบัญชีนี้ก่อน แล้วกด “ส่ง” ใน Gmail</div>
+        <div style="margin-top:6px;font-size:13px"><a href="${esc(mailto)}" style="color:#db2777">ใช้ Outlook หรือโปรแกรมอีเมลในเครื่องแทน</a></div>`;
     }
     return Swal.fire({
       icon: "success",
