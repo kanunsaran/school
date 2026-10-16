@@ -25,12 +25,14 @@ const getTransporter = () => {
 
 const appUrl = () => (process.env.APP_URL || process.env.CORS_ORIGIN || '').split(',')[0].trim().replace(/\/$/, '');
 
-async function sendMail({ to, subject, text, html, attachments }) {
+// fromName = ชื่อที่แสดงเป็นผู้ส่ง (เช่น ชื่อครู) • replyTo = อีเมลที่รับเมื่อผู้รับกดตอบกลับ
+async function sendMail({ to, subject, text, html, attachments, fromName, replyTo }) {
   if (!configured()) return { sent: false, reason: 'not_configured' };
   if (!to) return { sent: false, reason: 'no_email' };
   try {
     await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || `"ระบบแนะแนว" <${process.env.SMTP_USER}>`,
+      from: fromName ? { name: fromName, address: process.env.SMTP_USER } : process.env.MAIL_FROM || `"ระบบแนะแนว" <${process.env.SMTP_USER}>`,
+      replyTo: replyTo || undefined,
       to,
       subject,
       text,

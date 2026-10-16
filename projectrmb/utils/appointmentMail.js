@@ -85,8 +85,12 @@ async function notifyAppointment(appointmentId, kind, actorId) {
   ${kind !== 'cancelled' ? '<p style="color:#888;font-size:13px">แนบไฟล์ปฏิทิน (.ics) — เปิดเพื่อเพิ่มนัดหมายลงปฏิทินของคุณ</p>' : ''}
   <p style="color:#aaa;font-size:12px">อีเมลนี้ส่งอัตโนมัติจากระบบแนะแนว กรุณาอย่าตอบกลับ</p>
 </div>`;
+    // ผู้ส่งแสดงเป็นชื่อของฝ่ายที่นัด และตอบกลับถึงอีเมลของฝ่ายนั้นโดยตรง
+    const sender = toStudent ? { name: `ครู${a.teacherName}`, email: a.teacherEmail } : { name: a.studentName, email: a.studentEmail };
     return await sendMail({
       to,
+      fromName: `${sender.name} (ระบบแนะแนว)`,
+      replyTo: sender.email || undefined,
       subject,
       text,
       html,
