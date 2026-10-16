@@ -39,6 +39,7 @@ import { emailNoticeText } from "../utils/emailNotice.js";
 import GmailConnect from "../components/GmailConnect.jsx";
 import { appointmentEmail, gmailComposeLink, mailtoLink } from "../utils/gmailCompose.js";
 import AppointmentResponse from "../components/AppointmentResponse.jsx";
+import { statusCardClass } from "../utils/appointmentStatus.js";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -475,7 +476,7 @@ export default function TeacherCalendar() {
                   {appointmentsForSelectedDate.map((a) => {
                     const student = studentById(a.studentId);
                     return (
-                      <div key={a.id} className="rounded-xl border border-gray-200 px-3 py-2.5">
+                      <div key={a.id} className={`rounded-xl border border-gray-200 px-3 py-2.5 ${statusCardClass(a.status)}`}>
                         <div className="flex items-center gap-3">
                           <Avatar src={avatarByUser[String(a.studentId)]} name={student?.name} size={44} />
                           <div className="min-w-0 flex-1">
@@ -509,7 +510,7 @@ export default function TeacherCalendar() {
                           </button>
                         </div>
 
-                        <AppointmentResponse appt={{ ...a, byMe: !a.byStudent }} otherLabel="นักเรียน" isPast={a.date < toDateKey(today)} onChanged={loadAppointments} />
+                        <AppointmentResponse appt={{ ...a, byMe: !a.byStudent }} otherLabel="นักเรียน" otherName={student?.name} isPast={a.date < toDateKey(today)} onChanged={loadAppointments} />
                         <ReplyThread
                           replies={a.replies || []}
                           onAdd={(text) => addReply(a.id, text)}

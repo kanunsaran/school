@@ -22,6 +22,7 @@ import AppointmentCalendarGrid from "../components/AppointmentCalendarGrid.jsx";
 import ReplyThread from "../components/AppointmentReplyThread.jsx";
 import { emailNoticeText } from "../utils/emailNotice.js";
 import AppointmentResponse from "../components/AppointmentResponse.jsx";
+import { statusCardClass, STATUS_STYLE } from "../utils/appointmentStatus.js";
 
 // ปฏิทินนัดหมายฝั่งนักเรียน — หน้าตาเหมือนปฏิทินครู: เห็นนัดที่ครูนัดมา + นัดที่ตัวเองขอนัดครู และขอนัดครูใหม่ได้
 
@@ -282,7 +283,7 @@ export default function StudentCalendarPage() {
                   )}
 
                   {appointmentsForSelectedDate.map((a) => (
-                    <div key={a.id} className="rounded-xl border border-gray-200 px-3 py-2.5">
+                    <div key={a.id} className={`rounded-xl border border-gray-200 px-3 py-2.5 ${statusCardClass(a.status)}`}>
                       <div className="flex items-center gap-3">
                         <Avatar name={a.teacher} size={44} />
                         <div className="min-w-0 flex-1">
@@ -314,7 +315,7 @@ export default function StudentCalendarPage() {
                         )}
                       </div>
 
-                      <AppointmentResponse appt={a} otherLabel="ครู" isPast={isPastSelectedDate} onChanged={loadAppointments} />
+                      <AppointmentResponse appt={a} otherLabel="ครู" otherName={a.teacher} isPast={isPastSelectedDate} onChanged={loadAppointments} />
                       <ReplyThread replies={a.replies || []} onAdd={(text) => addReply(a.id, text)} placeholder="พิมพ์ตอบกลับนัดหมายนี้..." />
                     </div>
                   ))}
@@ -385,7 +386,14 @@ export default function StudentCalendarPage() {
                             {a.note ? ` • ${a.note}` : ""}
                           </div>
                         </div>
-                        <div className="text-[15px] text-gray-500 shrink-0">{formatThaiTimeLabel(a.time)}</div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-[15px] text-gray-500">{formatThaiTimeLabel(a.time)}</div>
+                          {STATUS_STYLE[a.status] && (
+                            <span className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${STATUS_STYLE[a.status].badge}`}>
+                              {a.status === "pending" && !a.byMe ? "รอคุณตอบ" : STATUS_STYLE[a.status].label}
+                            </span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}

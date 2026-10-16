@@ -1,6 +1,8 @@
 import { useState } from "react";
 import Swal from "sweetalert2";
+import { FaCheck, FaTimes } from "react-icons/fa";
 import { respondAppointment } from "../callapi/callapi_user.jsx";
+import { STATUS_STYLE } from "../utils/appointmentStatus.js";
 
 const THAI_MONTHS = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 const thaiDate = (ymd) => {
@@ -13,19 +15,16 @@ const todayKey = () => {
 };
 const apiError = (e) => e?.response?.data?.message || "ลองใหม่อีกครั้ง";
 
-const STATUS_BADGE = {
-  pending: { label: "รอยืนยัน", cls: "bg-amber-50 text-amber-700" },
-  confirmed: { label: "ยืนยันแล้ว", cls: "bg-emerald-50 text-emerald-700" },
-  declined: { label: "ไม่สะดวก", cls: "bg-red-50 text-red-600" },
-};
 
 // สถานะการตอบรับนัด + ปุ่ม: ผู้ถูกนัด → ยืนยัน / ปฏิเสธ (บอกเหตุผล + วันเวลาที่สะดวก)
 // ผู้นัด → เห็นคำตอบ และกด "เลื่อนนัดตามที่ขอ" ได้เมื่ออีกฝ่ายเสนอวันเวลาใหม่
 // appt: { id, status, byMe, responseNote, proposedDate, proposedTime } • otherLabel = "ครู" / "นักเรียน"
-export default function AppointmentResponse({ appt, otherLabel, isPast, onChanged }) {
+// otherName = ชื่ออีกฝ่าย (แสดงในกล่องยืนยัน)
+export default function AppointmentResponse({ appt, otherLabel, otherName, isPast, onChanged }) {
   const [busy, setBusy] = useState(false);
   const status = appt.status || "confirmed";
-  const badge = STATUS_BADGE[status];
+  const badge = STATUS_STYLE[status];
+  const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const proposal = appt.proposedDate ? `${thaiDate(appt.proposedDate)}${appt.proposedTime ? ` เวลา ${String(appt.proposedTime).slice(0, 5)} น.` : ""}` : "";
 
   const run = async (body, okTitle) => {
@@ -39,6 +38,27 @@ export default function AppointmentResponse({ appt, otherLabel, isPast, onChange
     } finally {
       setBusy(false);
     }
+  };
+
+  // ยืนยัน: ให้ตรวจรายละเอียดและติ๊กรับทราบก่อน แล้วค่อยส่งให้อีกฝ่าย
+  const confirm = async () => {
+    const r = await Swal.fire({
+      title: "ยืนยันนัดหมายนี้?",
+      html: `<div style="text-align:left;font-size:15.5px;line-height:1.8;background:#f9fafb;border-radius:12px;padding:10px 14px">
+        ${otherName ? `<div><span style="color:#6b7280">${esc(otherLabel)}:</span> <b>${esc(otherName)}</b></div>` : ""}
+        <div><span style="color:#6b7280">วันเวลา:</span> <b>${esc(thaiDate(appt.date))} เวลา ${esc(String(appt.time).slice(0, 5))} น.</b></div>
+        ${appt.note ? `<div><span style="color:#6b7280">เรื่อง:</span> ${esc(appt.note)}</div>` : ""}
+      </div>`,
+      input: "checkbox",
+      inputValue: 0,
+      inputPlaceholder: "ฉันตรวจสอบแล้ว และจะมาตามวันและเวลานี้",
+      inputValidator: (v) => (!v ? "ติ๊กช่องด้านบนก่อนส่งการยืนยัน" : undefined),
+      showCancelButton: true,
+      confirmButtonText: `ส่งการยืนยันถึง${otherLabel}`,
+      cancelButtonText: "กลับ",
+      confirmButtonColor: "#059669",
+    });
+    if (r.isConfirmed) await run({ action: "confirm" }, `ส่งการยืนยันถึง${otherLabel}แล้ว`);
   };
 
   const decline = async () => {
@@ -75,17 +95,18 @@ export default function AppointmentResponse({ appt, otherLabel, isPast, onChange
   const btn = "h-8 px-3 rounded-lg text-[13.5px] font-medium disabled:opacity-50 transition";
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 text-[14px]">
-      {badge && <span className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${badge.cls}`}>{badge.label}</span>}
+      {badge && <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[12.5px] font-semibold ${badge.badge}`}>{badge.label}</span>}
 
-      {status === "pending" && appt.byMe && <span className="text-gray-400">รอ{otherLabel}ยืนยัน</span>}
+      {status === "pending" && appt.byMe && <span className="text-amber-700">รอ{otherLabel}ยืนยัน</span>}
+      {status === "pending" && !appt.byMe && !isPast && <span className="font-medium text-amber-800">กรุณาตอบรับนัดนี้</span>}
 
       {status === "pending" && !appt.byMe && !isPast && (
         <>
-          <button type="button" disabled={busy} onClick={() => run({ action: "confirm" }, "ยืนยันนัดหมายแล้ว")} className={`${btn} !bg-emerald-500 hover:!bg-emerald-600 text-white`}>
-            ยืนยัน
+          <button type="button" disabled={busy} onClick={confirm} className={`${btn} inline-flex items-center gap-1.5 !bg-emerald-600 hover:!bg-emerald-700 text-white`}>
+            <FaCheck className="text-[11px]" /> ยืนยัน
           </button>
-          <button type="button" disabled={busy} onClick={decline} className={`${btn} border border-red-200 bg-white text-red-600 hover:bg-red-50`}>
-            ปฏิเสธ
+          <button type="button" disabled={busy} onClick={decline} className={`${btn} inline-flex items-center gap-1.5 border border-red-300 bg-white text-red-600 hover:bg-red-50`}>
+            <FaTimes className="text-[11px]" /> ปฏิเสธ
           </button>
         </>
       )}
@@ -97,7 +118,7 @@ export default function AppointmentResponse({ appt, otherLabel, isPast, onChange
       )}
 
       {status === "declined" && (
-        <div className="w-full rounded-lg bg-red-50/60 px-3 py-2 text-[14px] text-gray-700">
+        <div className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[14px] text-gray-800">
           {appt.byMe ? `${otherLabel}ไม่สะดวกตามนัดนี้` : "คุณแจ้งว่าไม่สะดวก"}
           {appt.responseNote && <div className="text-gray-600">เหตุผล: {appt.responseNote}</div>}
           {proposal ? <div>ขอเปลี่ยนเป็น: <b>{proposal}</b></div> : <div className="text-gray-400">ไม่ได้เสนอวันเวลาใหม่</div>}
@@ -112,7 +133,7 @@ export default function AppointmentResponse({ appt, otherLabel, isPast, onChange
             </button>
           )}
           {!appt.byMe && !isPast && (
-            <button type="button" disabled={busy} onClick={() => run({ action: "confirm" }, "ยืนยันนัดหมายแล้ว")} className="mt-1 block text-[13px] text-emerald-700 hover:underline bg-transparent !p-0">
+            <button type="button" disabled={busy} onClick={confirm} className="mt-1 block text-[13px] text-emerald-700 hover:underline bg-transparent !p-0">
               เปลี่ยนใจ — ยืนยันตามนัดเดิม
             </button>
           )}
