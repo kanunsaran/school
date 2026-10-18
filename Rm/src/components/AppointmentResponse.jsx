@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Swal from "sweetalert2";
-import { FaCheck, FaTimes } from "react-icons/fa";
+import { FaCheck, FaTimes, FaRegCalendarCheck, FaRegCalendarTimes } from "react-icons/fa";
 import { respondAppointment } from "../callapi/callapi_user.jsx";
 import { STATUS_STYLE, thaiDateLong, thaiTime } from "../utils/appointmentStatus.js";
 import ThaiCalendarField from "./ThaiCalendarField.jsx";
@@ -11,7 +11,6 @@ const todayKey = () => {
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
 };
 const apiError = (e) => e?.response?.data?.message || "ลองใหม่อีกครั้ง";
-const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 // สถานะการตอบรับนัด + ปุ่ม: ผู้ถูกนัด → ยืนยัน (ตรวจรายละเอียด + ติ๊กรับทราบก่อนส่ง) / ปฏิเสธ (เหตุผล + วันเวลาที่สะดวก)
 // ผู้นัด → เห็นคำตอบ และกด "เลื่อนนัดตามที่ขอ" ได้เมื่ออีกฝ่ายเสนอวันเวลาใหม่
@@ -19,6 +18,7 @@ const esc = (v) => String(v ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 export default function AppointmentResponse({ appt, otherLabel, otherName, isPast, onChanged }) {
   const [busy, setBusy] = useState(false);
   const [declining, setDeclining] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const status = appt.status || "confirmed";
   const badge = STATUS_STYLE[status];
   const proposal = appt.proposedDate ? `${thaiDateLong(appt.proposedDate)}${appt.proposedTime ? ` เวลา ${thaiTime(appt.proposedTime)}` : ""}` : "";
@@ -38,28 +38,8 @@ export default function AppointmentResponse({ appt, otherLabel, otherName, isPas
     }
   };
 
-  // ยืนยัน: ให้ตรวจรายละเอียดและติ๊กรับทราบก่อน แล้วค่อยส่งให้อีกฝ่าย
-  const confirm = async () => {
-    const r = await Swal.fire({
-      title: "ยืนยันนัดหมายนี้?",
-      html: `<div style="text-align:left;font-size:15.5px;line-height:1.8;background:#fdf2f8;border-radius:12px;padding:10px 14px">
-        ${otherName ? `<div><span style="color:#6b7280">${esc(otherLabel)}:</span> <b>${esc(otherName)}</b></div>` : ""}
-        <div><span style="color:#6b7280">วันที่:</span> <b>${esc(thaiDateLong(appt.date))}</b></div>
-        <div><span style="color:#6b7280">เวลา:</span> <b>${esc(thaiTime(appt.time))}</b></div>
-        ${appt.note ? `<div><span style="color:#6b7280">เรื่อง:</span> ${esc(appt.note)}</div>` : ""}
-      </div>`,
-      input: "checkbox",
-      inputValue: 0,
-      inputPlaceholder: "ฉันตรวจสอบแล้ว และจะมาตามวันและเวลานี้",
-      inputValidator: (v) => (!v ? "ติ๊กช่องด้านบนก่อนส่งการยืนยัน" : undefined),
-      showCancelButton: true,
-      confirmButtonText: `ส่งการยืนยันถึง${otherLabel}`,
-      cancelButtonText: "กลับ",
-      confirmButtonColor: "#ec4899",
-      cancelButtonColor: "#9ca3af",
-    });
-    if (r.isConfirmed) await run({ action: "confirm" }, `ส่งการยืนยันถึง${otherLabel}แล้ว`);
-  };
+  // ยืนยัน: เปิดกล่องให้ตรวจรายละเอียดและติ๊กรับทราบก่อน แล้วค่อยส่งให้อีกฝ่าย
+  const confirm = () => setConfirming(true);
 
   const btn = "h-8 px-3.5 rounded-full text-[13.5px] font-medium inline-flex items-center gap-1.5 disabled:opacity-50 transition";
   return (
@@ -115,6 +95,19 @@ export default function AppointmentResponse({ appt, otherLabel, otherName, isPas
         </div>
       )}
 
+      {confirming && (
+        <ConfirmModal
+          appt={appt}
+          otherLabel={otherLabel}
+          otherName={otherName}
+          busy={busy}
+          onClose={() => setConfirming(false)}
+          onSubmit={async () => {
+            if (await run({ action: "confirm" }, `ส่งการยืนยันถึง${otherLabel}แล้ว`)) setConfirming(false);
+          }}
+        />
+      )}
+
       {declining && (
         <DeclineModal
           otherLabel={otherLabel}
@@ -126,6 +119,75 @@ export default function AppointmentResponse({ appt, otherLabel, otherName, isPas
         />
       )}
     </div>
+  );
+}
+
+// กรอบป๊อปอัพแบบเดียวกับหน้าอื่นของเว็บ (PromptModal): หัวข้อ + ปุ่มปิด / เนื้อหา / ปุ่มยกเลิก-ยืนยันเต็มความกว้าง มุมโค้ง
+function ModalShell({ title, icon: Icon, iconColorClass, busy, onClose, children, cancelLabel = "ยกเลิก", confirmLabel, confirmDisabled, onConfirm }) {
+  return (
+    <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !busy && onClose()} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-[440px] max-w-full">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
+            {Icon && <Icon className={iconColorClass} size={15} />} {title}
+          </h3>
+          <button type="button" onClick={onClose} disabled={busy} className="text-gray-400 hover:text-gray-700 bg-transparent">
+            <FaTimes size={16} />
+          </button>
+        </div>
+        <div className="px-5 py-5">{children}</div>
+        <div className="px-5 py-4 border-t border-gray-100 flex gap-2.5">
+          <button type="button" onClick={onClose} disabled={busy} className="flex-1 h-11 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-[14px] font-medium">
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy || confirmDisabled}
+            className="flex-1 h-11 rounded-xl bg-pink-500 hover:bg-pink-600 disabled:opacity-50 text-white text-[14px] font-semibold"
+          >
+            {busy ? "กำลังส่ง..." : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ยืนยันนัด: แสดงรายละเอียด + ต้องติ๊กรับทราบก่อนส่ง
+function ConfirmModal({ appt, otherLabel, otherName, busy, onClose, onSubmit }) {
+  const [ok, setOk] = useState(false);
+  const row = (k, v) =>
+    v ? (
+      <div className="flex gap-3">
+        <span className="w-16 shrink-0 text-gray-500">{k}</span>
+        <span className="font-medium text-gray-900">{v}</span>
+      </div>
+    ) : null;
+  return (
+    <ModalShell
+      title="ยืนยันนัดหมายนี้?"
+      icon={FaRegCalendarCheck}
+      iconColorClass="text-emerald-500"
+      busy={busy}
+      onClose={onClose}
+      cancelLabel="กลับ"
+      confirmLabel={`ส่งการยืนยันถึง${otherLabel}`}
+      confirmDisabled={!ok}
+      onConfirm={onSubmit}
+    >
+      <div className="rounded-xl bg-pink-50/60 px-4 py-3 space-y-1 text-[14.5px]">
+        {row(otherLabel, otherName)}
+        {row("วันที่", thaiDateLong(appt.date))}
+        {row("เวลา", thaiTime(appt.time))}
+        {row("เรื่อง", appt.note)}
+      </div>
+      <label className="mt-4 flex items-start gap-2.5 cursor-pointer text-[14.5px] text-gray-700">
+        <input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} className="mt-1 h-4 w-4 accent-pink-500" />
+        ฉันตรวจสอบแล้ว และจะมาตามวันและเวลานี้
+      </label>
+    </ModalShell>
   );
 }
 
@@ -144,41 +206,36 @@ function DeclineModal({ otherLabel, busy, onClose, onSubmit }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4" onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
-        <div className="text-[18px] font-semibold text-gray-900">ไม่สะดวกตามนัดนี้</div>
-        <p className="mt-0.5 text-[13.5px] text-gray-500">{otherLabel}จะเห็นเหตุผลและวันเวลาที่คุณสะดวก แล้วกดเลื่อนนัดตามที่ขอได้</p>
-
-        <label className="mt-4 block text-[14px] text-gray-600" htmlFor="decline-reason">
-          เหตุผล <span className="text-gray-400">(ไม่บังคับ)</span>
-        </label>
-        <textarea
-          id="decline-reason"
-          value={reason}
-          onChange={(e) => setReason(e.target.value.slice(0, 500))}
-          rows={2}
-          placeholder="เช่น ติดสอบ / มีเรียนพิเศษ"
-          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-[15px] outline-none focus:border-pink-400"
-        />
-
-        <div className="mt-3 text-[14px] text-gray-600">
-          ขอเปลี่ยนเป็น <span className="text-gray-400">(ไม่บังคับ)</span>
-        </div>
-        <div className="mt-1 grid grid-cols-[1fr_140px] gap-2">
-          <ThaiCalendarField value={date} onChange={setDate} min={min} placeholder="เลือกวันที่" heightClass="h-11" bgClass="bg-white" dropUp />
-          <ThaiTimeField value={time} onChange={setTime} placeholder="เวลา" heightClass="h-11" bgClass="bg-white" dropUp />
-        </div>
-        {error && <div className="mt-2 text-[13.5px] text-red-600">{error}</div>}
-
-        <div className="mt-5 flex justify-end gap-2">
-          <button type="button" onClick={onClose} disabled={busy} className="h-10 px-4 rounded-xl border border-gray-200 bg-white text-[14.5px] text-gray-600 hover:bg-gray-50">
-            กลับ
-          </button>
-          <button type="button" onClick={submit} disabled={busy} className="h-10 px-4 rounded-xl !bg-pink-500 hover:!bg-pink-600 text-white text-[14.5px] font-medium disabled:opacity-50">
-            {busy ? "กำลังส่ง..." : `ส่งคำตอบถึง${otherLabel}`}
-          </button>
-        </div>
+    <ModalShell
+      title="ไม่สะดวกตามนัดนี้"
+      icon={FaRegCalendarTimes}
+      iconColorClass="text-red-400"
+      busy={busy}
+      onClose={onClose}
+      cancelLabel="กลับ"
+      confirmLabel={`ส่งคำตอบถึง${otherLabel}`}
+      onConfirm={submit}
+    >
+      <p className="-mt-1 text-[13.5px] text-gray-500">{otherLabel}จะเห็นเหตุผลและวันเวลาที่คุณสะดวก แล้วกดเลื่อนนัดตามที่ขอได้</p>
+      <label className="mt-4 block text-[13px] font-medium text-gray-700 mb-1.5" htmlFor="decline-reason">
+        เหตุผล <span className="font-normal text-gray-400">(ไม่บังคับ)</span>
+      </label>
+      <textarea
+        id="decline-reason"
+        value={reason}
+        onChange={(e) => setReason(e.target.value.slice(0, 500))}
+        rows={2}
+        placeholder="เช่น ติดสอบ / มีเรียนพิเศษ"
+        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-[14.5px] outline-none focus:border-pink-400 resize-none"
+      />
+      <div className="mt-4 text-[13px] font-medium text-gray-700 mb-1.5">
+        ขอเปลี่ยนเป็น <span className="font-normal text-gray-400">(ไม่บังคับ)</span>
       </div>
-    </div>
+      <div className="grid grid-cols-[1fr_140px] gap-2">
+        <ThaiCalendarField value={date} onChange={setDate} min={min} placeholder="เลือกวันที่" heightClass="h-11" dropUp />
+        <ThaiTimeField value={time} onChange={setTime} placeholder="เวลา" heightClass="h-11" dropUp />
+      </div>
+      {error && <div className="mt-2 text-[13.5px] text-red-600">{error}</div>}
+    </ModalShell>
   );
 }
