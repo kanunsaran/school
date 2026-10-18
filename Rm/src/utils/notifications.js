@@ -6,6 +6,7 @@ import {
   getAppointments,
 } from "../callapi/callapi_user.jsx";
 import { isConsultationUnread } from "./consultationStore.js";
+import { awaitsMyReply, apptDateKey, thaiDateLong, thaiTime } from "./appointmentStatus.js";
 
 // แจ้งเตือนมุมขวาบน — แจ้งเฉพาะเรื่องหลักที่ต้องเข้าไปดำเนินการ (ไม่แจ้งทุกความเคลื่อนไหว)
 // ครู: คำขอปรึกษาใหม่ ⭐⭐⭐, นักเรียนส่งงาน (รอตรวจ), งานถึงกำหนดวันนี้/ใกล้ถึงกำหนด, กิจกรรม/ประกาศใหม่จากคนอื่น, แจ้งเตือนระบบ
@@ -110,13 +111,28 @@ const deadlineNotes = (assignments, { link, skip } = {}) => {
 
 // ---------- ครู ----------
 const teacherNotifications = async (user) => {
-  const [assignments, submissions, consults, posts] = await Promise.all([
+  const [assignments, submissions, consults, posts, appts] = await Promise.all([
     getAssAll().catch(() => []),
     getAllSubmissions().catch(() => []),
     getConsultationRequests({ teacher_user_id: user.user_id }).catch(() => []),
     getFeedPosts().catch(() => []),
+    getAppointments({ teacher_user_id: user.user_id }).catch(() => []),
   ]);
   const out = [];
+
+  // นักเรียนขอนัด รอครูยืนยัน/ปฏิเสธ
+  (appts || [])
+    .filter((a) => awaitsMyReply(a, user.user_id))
+    .forEach((a) =>
+      out.push({
+        id: `appt-wait-${a.appointment_id}`,
+        type: "appointment",
+        title: "นักเรียนขอนัด รอคุณยืนยัน",
+        text: `${a.student_name || "นักเรียน"}${a.note ? ` • “${a.note}”` : ""}\n${thaiDateLong(a.appointment_date)} เวลา ${thaiTime(a.appointment_time)}`,
+        at: a.created_at,
+        link: `/TeacherCalendar?date=${apptDateKey(a.appointment_date)}`,
+      })
+    );
 
   // คำขอปรึกษา: ข้อความล่าสุดมาจากนักเรียนและครูยังไม่ได้เปิดอ่าน → รวมเป็นรายการเดียว
   const waiting = (consults || []).filter((c) => {
@@ -195,9 +211,23 @@ const studentNotifications = async (user) => {
     }
   });
 
-  // นัดหมายที่ครูนัดมา (ยังไม่ถึงวัน)
+  // นัดหมายที่ครูนัดมาและรอนักเรียนยืนยัน — เตือนจนกว่าจะตอบ (ไม่จำกัดว่าต้องเป็นนัดใหม่)
   (appts || [])
-    .filter((a) => a.status !== "cancelled" && String(a.created_by_user_id ?? a.teacher_user_id) !== String(user.user_id) && new Date(a.appointment_date) >= startOfDay(new Date()) && isRecent(a.created_at))
+    .filter((a) => awaitsMyReply(a, user.user_id))
+    .forEach((a) =>
+      out.push({
+        id: `appt-wait-${a.appointment_id}`,
+        type: "appointment",
+        title: "ครูนัดพบ รอคุณยืนยัน",
+        text: `${a.teacher_name ? `ครู${a.teacher_name}` : "ครู"}${a.note ? ` • “${a.note}”` : ""}\n${thaiDateLong(a.appointment_date)} เวลา ${thaiTime(a.appointment_time)}`,
+        at: a.created_at,
+        link: `/studentcalendar?date=${apptDateKey(a.appointment_date)}`,
+      })
+    );
+
+  // นัดหมายใหม่จากครูที่ไม่ต้องตอบ (นัดเดิมก่อนมีระบบยืนยัน) — ยังไม่ถึงวัน
+  (appts || [])
+    .filter((a) => a.status !== "cancelled" && a.status !== "pending" && String(a.created_by_user_id ?? a.teacher_user_id) !== String(user.user_id) && new Date(a.appointment_date) >= startOfDay(new Date()) && isRecent(a.created_at))
     .forEach((a) =>
       out.push({
         id: `appt-${a.appointment_id}`,

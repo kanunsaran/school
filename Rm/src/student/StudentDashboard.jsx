@@ -34,6 +34,7 @@ import {
 import { getCurrentUser } from "../utils/auth.js";
 import { formatThaiTimeLabel } from "../utils/feedShared.js";
 import { primaryGoalOf } from "../utils/goals.js";
+import PendingAppointmentsAlert from "../components/PendingAppointmentsAlert.jsx";
 
 // ใช้ user จาก session จริงหลัง login ถ้ามี — ถ้ายังไม่ได้ login (เช่น เข้าตรงๆ ตอนทดสอบ) fallback เป็น placeholder เดิม
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
@@ -312,6 +313,9 @@ export default function StudentDashboard() {
                   <FaKey size={14} /> กรอกรหัสเข้าชั้นเรียน
                 </button>
               </div>
+
+              {/* นัดหมายที่รอคุณยืนยัน/ปฏิเสธ */}
+              <PendingAppointmentsAlert role="student" />
 
               {/* Subject */}
               <div className="rounded-2xl border border-gray-200 bg-white p-5">

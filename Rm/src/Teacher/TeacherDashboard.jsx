@@ -38,6 +38,7 @@ const normalizeSchedule = (raw) => ({
 import { bigFilterSelectStyles } from "../utils/reactSelectStyles.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
 import ScheduleImportModal from "../components/ScheduleImportModal.jsx";
+import PendingAppointmentsAlert from "../components/PendingAppointmentsAlert.jsx";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -401,6 +402,8 @@ export default function TeacherDashboard() {
                   <FaChalkboardTeacher size={14} /> สร้างห้องเรียน
                 </button>
               </div>
+
+              <PendingAppointmentsAlert role="teacher" className="mt-5" />
 
               {/* การ์ดสรุป */}
               <div className="mt-5 grid grid-cols-2 gap-4">

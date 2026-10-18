@@ -13,6 +13,7 @@ export default function ThaiTimeField({
   bgClass = "bg-gray-50",
   radiusClass = "rounded-xl",
   className = "",
+  dropUp = false, // true = เปิดตัวเลือกขึ้นด้านบน (ใช้ในกล่องที่มีปุ่มอยู่ใต้ช่องนี้ ไม่ให้บังปุ่ม)
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState(value || "");
@@ -73,7 +74,7 @@ export default function ThaiTimeField({
       </div>
 
       {open && !disabled && (
-        <div className="absolute left-0 right-0 mt-2 p-3 rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] z-50">
+        <div className={`absolute left-0 right-0 ${dropUp ? "bottom-full mb-2" : "mt-2"} p-3 rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] z-50`}>
           <ThaiTimePicker
             value={value}
             min={min}

@@ -11,7 +11,8 @@ const toDateKey = (date) => {
   return `${y}-${m}-${d}`;
 };
 
-export default function AppointmentCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, titleOf, onSelectDate }) {
+// needsReply(appointment) => true = นัดที่รอเราตอบ (ไม่บังคับ) — วันนั้นมีจุดสีเหลืองและป้ายสีเหลือง
+export default function AppointmentCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, titleOf, onSelectDate, needsReply }) {
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const firstWeekday = new Date(year, month, 1).getDay();
@@ -40,6 +41,7 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
         const isPast = key < todayKey;
         // หัวข้อนัดแรกของวัน (ไม่มีหัวข้อใช้ชื่อนักเรียน)
         const firstTitle = count ? titleOf(list[0]) : "";
+        const waiting = !isPast && Boolean(needsReply) && list.some(needsReply);
 
         return (
           <button
@@ -47,7 +49,7 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
             type="button"
             onClick={() => onSelectDate(cellDate)}
             title={count ? list.map((a) => `${formatThaiTimeLabel(a.time)} ${titleOf(a)}`).join("\n") : undefined}
-            className={`h-14 sm:h-16 min-w-0 !p-0 rounded-lg flex flex-col items-center justify-center gap-1 text-[15px] transition
+            className={`relative h-14 sm:h-16 min-w-0 !p-0 rounded-lg flex flex-col items-center justify-center gap-1 text-[15px] transition
               ${
                 isSelected
                   ? "bg-pink-500 text-white"
@@ -56,12 +58,15 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
                   : "text-gray-700 hover:bg-gray-50"
               }`}
           >
+            {waiting && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white" aria-label="มีนัดรอตอบ" />}
             <span className="leading-none">{day}</span>
             {count > 0 && (
               <span
                 className={`w-full max-w-full truncate text-center px-0.5 sm:px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-none ${
                   isSelected
                     ? "bg-white/25 text-white"
+                    : waiting
+                    ? "bg-amber-100 text-amber-800"
                     : isPast
                     ? "bg-pink-50 text-pink-400"
                     : "bg-pink-100 text-pink-700"

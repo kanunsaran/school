@@ -39,7 +39,8 @@ import { emailNoticeText } from "../utils/emailNotice.js";
 import GmailConnect from "../components/GmailConnect.jsx";
 import { appointmentEmail, gmailComposeLink, mailtoLink } from "../utils/gmailCompose.js";
 import AppointmentResponse from "../components/AppointmentResponse.jsx";
-import { statusCardClass } from "../utils/appointmentStatus.js";
+import { statusCardClass, thaiDateLong, thaiTime } from "../utils/appointmentStatus.js";
+import { useLocation } from "react-router-dom";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -62,8 +63,15 @@ const toDateKey = (date) => {
 export default function TeacherCalendar() {
   const today = useMemo(() => new Date(), []);
 
-  const [viewDate, setViewDate] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedDate, setSelectedDate] = useState(today);
+  // เปิดจากลิงก์หน้าโฮม (?date=YYYY-MM-DD) → เลือกวันนั้นให้เลย
+  const startDate = useMemo(() => {
+    const q = new URLSearchParams(window.location.search).get("date");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(q || "")) return today;
+    const [y, m, d] = q.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }, [today]);
+  const [viewDate, setViewDate] = useState(() => new Date(startDate.getFullYear(), startDate.getMonth(), 1));
+  const [selectedDate, setSelectedDate] = useState(startDate);
 
   const [students, setStudents] = useState([]);
   const [appointments, setAppointments] = useState([]);
@@ -161,6 +169,22 @@ export default function TeacherCalendar() {
   };
 
   // นัดหมายแยกตามวัน เรียงตามเวลา — ใช้โชว์หัวข้อนัดในช่องปฏิทิน
+  // นัดที่รอเราตอบ (อีกฝ่ายเป็นคนนัด ยังไม่ยืนยัน/ปฏิเสธ และยังไม่ถึงวันที่ผ่านไปแล้ว)
+  const needsReply = (a) => a.status === "pending" && a.byStudent && a.date >= toDateKey(today);
+  const awaiting = appointments.filter(needsReply).sort((x, y) => (x.date + x.time).localeCompare(y.date + y.time));
+  const jumpTo = (key) => {
+    const [y, m, d] = key.split("-").map(Number);
+    setSelectedDate(new Date(y, m - 1, d));
+    setViewDate(new Date(y, m - 1, 1));
+  };
+
+  // กดแจ้งเตือนที่ลิงก์ ?date= ขณะอยู่หน้านี้อยู่แล้ว → ไปที่วันนั้น
+  const location = useLocation();
+  useEffect(() => {
+    const q = new URLSearchParams(location.search).get("date");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(q || "")) jumpTo(q);
+  }, [location.search]);
+
   const appointmentsByDate = useMemo(() => {
     const map = {};
     for (const a of appointments) (map[a.date] ||= []).push(a);
@@ -399,6 +423,27 @@ export default function TeacherCalendar() {
             </p>
           </div>
 
+          {/* นัดที่รอเราตอบ — กดแล้วไปที่วันนั้นเพื่อยืนยัน/ปฏิเสธ */}
+          {awaiting.length > 0 && (
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3">
+              <div className="text-[15.5px] font-semibold text-amber-900">มีนัดหมายรอคุณตอบ {awaiting.length} รายการ</div>
+              <div className="text-[13.5px] text-amber-800/80">กดที่นัดเพื่อไปยังวันนั้น แล้วเลือก “ยืนยัน” หรือ “ปฏิเสธ”</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {awaiting.slice(0, 6).map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => jumpTo(a.date)}
+                    className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[13.5px] text-gray-700 hover:border-amber-300 hover:bg-amber-50"
+                  >
+                    <b className="font-semibold">{thaiDateLong(a.date)}</b> {thaiTime(a.time)}
+                    {studentById(a.studentId)?.name ? ` • ${studentById(a.studentId)?.name}` : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* เชื่อมต่อ Gmail ของครู → ส่งอีเมลแจ้งนัดอัตโนมัติจากอีเมลของครูเอง */}
           <div className="mt-5">
             <GmailConnect />
@@ -442,6 +487,7 @@ export default function TeacherCalendar() {
                 appointmentsByDate={appointmentsByDate}
                 titleOf={(a) => a.note?.trim() || studentById(a.studentId)?.name || "นัดหมาย"}
                 onSelectDate={setSelectedDate}
+                needsReply={needsReply}
               />
 
               {/* คำอธิบายป้ายในปฏิทิน */}
@@ -476,7 +522,7 @@ export default function TeacherCalendar() {
                   {appointmentsForSelectedDate.map((a) => {
                     const student = studentById(a.studentId);
                     return (
-                      <div key={a.id} className={`rounded-xl border border-gray-200 px-3 py-2.5 ${statusCardClass(a.status)}`}>
+                      <div key={a.id} className={`rounded-xl border px-3 py-2.5 ${statusCardClass(a.status)}`}>
                         <div className="flex items-center gap-3">
                           <Avatar src={avatarByUser[String(a.studentId)]} name={student?.name} size={44} />
                           <div className="min-w-0 flex-1">

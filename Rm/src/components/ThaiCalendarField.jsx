@@ -15,6 +15,7 @@ export default function ThaiCalendarField({
   radiusClass = "rounded-xl",
   borderClass = "border-gray-200",
   className = "",
+  dropUp = false, // true = เปิดตัวเลือกขึ้นด้านบน (ใช้ในกล่องที่มีปุ่มอยู่ใต้ช่องนี้ ไม่ให้บังปุ่ม)
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -40,7 +41,7 @@ export default function ThaiCalendarField({
       </button>
 
       {open && !disabled && (
-        <div className="absolute left-0 right-0 mt-2 p-3 rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] z-50">
+        <div className={`absolute left-0 right-0 ${dropUp ? "bottom-full mb-2" : "mt-2"} p-3 rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.18)] z-50`}>
           <ThaiCalendarPicker
             value={value}
             min={min}
