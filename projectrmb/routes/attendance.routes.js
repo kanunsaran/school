@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
+const { authRequired, requireRole } = require('../middlewares/auth');
+// เปลี่ยนสถานะการเข้าเรียนได้เฉพาะครู — นักเรียนเช็กชื่อเองผ่าน POST /attendance-session/checkin (ตรวจรหัสที่เซิร์ฟเวอร์)
+const teacherOnly = [authRequired, requireRole('teacher')];
 
 // ---------------------- GET รายชื่อ + สถานะ ของห้อง+วันที่ ----------------------
 // ถ้านักเรียนที่ enroll ห้องนี้ยังไม่มีแถว attendance ของวันนี้ ให้สร้างแถว not_checked ให้อัตโนมัติก่อน แล้วค่อย select
@@ -49,7 +52,7 @@ router.get('/', async (req, res) => {
 });
 
 // ---------------------- PUT แก้ไขแถวเดียว (สถานะ/เวลา/หมายเหตุ) ----------------------
-router.put('/:id', async (req, res) => {
+router.put('/:id', ...teacherOnly, async (req, res) => {
   try {
     const id = req.params.id;
     const { status, checkin_time, note, teacher_name } = req.body;
@@ -82,7 +85,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // ---------------------- POST เช็กชื่อทั้งห้อง (ครูเช็กให้คนที่ยัง not_checked ทั้งหมด) ----------------------
-router.post('/bulk-checkin', async (req, res) => {
+router.post('/bulk-checkin', ...teacherOnly, async (req, res) => {
   try {
     const { grade_id, date, teacher_name } = req.body;
     if (!grade_id || !date) return res.status(400).json({ message: 'ต้องระบุ grade_id และ date' });
@@ -117,7 +120,7 @@ router.post('/bulk-checkin', async (req, res) => {
 });
 
 // ---------------------- POST เปลี่ยนสถานะหลายแถวพร้อมกัน (bulk action ในตาราง) ----------------------
-router.post('/bulk-status', async (req, res) => {
+router.post('/bulk-status', ...teacherOnly, async (req, res) => {
   try {
     const { ids, status, teacher_name } = req.body;
     if (!Array.isArray(ids) || !ids.length || !status) {
@@ -148,7 +151,7 @@ router.post('/bulk-status', async (req, res) => {
 });
 
 // ---------------------- POST เพิ่มหมายเหตุหลายแถวพร้อมกัน ----------------------
-router.post('/bulk-note', async (req, res) => {
+router.post('/bulk-note', ...teacherOnly, async (req, res) => {
   try {
     const { ids, note } = req.body;
     if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ message: 'ต้องระบุ ids' });

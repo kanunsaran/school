@@ -77,6 +77,7 @@ import StudentCommunityPage from './student/yc/StudentCommunity.jsx'
 import StudentGoalPage from './student/StudentGoal.jsx'
 import StudentConsultationsPage from './student/StudentConsultations.jsx'
 import StudentDashboardPage from './student/StudentDashboard.jsx'
+import AttendanceCheckinPage from './student/AttendanceCheckin.jsx'
 import StudentInfoFormPage from './student/StudentInfoForm.jsx'
 import StudentProfilePage from './student/StudentProfile.jsx'
 import StudentCalendarPage from './student/StudentCalendar.jsx'
@@ -535,6 +536,11 @@ const router = createBrowserRouter([
     element: <StudentProfilePage />,
   },
 
+  {
+    // เปิดจากการสแกน QR เช็กชื่อ — จัดการล็อกอินเอง (ยังไม่ล็อกอินจะพาไปเข้าสู่ระบบแล้วกลับมา)
+    path: "/checkin",
+    element: <AttendanceCheckinPage />,
+  },
   {
     path: "/studentcalendar",
     element: (

@@ -19,7 +19,7 @@ import {
   getStudent,
   getActiveAttendanceSession,
   getAttendance,
-  updateAttendance,
+  checkinAttendance,
   getAssignmentClasses,
   getTeacherGeneralInfo,
   getStudentGeneralInfo,
@@ -229,36 +229,19 @@ export default function StudentClassroomNewsTab() {
     setCheckinModalOpen(true);
   };
 
+  // เซิร์ฟเวอร์ตรวจรหัสเอง (รหัสไม่ได้ส่งมาที่หน้านักเรียน)
   const handleSubmitCheckin = async () => {
-    if (!session) return;
-    if (codeInput.trim() !== String(session.code)) {
-      Swal.fire({ icon: "error", title: "รหัสไม่ถูกต้อง", text: "ลองตรวจสอบรหัสจากครูอีกครั้ง" });
-      return;
-    }
+    if (!session || !codeInput.trim()) return;
     setCheckinSubmitting(true);
     try {
-      const rows = await getAttendance(gradeId, getTodayStr());
-      const mine = (rows || []).find((r) => String(r.user_user_id) === String(CURRENT_STUDENT_ID));
-      if (!mine) throw new Error("ไม่พบแถวเช็กชื่อของฉัน");
-
-      if (mine.status !== "not_checked") {
-        setMyAttendanceStatus(mine.status);
-        setCheckinModalOpen(false);
-        Swal.fire({ icon: "info", title: "เช็กชื่อไปแล้ว", text: "คุณเช็กชื่อคาบนี้ไปแล้ว" });
-        return;
-      }
-
-      const now = new Date();
-      const checkinTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-      await updateAttendance(mine.attendance_id, { status: "present", checkin_time: checkinTime });
-
-      setMyAttendanceStatus("present");
+      const r = await checkinAttendance(codeInput.trim(), gradeId);
+      setMyAttendanceStatus(r.status);
       setCheckinModalOpen(false);
       setCodeInput("");
-      Swal.fire({ icon: "success", title: "เช็กชื่อสำเร็จ", timer: 1200, showConfirmButton: false });
+      if (r.already) Swal.fire({ icon: "info", title: "เช็กชื่อไปแล้ว", text: "คุณเช็กชื่อคาบนี้ไปแล้ว" });
+      else Swal.fire({ icon: "success", title: "เช็กชื่อสำเร็จ", timer: 1200, showConfirmButton: false });
     } catch (err) {
-      console.error("เช็กชื่อไม่สำเร็จ:", err);
-      Swal.fire({ icon: "error", title: "เช็กชื่อไม่สำเร็จ", text: "ลองใหม่อีกครั้ง" });
+      Swal.fire({ icon: "error", title: "เช็กชื่อไม่สำเร็จ", text: err?.response?.data?.message || "ลองใหม่อีกครั้ง" });
     } finally {
       setCheckinSubmitting(false);
     }

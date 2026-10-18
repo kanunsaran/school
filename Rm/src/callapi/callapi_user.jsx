@@ -1508,7 +1508,7 @@ export async function updateAttendance(id, { status, checkin_time, note, teacher
       checkin_time,
       note,
       teacher_name,
-    });
+    }, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
     return response.data;
   } catch (error) {
     console.error("Error updateAttendance:", error);
@@ -1522,7 +1522,7 @@ export async function bulkCheckinAttendance(gradeId, date, teacherName) {
       grade_id: gradeId,
       date,
       teacher_name: teacherName,
-    });
+    }, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
     return response.data;
   } catch (error) {
     console.error("Error bulkCheckinAttendance:", error);
@@ -1536,7 +1536,7 @@ export async function bulkSetAttendanceStatus(ids, status, teacherName) {
       ids,
       status,
       teacher_name: teacherName,
-    });
+    }, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
     return response.data;
   } catch (error) {
     console.error("Error bulkSetAttendanceStatus:", error);
@@ -1546,7 +1546,7 @@ export async function bulkSetAttendanceStatus(ids, status, teacherName) {
 
 export async function bulkNoteAttendance(ids, note) {
   try {
-    const response = await axios.post(`${api}/attendance/bulk-note`, { ids, note });
+    const response = await axios.post(`${api}/attendance/bulk-note`, { ids, note }, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
     return response.data;
   } catch (error) {
     console.error("Error bulkNoteAttendance:", error);
@@ -1598,10 +1598,16 @@ export async function getStudentAttendanceSummary(userId, gradeId) {
 
 // ================= ATTENDANCE SESSION (เปิดเช็กชื่อ/QR) =================
 
+// นักเรียนเช็กชื่อเอง: เซิร์ฟเวอร์ตรวจรหัส (พิมพ์รหัส หรือมาจาก QR) — gradeId ไม่บังคับ
+export async function checkinAttendance(code, gradeId) {
+  const response = await axios.post(`${api}/attendance-session/checkin`, { code, grade_id: gradeId || undefined }, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
+  return response.data;
+}
+
 export async function getActiveAttendanceSession(gradeId) {
   try {
     const response = await axios.get(`${api}/attendance-session/active`, {
-      params: { grade_id: gradeId },
+      headers: { Authorization: `Bearer ${getCurrentUser()?.token}` }, params: { grade_id: gradeId },
     });
     return response.data;
   } catch (error) {
@@ -1612,7 +1618,7 @@ export async function getActiveAttendanceSession(gradeId) {
 
 export async function createAttendanceSession(data) {
   try {
-    const response = await axios.post(`${api}/attendance-session`, data);
+    const response = await axios.post(`${api}/attendance-session`, data, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
     return response.data;
   } catch (error) {
     console.error("Error createAttendanceSession:", error);
@@ -1622,7 +1628,7 @@ export async function createAttendanceSession(data) {
 
 export async function closeAttendanceSession(sessionId) {
   try {
-    const response = await axios.put(`${api}/attendance-session/${sessionId}/close`);
+    const response = await axios.put(`${api}/attendance-session/${sessionId}/close`, {}, { headers: { Authorization: `Bearer ${getCurrentUser()?.token}` } });
     return response.data;
   } catch (error) {
     console.error("Error closeAttendanceSession:", error);

@@ -18,6 +18,14 @@ export default function LoginPage() {
     // โหลดหน้าใหม่ทั้งหน้าหลังล็อกอิน — หลายหน้าอ่าน user ปัจจุบันไว้ตอนโหลดโมดูล ถ้าเปลี่ยนหน้าแบบ SPA
     // จะยังเป็นค่าก่อนล็อกอิน (ค่าสำรอง) ทำให้เห็น/แก้ข้อมูลของคนอื่นได้
     const redirectByRole = (role) => {
+        // สแกน QR เช็กชื่อมาก่อนล็อกอิน → กลับไปเช็กชื่อให้ต่อ
+        let pending = null;
+        try {
+          pending = role === "student" ? sessionStorage.getItem("pending_checkin_code") : null;
+        } catch {
+          pending = null;
+        }
+        if (pending) return window.location.replace(`/checkin?code=${encodeURIComponent(pending)}`);
         window.location.replace(role === "teacher" ? "/TeacherDashboard" : "/");
     };
 

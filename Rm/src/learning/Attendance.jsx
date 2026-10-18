@@ -38,6 +38,7 @@ import {
   closeAttendanceSession,
 } from "../callapi/callapi_user.jsx";
 import PromptModal from "../components/PromptModal.jsx";
+import { QRCodeSVG } from "qrcode.react";
 import ThaiCalendarField from "../components/ThaiCalendarField.jsx";
 import ThaiTimeField from "../components/ThaiTimeField.jsx";
 import PageLoading from "../components/PageLoading.jsx";
@@ -1128,12 +1129,11 @@ function SessionModal({ session, now, defaultDate, onClose, onStart, onCloseSess
             </div>
 
             <div className="rounded-2xl border border-dashed border-pink-200 bg-pink-50/40 p-6 flex flex-col items-center">
-              <div className="w-40 h-40 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-300">
-                <FaQrcode size={72} />
+              {/* QR = ลิงก์ /checkin?code=… นักเรียนสแกนด้วยกล้องมือถือ → เปิดเว็บและเช็กชื่อให้ทันที (เซิร์ฟเวอร์ตรวจรหัส) */}
+              <div className="rounded-xl bg-white border border-gray-200 p-3">
+                <QRCodeSVG value={`${window.location.origin}/checkin?code=${session.code}`} size={176} level="M" marginSize={1} />
               </div>
-              <div className="mt-2 text-[13px] text-gray-400">
-                (ตัวอย่าง — QR สแกนได้จริงต้องต่อ library เพิ่ม)
-              </div>
+              <div className="mt-2 text-[13px] text-gray-500 text-center">ให้นักเรียนสแกนด้วยกล้องมือถือ แล้วเข้าสู่ระบบด้วยบัญชีนักเรียน</div>
               <div className="mt-4 text-[14px] text-gray-500">รหัสเช็กชื่อ</div>
               <div className="text-3xl font-bold tracking-[0.3em] text-pink-700">{session.code}</div>
             </div>
