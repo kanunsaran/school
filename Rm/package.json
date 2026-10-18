@@ -14,7 +14,6 @@
     "@ckeditor/ckeditor5-react": "^11.1.0",
     "@react-oauth/google": "^0.13.4",
     "@tailwindcss/vite": "^4.1.12",
-    "aos": "^2.3.4",
     "axios": "^1.13.4",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",

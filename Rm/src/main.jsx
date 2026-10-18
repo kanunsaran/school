@@ -1,17 +1,13 @@
 import { createBrowserRouter } from "react-router";
 import { RouterProvider } from "react-router/dom";
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { GOOGLE_CLIENT_ID } from './config/api.js';
 import './index.css';
-import App from './App.jsx';
+import './App.css'; // Tailwind + Flowbite (เดิมโหลดผ่าน App.jsx ที่ไม่ได้ใช้แล้ว)
 import RequireAuth from './components/RequireAuth.jsx';
-import Index from './index.jsx';
 import {Dash,Dash2} from './dashbord.jsx';
-import Bam from './bam1';
 
-import NewsPage from './learning/news.jsx';
 import ClassworkPage from "./learning/work.jsx";
 import WorkDetailPage from "./learning/WorkDetail.jsx";
 import AttendancePage from "./learning/Attendance.jsx";
@@ -45,7 +41,6 @@ import YCPostDetailPage from "./yc/yc2.jsx";
 import LoginPage from "./login.jsx";
 import ImagePage from "./activity/image.jsx"
 import ImagePostDetailPage from './activity/ImagePostDetail.jsx'
-import TeacherStudentGoalPage from "./goals/TeacherStudentGoal.jsx.jsx";
 import StudentNewsPage from './student/learning/StudentNews.jsx';
 
 
@@ -68,7 +63,6 @@ import TeacherCalendarPage from "./Teacher/TeacherCalendar.jsx";
 import TeacherProfilePage from "./Teacher/TeacherProfile.jsx";
 import AssignmentOverviewPage from "./Teacher/AssignmentOverview.jsx";
 
-import ScorePage from "./learning/score.jsx"
 
 //yc
 import StudentCommunityPage from './student/yc/StudentCommunity.jsx'
@@ -84,7 +78,6 @@ import StudentCalendarPage from './student/StudentCalendar.jsx'
 
 
 
-import SidebarNav from "./nav.jsx";
 
 
 
@@ -98,26 +91,6 @@ const router = createBrowserRouter([
     ),
   },
 
-  {
-    path: "/Index",
-    element: ( <>
-     <Index/>
-     <Index/>
-    </>
-     
-
-    ) 
-  },
-  {
-    path: "/bammm2",
-    element: ( <>
-     <Bam/>
-     
-    </>
-     
-
-    ) 
-  },
     {
     path: "/StudentNews",
     element: (
@@ -127,28 +100,7 @@ const router = createBrowserRouter([
     ),
 
   },
-  {
-    path: "/TeacherStudentGoal",
-    element: (<>
-      <TeacherStudentGoalPage />
-
-    </>
-
-
-    )
-  },
   
-  {
-    path: "/nav",
-    element: ( <>
-     <SidebarNav/>
-     
-    </>
-     
-
-    ) 
-  },
-
   {
     path: "/classwork",
     element: (
@@ -236,16 +188,6 @@ const router = createBrowserRouter([
   },
 
   
-  {
-    path: "/news",
-    element: ( <>
-     <NewsPage/>
-     
-    </>
-     
-
-    ) 
-  },
   {
     path: "/work",
     element: ( <>
@@ -560,24 +502,9 @@ const router = createBrowserRouter([
 
   },
 
-{
-   path: "/score",
-  element: (
-
-      <ScorePage />
-    
-  ),
-}
-
 ]);
 
 createRoot(document.getElementById('root')).render(
-  // <StrictMode>
-  //   <App />
-  //   <Index/>
-  //   <Dash/>
-  //   <Dash2/>
-  // </StrictMode>,
   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <RouterProvider router={router} />
   </GoogleOAuthProvider>
