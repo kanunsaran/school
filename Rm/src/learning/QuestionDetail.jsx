@@ -16,6 +16,7 @@ import {
 import { resolveFileUrl } from "../utils/media.js";
 import { API_BASE } from "../utils/feedShared.js";
 import { filterSelectStyles } from "../utils/reactSelectStyles.js";
+import AiReviewPanel from "../components/AiReviewPanel.jsx";
 
 const formatShortDateTime = (d) => {
   if (!d) return null;
@@ -408,6 +409,16 @@ export default function QuestionDetailPage() {
                       </div>
                     )}
                   </div>
+
+                  {selectedRow.submissions.length > 0 && (
+                    <AiReviewPanel
+                      assId={id}
+                      sendId={selectedRow.submissions[0].send_id}
+                      maxScore={hasScore ? assignment.max_score : null}
+                      onUseComment={hasScore ? (t) => setComment((prev) => (prev.trim() ? `${prev}\n${t}` : t).slice(0, 1000)) : undefined}
+                      onUseScore={hasScore ? (n) => setScoreInput(String(n)) : undefined}
+                    />
+                  )}
 
                   {hasScore && (
                     <div className="min-w-0">

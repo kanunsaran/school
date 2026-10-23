@@ -17,6 +17,7 @@ import {
 import { resolveFileUrl } from "../utils/media.js";
 import { API_BASE } from "../utils/feedShared.js";
 import { filterSelectStyles } from "../utils/reactSelectStyles.js";
+import AiReviewPanel from "../components/AiReviewPanel.jsx";
 
 const formatShortDateTime = (d) => {
   if (!d) return null;
@@ -507,6 +508,16 @@ export default function WorkDetailPage() {
                       <FilePreviewList files={pooledFiles} submittedAt={selectedRow.submittedAt} />
                     )}
                   </div>
+
+                  {selectedRow.submissions.length > 0 && (
+                    <AiReviewPanel
+                      assId={id}
+                      sendId={selectedRow.submissions[0].send_id}
+                      maxScore={assignment.max_score}
+                      onUseComment={(t) => setComment((prev) => (prev.trim() ? `${prev}\n${t}` : t).slice(0, 1000))}
+                      onUseScore={(n) => { setSameScoreForAll(true); setScoreInput(String(n)); }}
+                    />
+                  )}
 
               <div className="min-w-0">
                   <div className="pt-5 mt-5 border-t border-gray-100 flex flex-col">

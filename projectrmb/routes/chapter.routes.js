@@ -7,7 +7,7 @@ const { authRequired, requireRole } = require('../middlewares/auth');
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT chapter_id, title, description, class_class_id FROM chapter ORDER BY chapter_id DESC'
+      'SELECT chapter_id, title, description FROM chapter ORDER BY chapter_id DESC'
     );
     res.json(rows);
   } catch (e) {
@@ -20,7 +20,7 @@ router.get('/', async (_req, res) => {
 router.get('/:id', authRequired, async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT chapter_id, title, description, class_class_id FROM chapter WHERE chapter_id = ?',
+      'SELECT chapter_id, title, description FROM chapter WHERE chapter_id = ?',
       [req.params.id]
     );
 
@@ -37,23 +37,22 @@ router.get('/:id', authRequired, async (req, res) => {
 // ---------------------- POST สร้างใหม่ ----------------------
 router.post('/', authRequired, async (req, res) => {
   try {
-    const { title, description, class_class_id } = req.body;
+    const { title, description } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: 'title is required' });
     }
 
     const [result] = await pool.query(
-      `INSERT INTO chapter (title, description, class_class_id)
-       VALUES (?, ?, ?)`,
-      [title, description, class_class_id]
+      `INSERT INTO chapter (title, description)
+       VALUES (?, ?)`,
+      [title, description]
     );
 
     res.status(201).json({
       chapter_id: result.insertId,
       title,
-      description,
-      class_class_id
+      description
     });
 
   } catch (e) {
@@ -65,17 +64,16 @@ router.post('/', authRequired, async (req, res) => {
 // ---------------------- PUT แก้ไข ----------------------
 router.put('/:id', authRequired, async (req, res) => {
   try {
-    const { title, description, class_class_id } = req.body;
+    const { title, description } = req.body;
     const id = req.params.id;
 
     const [result] = await pool.query(
       `UPDATE chapter
        SET 
          title = COALESCE(?, title),
-         description = COALESCE(?, description),
-         class_class_id = COALESCE(?, class_class_id)
+         description = COALESCE(?, description)
        WHERE chapter_id = ?`,
-      [title, description, class_class_id, id]
+      [title, description, id]
     );
 
     if (!result.affectedRows) {

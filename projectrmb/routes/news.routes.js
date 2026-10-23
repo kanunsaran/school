@@ -23,7 +23,7 @@ router.get('/', async (_req, res) => {
     try {
 
         const [rows] = await pool.query(
-            `SELECT news_id, class_id, title, content, created_at, user_id, youtube_url, link_url, file_url, file_name
+            `SELECT news_id, class_id, title, content, created_at, user_id, youtube_url, link_url
 FROM news
 WHERE deleted_at IS NULL
 ORDER BY created_at DESC;`
@@ -44,7 +44,7 @@ router.get('/:id', async (req, res) => {
     try {
 
         const [rows] = await pool.query(
-            `SELECT news_id, class_id, title, content, created_at, user_id, youtube_url, link_url, file_url, file_name
+            `SELECT news_id, class_id, title, content, created_at, user_id, youtube_url, link_url
        FROM news
        WHERE news_id = ?`,
             [req.params.id]
@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
 
     try {
 
-        const { class_id, title, content, youtube_url, link_url, file_url } = req.body;
+        const { class_id, title, content, youtube_url, link_url } = req.body;
         const userId = "2";
 
         if (!class_id || !title || !content) {
@@ -77,9 +77,9 @@ router.post('/', async (req, res) => {
         }
 
         const [result] = await pool.query(
-            `INSERT INTO news (class_id, title, content, user_id, youtube_url, link_url, file_url)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [class_id, title, content, userId, youtube_url || null, link_url || null, file_url || null]
+            `INSERT INTO news (class_id, title, content, user_id, youtube_url, link_url)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [class_id, title, content, userId, youtube_url || null, link_url || null]
         );
 
         res.status(201).json({
@@ -89,7 +89,6 @@ router.post('/', async (req, res) => {
             content,
             youtube_url,
             link_url,
-            file_url,
             user_id: userId
         });
 
@@ -109,27 +108,20 @@ router.put('/:id', async (req, res) => {
       title = null,
       content = null,
       youtube_url = null,
-      link_url = null,
-      file_url = null,
-      remove_file = false
+      link_url = null
     } = req.body;
 
     const id = req.params.id;
 
-    // remove_file = true -> ลบไฟล์แนบออกโดยตั้งใจ (COALESCE จะไม่ยอมให้ตั้งเป็น NULL ปกติ)
     const [result] = await pool.query(
       `UPDATE news
        SET title = COALESCE(?, title),
            content = COALESCE(?, content),
            youtube_url = COALESCE(?, youtube_url),
            link_url = COALESCE(?, link_url),
-           file_url = ${remove_file ? "NULL" : "COALESCE(?, file_url)"},
-           file_name = ${remove_file ? "NULL" : "file_name"},
            updated_at = NOW()
        WHERE news_id = ?`,
-      remove_file
-        ? [title, content, youtube_url, link_url, id]
-        : [title, content, youtube_url, link_url, file_url, id]
+      [title, content, youtube_url, link_url, id]
     );
 
     if (!result.affectedRows) {
@@ -143,8 +135,7 @@ router.put('/:id', async (req, res) => {
         title,
         content,
         youtube_url,
-        link_url,
-        file_url: remove_file ? null : file_url
+        link_url
       }
     });
 

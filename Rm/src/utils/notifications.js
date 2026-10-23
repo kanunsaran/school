@@ -244,9 +244,9 @@ const studentNotifications = async (user) => {
   const dueIds = new Set(due.map((n) => n.link)); // งานที่เตือนกำหนดส่งแล้ว ไม่ต้องแจ้ง "งานใหม่" ซ้ำ
 
   (assignments || [])
-    .filter((a) => isRecent(a.create_at) && !mine.has(String(a.ass_id)) && !dueIds.has(`/studentworkdetail/${a.ass_id}`))
+    .filter((a) => isRecent(a.created_at) && !mine.has(String(a.ass_id)) && !dueIds.has(`/studentworkdetail/${a.ass_id}`))
     .slice(0, 5)
-    .forEach((a) => out.push({ id: `new-${a.ass_id}`, type: "newWork", title: "งานใหม่", text: `“${a.title}”${a.deadline ? `\nกำหนดส่ง ${new Date(a.deadline).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}` : ""}`, at: a.create_at, link: `/studentworkdetail/${a.ass_id}` }));
+    .forEach((a) => out.push({ id: `new-${a.ass_id}`, type: "newWork", title: "งานใหม่", text: `“${a.title}”${a.deadline ? `\nกำหนดส่ง ${new Date(a.deadline).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}` : ""}`, at: a.created_at, link: `/studentworkdetail/${a.ass_id}` }));
   return out;
 };
 

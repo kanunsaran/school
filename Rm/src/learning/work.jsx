@@ -678,7 +678,7 @@ function AssignmentProgressCard({
 
       {expanded && (
         <div className="border-t border-gray-100 bg-gray-50/60 p-4">
-          <div className="text-[12px] text-gray-400 mb-2">โพสต์เมื่อ {formatShortDate(assignment.create_at)}</div>
+          <div className="text-[12px] text-gray-400 mb-2">โพสต์เมื่อ {formatShortDate(assignment.created_at)}</div>
 
           {detailLoading ? (
             <PageLoading />

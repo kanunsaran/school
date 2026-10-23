@@ -140,7 +140,7 @@ export default function StudentQuestionDetailPage() {
               </div>
               <h1 className="page-title">{assignment.title}</h1>
               <div className="page-subtitle mt-1">
-                {CURRENT_TEACHER.name}{assignment.create_at && ` · โพสต์เมื่อ ${formatDateTime(assignment.create_at)}`}
+                {CURRENT_TEACHER.name}{assignment.created_at && ` · โพสต์เมื่อ ${formatDateTime(assignment.created_at)}`}
               </div>
             </div>
             <span className={`inline-flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-full shrink-0 ${meta.cls}`}>

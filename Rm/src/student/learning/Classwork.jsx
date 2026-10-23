@@ -196,7 +196,7 @@ export default function StudentClassworkPage({ embedded = false, gradeId: propGr
       const q = search.trim().toLowerCase();
       list = list.filter((a) => a.title.toLowerCase().includes(q));
     }
-    return list.slice().sort((a, b) => new Date(b.create_at) - new Date(a.create_at));
+    return list.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [enriched, tab, search]);
 
   const grouped = useMemo(() => {
@@ -393,7 +393,7 @@ function StudentAssignmentCard({ assignment, statusKey, postType = "assignment",
 
       {expanded && (
         <div className="border-t border-gray-100 bg-gray-50/60 p-4">
-          <div className="text-[12px] text-gray-400 mb-2">โพสต์เมื่อ {formatDate(assignment.create_at)}</div>
+          <div className="text-[12px] text-gray-400 mb-2">โพสต์เมื่อ {formatDate(assignment.created_at)}</div>
 
           {detailLoading ? (
             <PageLoading />

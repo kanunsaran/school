@@ -66,9 +66,9 @@ export default function StudentWorkDetailPage() {
         getAssignmentClasses({ ass_id: id }).catch(() => []),
       ]);
       setGradeId((classLinks || [])[0]?.grade_id ?? null);
-      // GET /assignment/:id ไม่คืน create_at กลับมา ต้องหยิบจาก list endpoint แทน
-      const createAt = (allAssData || []).find((a) => String(a.ass_id) === String(id))?.create_at || null;
-      setAssignment(assData ? { ...assData, create_at: createAt } : null);
+      // GET /assignment/:id ไม่คืน created_at กลับมา ต้องหยิบจาก list endpoint แทน
+      const createAt = (allAssData || []).find((a) => String(a.ass_id) === String(id))?.created_at || null;
+      setAssignment(assData ? { ...assData, created_at: createAt } : null);
       setAssignmentFiles(filesData || []);
       setChapter((chapterData || []).find((c) => String(c.chapter_id) === String(assData?.chapter_chapter_id)) || null);
       setGroups(groupData || []);
@@ -243,7 +243,7 @@ export default function StudentWorkDetailPage() {
             <div>
               <h1 className="page-title">{assignment.title}</h1>
               <div className="page-subtitle mt-1">
-                {CURRENT_TEACHER.name}{assignment.create_at && ` · โพสต์เมื่อ ${formatDateTime(assignment.create_at)}`}
+                {CURRENT_TEACHER.name}{assignment.created_at && ` · โพสต์เมื่อ ${formatDateTime(assignment.created_at)}`}
                 {chapter && ` · ${chapter.title}`}
               </div>
             </div>

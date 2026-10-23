@@ -124,42 +124,7 @@ export async function deletePostit(postId, userId) {
   }
 }
 
-// ⚠️ backend endpoint GET /files ไม่รองรับ query param chapter_id จริง (คืนไฟล์ทั้งหมดเสมอ) — กรองเอาเองฝั่ง frontend หลังเรียกเสร็จ
-export async function getFilesByChapter(chapter_id) {
-    try {
-      const res = await axios.get(
-        `${api}/files?chapter_id=${chapter_id}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      return res.data;
-    } catch (error) {
-      console.error("Error fetching files:", error);
-      throw error;
-    }
-  }
-
-export async function createChapterFile({ filename, filepath, chapter_chapter_id }) {
-  try {
-    const response = await axios.post(
-      `${api}/files`,
-      { filename, filepath, chapter_chapter_id },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error createChapterFile:", error.response?.data || error);
-    throw error;
-  }
-}
-
-  
-
-
-  export async function getSubmissionsByAssignment(ass_id) {
+export async function getSubmissionsByAssignment(ass_id) {
     try {
       const res = await axios.get(
         `${api}/send_ass?assignment_ass_id=${ass_id}`,
@@ -300,6 +265,36 @@ export async function updateSubmissionComment(sendId, { teacher_comment, is_rele
   }
 }
 
+// ===== ตรวจงานด้วย AI (เฉพาะครู) — API Key อยู่ที่ backend, หน้าเว็บส่งแค่ token ของครู =====
+const teacherAuth = () => ({ headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } });
+
+export async function getAiReviewStatus() {
+  const response = await axios.get(`${api}/ai-review/status`, teacherAuth());
+  return response.data; // { enabled, model }
+}
+
+export async function getAiReviewCriteria(assId) {
+  const response = await axios.get(`${api}/ai-review/criteria/${assId}`, teacherAuth());
+  return response.data?.criteria || "";
+}
+
+export async function saveAiReviewCriteria(assId, criteria) {
+  const response = await axios.put(`${api}/ai-review/criteria/${assId}`, { criteria }, teacherAuth());
+  return response.data?.criteria || "";
+}
+
+// ผลตรวจล่าสุดของการส่งงานหนึ่งครั้ง (null = ยังไม่เคยตรวจ)
+export async function getAiReview(sendId) {
+  const response = await axios.get(`${api}/ai-review/send/${sendId}`, teacherAuth());
+  return response.data;
+}
+
+// ตรวจงาน: mode "rules" = ตรวจตามเกณฑ์ในเซิร์ฟเวอร์ (ฟรี ไม่ใช้ AI), "ai" = ให้ Claude ตรวจ (ต้องตั้ง key) — error.response.data.message เป็นข้อความภาษาไทยพร้อมแสดง
+export async function runAiReview(sendId, mode = "rules") {
+  const response = await axios.post(`${api}/ai-review/send/${sendId}?mode=${mode}`, {}, { ...teacherAuth(), timeout: 5 * 60 * 1000 });
+  return response.data;
+}
+
 // ไฟล์แนบของการส่งงานหนึ่งครั้ง (ส่งได้หลายไฟล์ต่อ 1 send_id)
 export async function getSubmissionFiles(sendId) {
   try {
@@ -437,41 +432,6 @@ export async function importStudents(students) {
   return res.data;
 }
 
-
-// ================= FILE ASS (ไฟล์ใบงาน) =================
-
-export async function getFileAssignmentById(id) {
-  try {
-    const response = await axios.get(`${api}/file_ass/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error file_ass by id:", error);
-    throw error;
-  }
-}
-
-// ================= FILES (เอกสารประกอบการเรียน) =================
-export async function getFiles() {
-  try {
-    const response = await axios.get(`${api}/files`, {
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error files:", error);
-    throw error;
-  }
-}
-
-export async function getFileById(id) {
-  try {
-    const response = await axios.get(`${api}/files/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error file by id:", error);
-    throw error;
-  }
-}
 
 export async function createAnnouncement(data) {
   try {
@@ -965,20 +925,6 @@ export async function updateUser(userId, patch) {
     return response.data;
   } catch (error) {
     console.error("Error updateUser:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function getScoreUser() {
-  try {
-    const response = await axios.get(`${api}/score-user`, {
-      headers: { "Content-Type": "application/json" },
-    });
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error getNews:", error);
     throw error;
   }
 }

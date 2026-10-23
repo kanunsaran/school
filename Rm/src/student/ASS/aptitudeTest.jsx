@@ -240,9 +240,9 @@ export default function AptitudeTestPage() {
                         type="button"
                         onClick={() => handleSelect(q.id, s.value)}
                         className={`sm:flex-1 min-w-0 !px-1 sm:!px-3.5 py-2 sm:py-2.5 rounded-2xl sm:rounded-full border text-[15px] transition-all duration-200 flex flex-col sm:block items-center
-                          bg-white/70
-                          hover:bg-pink-50 hover:border-pink-100
-                          ${answers[q.id] === s.value ? "bg-pink-50 border-pink-200 text-pink-600 font-semibold" : "border-gray-200 text-gray-800"}
+                          ${answers[q.id] === s.value
+                            ? "bg-pink-500 border-pink-500 text-white font-semibold shadow-md shadow-pink-200"
+                            : "bg-white/70 border-gray-200 text-gray-800 hover:bg-pink-50 hover:border-pink-200"}
                         `}
                       >
                         <span className="text-[17px] sm:text-[15px] font-semibold sm:font-normal">{s.value}</span>

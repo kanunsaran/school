@@ -7,9 +7,9 @@
 // router.get('/', async (_req, res) => {
 //   try {
 //     const [rows] = await pool.query(
-//       `SELECT ass_id, title, description, deadline, chapter_chapter_id ,create_at , update_at
+//       `SELECT ass_id, title, description, deadline, chapter_chapter_id ,created_at , updated_at
 //        FROM assignment 
-//        WHERE delete_at is null
+//        WHERE deleted_at is null
 //        ORDER BY ass_id DESC`
 //     );
 //     res.json(rows);
@@ -143,10 +143,10 @@ router.get('/', async (req, res) => {
   try {
     const { visibleOnly } = req.query;
     const [rows] = await pool.query(
-      `SELECT assignment.ass_id, title, description, deadline, chapter_chapter_id ,create_at , update_at, youtube_url, link_url, scheduled_at, work_type, post_type, has_score, answer_format, score_assignment.max_score
+      `SELECT assignment.ass_id, title, description, deadline, chapter_chapter_id, assignment.created_at, assignment.updated_at, youtube_url, link_url, scheduled_at, work_type, post_type, has_score, answer_format, score_assignment.max_score
        FROM assignment
        LEFT JOIN score_assignment ON assignment.ass_id = score_assignment.ass_id
-       WHERE delete_at is null
+       WHERE assignment.deleted_at is null
        ${visibleOnly ? "AND (scheduled_at IS NULL OR scheduled_at <= NOW())" : ""}
        ORDER BY ass_id DESC`
     );
@@ -262,10 +262,10 @@ router.get('/:id', async (req, res) => {
     const [rows] = await pool.query(
       `SELECT a.ass_id, a.title, a.description, a.deadline, a.scheduled_at,
               a.chapter_chapter_id, a.work_type, a.post_type, a.has_score, a.answer_format,
-              a.youtube_url, a.link_url, sa.max_score
+              a.youtube_url, a.link_url, a.created_at, sa.max_score
        FROM assignment a
        LEFT JOIN score_assignment sa ON sa.ass_id = a.ass_id
-       WHERE a.ass_id = ? AND a.delete_at IS NULL`,
+       WHERE a.ass_id = ? AND a.deleted_at IS NULL`,
       [req.params.id]
     );
 
@@ -301,8 +301,8 @@ router.put('/:id', upload.array('files', 10), async (req, res) => {
            post_type = COALESCE(?, post_type),
            has_score = COALESCE(?, has_score),
            answer_format = COALESCE(?, answer_format),
-           update_at = NOW()
-       WHERE ass_id = ? AND delete_at IS NULL`,
+           updated_at = NOW()
+       WHERE ass_id = ? AND deleted_at IS NULL`,
       [
         title, description, deadline, chapterId, youtube_url, link_url, scheduled_at,
         work_type, post_type, has_score === null ? null : (has_score === 'true' || has_score === true), answer_format,
@@ -352,7 +352,7 @@ router.put('/:id', upload.array('files', 10), async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const [result] = await pool.query(
-      `UPDATE assignment SET delete_at = NOW() WHERE ass_id = ? AND delete_at IS NULL`,
+      `UPDATE assignment SET deleted_at = NOW() WHERE ass_id = ? AND deleted_at IS NULL`,
       [req.params.id]
     );
 

@@ -230,7 +230,7 @@ export default function StudentDashboard() {
         );
         const myPendingWorks = assignments
           .filter((a) => myAssIds.has(String(a.ass_id)) && !mySubmittedAssIds.has(String(a.ass_id)))
-          .sort((a, b) => new Date(b.create_at) - new Date(a.create_at))
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
           .slice(0, 5)
           .map((a) => ({
             title: a.title,

@@ -8,7 +8,8 @@ const app = express();
 
 // ✅ 1. ย้ายมาไว้ตรงนี้ และตั้งค่าให้ถูกต้อง
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  // คั่นหลายโดเมนด้วยจุลภาคได้ • ค่าเริ่มต้นรับทั้ง localhost และ 127.0.0.1 (browser บางตัวเปิดเป็น 127.0.0.1)
+  origin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((s) => s.trim()),
   credentials: true
 }));
 
@@ -23,8 +24,6 @@ const assignmentRouter = require('./routes/assignment.routes');
 const chapterRouter = require('./routes/chapter.routes');
 const enrollRouter = require('./routes/enroll.routes');
 const facultyRouter = require('./routes/faculty.routes');
-const filesRouter = require('./routes/files.routes');
-const file_assRouter = require('./routes/file_ass.routes');
 const goalRouter = require('./routes/goal.routes');
 const postitRouter = require('./routes/postit.routes');
 const post_commentRouter = require('./routes/post_comment.routes');
@@ -61,9 +60,9 @@ const assessmentAdviceRouter = require('./routes/assessment_advice.routes');
 const mailAccountRouter = require('./routes/mail_account.routes');
 const feedCategoriesRouter = require('./routes/feed_categories.routes');
 const schoolInfoRouter = require('./routes/school_info.routes');
+const aiReviewRouter = require('./routes/ai_review.routes');
 
 const scoreAssignmentRouter = require('./routes/score_assignment.routes');
-const scoreUserRouter = require('./routes/score_user.routes');
 
 
 app.get('/',(req,res)=>{
@@ -79,8 +78,6 @@ app.use('/assignment', assignmentRouter)
 app.use('/chapter', chapterRouter)
 app.use('/enroll', enrollRouter)
 app.use('/faculty', facultyRouter)
-app.use('/files', filesRouter)
-app.use('/file_ass', file_assRouter)
 app.use('/goal', goalRouter)
 app.use('/postit', postitRouter)
 app.use('/post_comment', post_commentRouter)
@@ -92,7 +89,6 @@ app.use('/news', newsRouter)
 app.use('/users', usersRouter)
 app.use('/user_type_result', user_type_resultRouter)
 app.use('/score-assignment', scoreAssignmentRouter);
-app.use('/score-user', scoreUserRouter);
 app.use('/comments', comments);
 app.use('/likes', likesRouter);
 app.use('/announcement-comments', announcementCommentsRouter);
@@ -119,6 +115,7 @@ app.use('/assessment-advice', assessmentAdviceRouter);
 app.use('/mail-account', mailAccountRouter);
 app.use('/feed-categories', feedCategoriesRouter);
 app.use('/school-info', schoolInfoRouter);
+app.use('/ai-review', aiReviewRouter);
 app.use('/uploads', express.static('uploads'));
 
 

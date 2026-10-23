@@ -6,7 +6,7 @@ const { pool } = require('../db');
 router.get('/', async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT enroll_id, enroll_date, grade_idgrade, user_user_id, class_class_id, seat_no
+      `SELECT enroll_id, enroll_date, grade_idgrade, user_user_id, seat_no
        FROM enroll
        ORDER BY enroll_id DESC`
     );
@@ -21,7 +21,7 @@ router.get('/', async (_req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT enroll_id, enroll_date, grade_idgrade, user_user_id, class_class_id, seat_no
+      `SELECT enroll_id, enroll_date, grade_idgrade, user_user_id, seat_no
        FROM enroll
        WHERE enroll_id = ?`,
       [req.params.id]
@@ -41,16 +41,16 @@ router.get('/:id', async (req, res) => {
 // ---------------------- POST สร้างใหม่ ----------------------
 router.post('/', async (req, res) => {
   try {
-    const { enroll_date, grade_idgrade, class_class_id, user_user_id, seat_no } = req.body;
+    const { enroll_date, grade_idgrade, user_user_id, seat_no } = req.body;
 
-    if (!enroll_date || !grade_idgrade || !class_class_id || !user_user_id) {
+    if (!enroll_date || !grade_idgrade || !user_user_id) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const [result] = await pool.query(
-      `INSERT INTO enroll (enroll_date, grade_idgrade, user_user_id, class_class_id, seat_no)
-       VALUES (?, ?, ?, ?, ?)`,
-      [enroll_date, grade_idgrade, user_user_id, class_class_id, seat_no || null]
+      `INSERT INTO enroll (enroll_date, grade_idgrade, user_user_id, seat_no)
+       VALUES (?, ?, ?, ?)`,
+      [enroll_date, grade_idgrade, user_user_id, seat_no || null]
     );
 
     res.status(201).json({
@@ -58,7 +58,6 @@ router.post('/', async (req, res) => {
       enroll_date,
       grade_idgrade,
       user_user_id,
-      class_class_id,
       seat_no,
     });
 
@@ -119,7 +118,6 @@ router.put('/:id', async (req, res) => {
     const {
       enroll_date = null,
       grade_idgrade = null,
-      class_class_id = null,
       seat_no = null
     } = req.body;
 
@@ -129,10 +127,9 @@ router.put('/:id', async (req, res) => {
       `UPDATE enroll
        SET enroll_date = COALESCE(?, enroll_date),
            grade_idgrade = COALESCE(?, grade_idgrade),
-           class_class_id = COALESCE(?, class_class_id),
            seat_no = COALESCE(?, seat_no)
        WHERE enroll_id = ?`,
-      [enroll_date, grade_idgrade, class_class_id, seat_no, id]
+      [enroll_date, grade_idgrade, seat_no, id]
     );
 
     if (!result.affectedRows) {
