@@ -89,7 +89,7 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
           <div
             key={w}
             className="relative grid grid-cols-7 gap-x-0.5 sm:gap-x-1 min-h-16 sm:min-h-[5.25rem]"
-            style={{ gridTemplateRows: `1.85rem repeat(${lanes}, auto) minmax(0.25rem, 1fr)` }}
+            style={{ gridTemplateRows: `2.25rem repeat(${lanes}, auto) minmax(0.25rem, 1fr)` }}
           >
             {week.map((day, i) => {
               if (day === null) return <div key={`blank-${i}`} style={{ gridColumn: i + 1, gridRow: "1 / -1" }} />;
@@ -114,19 +114,30 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
                     if (canRange) onRangeChange(key, key);
                   }}
                   title={list.length ? list.map((a) => `${formatThaiTimeLabel(a.time)} ${titleOf(a)}${untilLabel(a) ? ` (${untilLabel(a)})` : ""}`).join("\n") : undefined}
-                  className={`relative min-w-0 !p-0 rounded-lg flex flex-col items-center justify-start pt-1.5 text-[15px] transition
+                  className={`relative min-w-0 !p-0 rounded-lg border flex flex-col items-center justify-start pt-1 transition
                     ${
                       isSelected
-                        ? `bg-pink-500 text-white ${isRange ? "cursor-ew-resize" : ""}`
+                        ? `border-pink-300 bg-pink-50 ${isRange ? "cursor-ew-resize" : ""}`
                         : inRange
-                        ? "bg-pink-100 text-pink-800"
-                        : isToday
-                        ? "border border-pink-300 text-pink-600"
-                        : "text-gray-700 hover:bg-gray-50"
+                        ? "border-pink-200 bg-pink-50/70"
+                        : "border-gray-100 hover:bg-gray-50"
                     }`}
                 >
                   {waiting && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white" aria-label="มีนัดรอตอบ" />}
-                  <span className="leading-none">{day}</span>
+                  {/* ตัวเลขวันอยู่ในวงกลมกลางด้านบน: วันที่เลือก = วงกลมชมพูเข้ม • วันนี้ = วงกลมขอบชมพู */}
+                  <span
+                    className={`h-7 w-7 rounded-full flex items-center justify-center text-[14.5px] leading-none ${
+                      isSelected
+                        ? "bg-pink-500 text-white font-semibold"
+                        : isToday
+                        ? "ring-1 ring-pink-400 text-pink-600 font-semibold"
+                        : inRange
+                        ? "text-pink-700"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    {day}
+                  </span>
                 </button>
               );
             })}
@@ -135,7 +146,7 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
               <span
                 key={`${b.label}-${b.s}-${b.e}`}
                 style={{ gridColumn: `${b.s + 1} / ${b.e + 2}`, gridRow: b.lane + 2 }}
-                className={`pointer-events-none z-10 mx-0.5 mb-0.5 self-start whitespace-normal break-words text-center px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-tight shadow-[0_0_0_1px_rgba(255,255,255,0.7)] ${
+                className={`pointer-events-none z-10 mx-1 mb-0.5 self-start whitespace-normal break-words text-center px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-tight shadow-[0_0_0_1px_rgba(255,255,255,0.7)] ${
                   b.waiting
                     ? "bg-amber-100 text-amber-800"
                     : b.past
