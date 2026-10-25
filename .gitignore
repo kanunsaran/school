@@ -16,3 +16,6 @@ projectrmb/uploads/*
 
 # DB backups made by scripts/sync-db-to-server.sh
 backups/
+
+# ไฟล์ชั่วคราวของ Word/Excel ตอนเปิดไฟล์ค้างไว้
+~$*
