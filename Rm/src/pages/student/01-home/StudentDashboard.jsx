@@ -676,7 +676,7 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
   return (
     <div className="grid grid-cols-7 gap-y-1">
       {cells.map((day, i) => {
-        if (day === null) return <div key={`blank-${i}`} className="h-14" />;
+        if (day === null) return <div key={`blank-${i}`} className="min-h-14" />;
 
         const cellDate = new Date(year, month, day);
         const key = toDateKey(cellDate);
@@ -684,7 +684,7 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
         const isSelected = key === selectedKey;
         const isPast = key < todayKey;
         const list = appointmentsByDate[key] || [];
-        // แยกเป็นเรื่อง (หัวข้อ + วันสุดท้ายของนัดหลายวัน) — ช่องเล็ก แสดงเรื่องแรก + จำนวนเรื่องที่เหลือ
+        // แยกเป็นเรื่อง (หัวข้อ + วันสุดท้ายของนัดหลายวัน) — แสดงครบทุกเรื่อง
         const topics = [...new Set(list.map((a) => [untilLabel(a), a.note?.trim() || a.teacher || "นัดหมาย"].filter(Boolean).join(" · ")))];
 
         return (
@@ -693,7 +693,7 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
             type="button"
             onClick={() => onSelectDate(cellDate)}
             title={list.length ? list.map((a) => `${a.time} ${a.note?.trim() || a.teacher || "นัดหมาย"}${untilLabel(a) ? ` (${untilLabel(a)})` : ""}`).join("\n") : undefined}
-            className="h-14 min-w-0 !p-0 flex flex-col items-center justify-start gap-0.5 bg-transparent"
+            className="min-h-14 h-full min-w-0 !p-0 pb-1 flex flex-col items-center justify-start gap-0.5 bg-transparent"
           >
             <span
               className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[15px] transition
@@ -707,16 +707,17 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
             >
               {day}
             </span>
-            {list.length > 0 && (
+            {/* ทุกเรื่องของวันนั้น ข้อความเต็ม (ช่องสูงขึ้นตามจำนวนเรื่อง) */}
+            {topics.map((t) => (
               <span
-                className={`w-full max-w-full truncate text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-none ${
+                key={t}
+                className={`block w-full max-w-full whitespace-normal break-words text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
                   isPast ? "bg-pink-50 text-pink-400" : "bg-pink-100 text-pink-700"
                 }`}
               >
-                {topics[0]}
-                {topics.length > 1 && ` +${topics.length - 1} เรื่อง`}
+                {t}
               </span>
-            )}
+            ))}
           </button>
         );
       })}
