@@ -1,6 +1,6 @@
 import { useSidebarOpen, setSidebarOpen, registerSidebar } from "../utils/sidebarStore.js";
 import { useEffect, useMemo, useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   FaHome,
   FaRegCalendarAlt,
@@ -18,7 +18,7 @@ import {
   FaCommentDots,
 } from "react-icons/fa";
 import { getEnrollments, getClasses } from "../callapi/callapi_user.jsx";
-import { getCurrentUser } from "../utils/auth.js";
+import { getCurrentUser, logout } from "../utils/auth.js";
 import { gradeLabel } from "../utils/gradeLabel.js";
 
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
@@ -31,7 +31,6 @@ export default function SidebarNav() {
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
-  const navigate = useNavigate();
 
   const groups = useMemo(
     () => ({
@@ -345,7 +344,7 @@ export default function SidebarNav() {
               </button>
 
               <button style={{backgroundColor: "white"}}
-                onClick={() => navigate("/login")}
+                onClick={() => { logout(); window.location.replace("/login"); }}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
               >
                 ออกจากระบบ

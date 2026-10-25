@@ -4,10 +4,21 @@ import { API_BASE_URL } from "../config/api.js";
 
 let api = API_BASE_URL;
 
+// เชื่อมต่อ backend ไม่ได้ (เช่น เพิ่งเปิดเครื่อง / backend กำลังรีสตาร์ต) → คำขออ่านข้อมูล (GET) ลองใหม่เองทุก 2 วินาที สูงสุด 5 ครั้ง
+// เฉพาะกรณีไม่มีคำตอบจากเซิร์ฟเวอร์เลย (ไม่ใช่ 4xx/5xx) และไม่ลองซ้ำคำขอที่เขียนข้อมูล (POST/PUT/DELETE) กันบันทึกซ้ำ
+const RETRY_LIMIT = 5;
+const RETRY_DELAY_MS = 2000;
 // token ใช้ไม่ได้ (401 Invalid token) ที่ไหนก็ตาม → แจ้งให้เข้าสู่ระบบใหม่แทนการล้มเงียบๆ ทีละคำขอ
 axios.interceptors.response.use(
   (res) => res,
-  (error) => {
+  async (error) => {
+    const cfg = error.config;
+    const isRead = (cfg?.method || "get").toLowerCase() === "get";
+    if (cfg && isRead && !error.response && (cfg.__retry || 0) < RETRY_LIMIT) {
+      cfg.__retry = (cfg.__retry || 0) + 1;
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      return axios(cfg);
+    }
     if (isInvalidTokenResponse(error.response?.status, error.response?.data)) handleExpiredSession();
     return Promise.reject(error);
   }

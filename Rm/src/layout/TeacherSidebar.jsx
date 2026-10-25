@@ -1,7 +1,7 @@
 
 import { useSidebarOpen, setSidebarOpen, registerSidebar } from "../utils/sidebarStore.js";
 import { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   FaHome,
   FaRegCalendarAlt,
@@ -21,6 +21,7 @@ import {
   FaClipboardList,
 } from "react-icons/fa";
 import { getClasses, getAssignmentClasses } from "../callapi/callapi_user.jsx";
+import { logout } from "../utils/auth.js";
 
 const gradeLabel = (c) => `${c.grade_name}/${c.section}${c.track ? ` (${c.track})` : ""}`;
 
@@ -36,7 +37,6 @@ export default function SidebarNav() {
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
-  const navigate = useNavigate();
 
   const [classrooms, setClassrooms] = useState([]);
 
@@ -435,7 +435,7 @@ export default function SidebarNav() {
               </button>
 
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => { logout(); window.location.replace("/login"); }}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
               >
                 ออกจากระบบ

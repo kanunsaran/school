@@ -21,18 +21,30 @@ const TABS = [
 
 // เข้า /studentclassroom เฉยๆ (ไม่ระบุห้อง) — พาไปห้องแรกที่นักเรียนคนนี้เข้าร่วมอยู่จริง (ตอนนี้เข้าได้หลายห้องผ่านรหัสของครู)
 export function StudentClassroomRedirect() {
-  const [target, setTarget] = useState(undefined); // undefined = กำลังโหลด, null = ไม่มีห้องเลย
+  const [target, setTarget] = useState(undefined); // undefined = กำลังโหลด, null = ไม่มีห้องเลย, "error" = เชื่อมต่อเซิร์ฟเวอร์ไม่ได้
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    setTarget(undefined);
     getEnrollments()
       .then((enrollData) => {
         const mine = (enrollData || []).filter((e) => String(e.user_user_id) === String(CURRENT_STUDENT_ID));
         setTarget(mine[0]?.grade_idgrade ?? null);
       })
-      .catch(() => setTarget(null));
-  }, []);
+      // โหลดไม่สำเร็จ ≠ ยังไม่เข้าห้อง — แยกข้อความ ไม่ให้นักเรียนเข้าใจผิด
+      .catch(() => setTarget("error"));
+  }, [attempt]);
 
   if (target === undefined) return <PageLoading />;
+  if (target === "error")
+    return (
+      <div className="p-10 text-center text-gray-500">
+        <div>เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ จึงโหลดห้องเรียนไม่สำเร็จ</div>
+        <button type="button" onClick={() => setAttempt((n) => n + 1)} className="mt-3 h-9 px-4 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-50">
+          ลองใหม่
+        </button>
+      </div>
+    );
   if (target === null) return <div className="p-10 text-center text-gray-400">ยังไม่ได้เข้าร่วมห้องเรียนใด — กรอกรหัสเข้าชั้นเรียนที่หน้าแรกก่อน</div>;
   return <Navigate to={`/studentclassroom/${target}`} replace />;
 }
