@@ -54,6 +54,9 @@ export default function NewsFeedPage({ studentMode = false }) {
   const [likes, setLikes] = useState({}); // post_id -> { count, liked }
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // โหลดฟีดไม่สำเร็จ (เช่น backend ยังไม่เปิด) → ลองใหม่อัตโนมัติทุก 3 วินาที สูงสุด 5 ครั้ง แล้วจึงแสดงข้อความ + ปุ่มลองใหม่
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const MAX_AUTO_RETRY = 5;
   const [category, setCategory] = useState("all");
   const [search, setSearch] = useState("");
   const [expandedIds, setExpandedIds] = useState(new Set());
@@ -68,9 +71,9 @@ export default function NewsFeedPage({ studentMode = false }) {
 
   // ===== โหลดฟีดจริงจาก backend ตอนเข้าเพจ (โพสต์ + ไฟล์แนบ + คอมเมนต์ + ไลก์ ของแต่ละโพสต์) =====
   useEffect(() => {
+    let retryTimer = null;
     const fetchFeed = async () => {
       setLoading(true);
-      setLoadError(false);
       try {
         loadFeedCategories().then(() => setCategoryOptions(getFilterOptions()));
         const raw = await getFeedPosts();
@@ -154,16 +157,22 @@ export default function NewsFeedPage({ studentMode = false }) {
         }
 
         setPosts(formatted);
+        setLoadError(false);
+        setLoading(false);
       } catch (err) {
         console.error("โหลดฟีดข่าวสารไม่สำเร็จ:", err);
-        setLoadError(true);
-      } finally {
-        setLoading(false);
+        if (loadAttempt < MAX_AUTO_RETRY) {
+          retryTimer = setTimeout(() => setLoadAttempt((n) => n + 1), 3000);
+        } else {
+          setLoadError(true);
+          setLoading(false);
+        }
       }
     };
 
     fetchFeed();
-  }, []);
+    return () => clearTimeout(retryTimer);
+  }, [loadAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // รีเฟรชรายการหมวดหมู่ตัวกรองทุกครั้งที่โพสต์เปลี่ยน เผื่อครูเพิ่งเพิ่มหมวดหมู่ใหม่ตอนโพสต์/แก้ไข
   useEffect(() => {
@@ -515,7 +524,16 @@ export default function NewsFeedPage({ studentMode = false }) {
 
         {loadError && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-600 text-[15px]">
-            โหลดข่าวสารไม่สำเร็จ — ตรวจสอบว่า backend เปิด endpoint <code>/feed-posts</code> แล้วหรือยัง
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ จึงโหลดข่าวสารไม่สำเร็จ (backend พอร์ต 3000 อาจยังไม่ได้เปิด)</span>
+              <button
+                type="button"
+                onClick={() => { setLoadError(false); setLoadAttempt(0); }}
+                className="h-9 px-4 rounded-lg bg-white border border-red-200 text-red-600 hover:bg-red-100 font-medium"
+              >
+                ลองใหม่
+              </button>
+            </div>
           </div>
         )}
 

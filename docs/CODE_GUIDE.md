@@ -232,5 +232,10 @@ backend Express  app.js → routes/xxx.routes.js → db.js (mysql2)     projectr
 - **AI** ตรวจได้แค่ข้อความ (รูปภาพไม่ส่ง) และคุณภาพเป็นระดับ "ผู้ช่วย" ต้องให้ครูทวน
 
 ### รันเอง / ขึ้นเว็บ
-- รันในเครื่อง: เปิด MySQL ใน XAMPP → `cd projectrmb && npm run dev` → `cd Rm && npm run dev` → เปิด `http://localhost:5173`
+- รันในเครื่อง (คำสั่งเดียว): `./scripts/dev.sh` → เปิด `http://localhost:5173/login`
+  - สคริปต์ทำ 3 อย่างตามลำดับ: (1) เช็ก MySQL ใน XAMPP ถ้าปิดอยู่จะสั่ง `xampp startmysql` (2) เปิด backend `node app.js` พอร์ต 3000 (3) เปิดหน้าเว็บ `vite` พอร์ต 5173 แล้วทดสอบ `/feed-posts` ว่าดึงข้อมูลได้
+  - `./scripts/dev.sh status` ดูว่าอะไรเปิดอยู่ • `./scripts/dev.sh stop` ปิด • log อยู่ที่ `/tmp/rm-backend.log`, `/tmp/rm-vite.log`
+  - เปิดแบบแยกขาดจาก Terminal (ปิดหน้าต่างแล้วยังรันต่อ)
+  - ถ้าขึ้น "โหลดข่าวสารไม่สำเร็จ" = backend พอร์ต 3000 ไม่ได้เปิด → รัน `./scripts/dev.sh` (หน้าข่าวจะลองโหลดใหม่เองทุก 3 วินาที 5 ครั้ง แล้วจึงขึ้นปุ่ม "ลองใหม่")
+  - แบบเดิมทีละขั้น: เปิด MySQL ใน XAMPP → `cd projectrmb && npm run dev` → `cd Rm && npm run dev`
 - ขึ้นเว็บ: `git add …` → `git commit` → `git push origin main` → ดูสถานะที่ GitHub Actions (เขียว = ขึ้นแล้ว)
