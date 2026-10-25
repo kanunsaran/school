@@ -34,6 +34,7 @@ import { formatThaiTimeLabel } from "../../../utils/feedShared.js";
 import { primaryGoalOf } from "../../../utils/goals.js";
 import { latestResultOf, recommendedFaculties, loadRiasecData, RIASEC_NAME_TH } from "../../../utils/riasecResults.js";
 import PendingAppointmentsAlert from "../../../components/PendingAppointmentsAlert.jsx";
+import { groupByDay, coversDay, notOverBy, rangeLabel, durationSuffix, untilLabel } from "../../../utils/appointmentRange.js";
 
 // ใช้ user จาก session จริงหลัง login ถ้ามี — ถ้ายังไม่ได้ login (เช่น เข้าตรงๆ ตอนทดสอบ) fallback เป็น placeholder เดิม
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
@@ -90,6 +91,7 @@ export default function StudentDashboard() {
             .map((a) => ({
               id: a.appointment_id,
               date: toDateKey(new Date(a.appointment_date)),
+              endDate: a.appointment_end_date || null,
               time: a.appointment_time,
               teacher: a.teacher_name || "ครู",
               note: a.note,
@@ -105,21 +107,17 @@ export default function StudentDashboard() {
   }, []);
 
   // นัดหมายแยกตามวัน เรียงตามเวลา — ใช้โชว์หัวข้อนัดในช่องปฏิทิน (เหมือนหน้าปฏิทินฝั่งครู)
-  const appointmentsByDate = useMemo(() => {
-    const map = {};
-    for (const a of teacherAppointments) (map[a.date] ||= []).push(a);
-    Object.values(map).forEach((list) => list.sort((x, y) => String(x.time).localeCompare(String(y.time))));
-    return map;
-  }, [teacherAppointments]);
+  // นัดหลายวันแสดงในทุกวันที่นัดครอบคลุม
+  const appointmentsByDate = useMemo(() => groupByDay(teacherAppointments), [teacherAppointments]);
 
   const selectedKey = toDateKey(selectedDate);
   const appointmentsForSelectedDate = teacherAppointments
-    .filter((a) => a.date === selectedKey)
+    .filter((a) => coversDay(a, selectedKey))
     .sort((a, b) => a.time.localeCompare(b.time));
 
   // นัดหมายที่จะถึง — เรียงตามวันเวลาจริงจากวันนี้เป็นต้นไป (ไม่ขึ้นกับวันที่เลือกในปฏิทิน) เอามาแค่ 8 รายการแรกเหมือนฝั่งครู
   const upcomingAppointments = teacherAppointments
-    .filter((a) => a.date >= toDateKey(today))
+    .filter((a) => notOverBy(a, toDateKey(today)))
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
     .slice(0, 8);
 
@@ -472,6 +470,7 @@ export default function StudentDashboard() {
                         <div className="min-w-0 flex-1">
                           <div className="text-gray-900 text-[14px] truncate">{a.teacher}</div>
                           <div className="text-[13px] text-gray-400 truncate">{a.note}</div>
+                          {a.endDate && <div className="text-[12.5px] text-pink-600">นัดหลายวัน: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
                         </div>
                         <div className="text-[13px] text-gray-500 flex items-center gap-1 shrink-0">
                           <FaClock className="text-[13px]" />
@@ -510,7 +509,7 @@ export default function StudentDashboard() {
                         {/* วันที่เด่นเป็นบรรทัดแรก ชื่อครู+หัวข้อเป็นบรรทัดรอง */}
                         <div className="min-w-0">
                           <div className="text-[15px] font-semibold text-gray-500">
-                            {d} {THAI_MONTHS[m - 1]} {y + 543}
+                            {a.endDate ? `${rangeLabel(a.date, a.endDate)}${durationSuffix(a.date, a.endDate)}` : `${d} ${THAI_MONTHS[m - 1]} ${y + 543}`}
                           </div>
                           <div className="text-[13px] text-gray-400 mt-0.5 truncate">
                             {a.teacher}{a.note ? ` • ${a.note}` : ""}
@@ -685,14 +684,15 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
         const isSelected = key === selectedKey;
         const isPast = key < todayKey;
         const list = appointmentsByDate[key] || [];
-        const firstTitle = list.length ? list[0].note?.trim() || list[0].teacher || "นัดหมาย" : "";
+        // แยกเป็นเรื่อง (หัวข้อ + วันสุดท้ายของนัดหลายวัน) — ช่องเล็ก แสดงเรื่องแรก + จำนวนเรื่องที่เหลือ
+        const topics = [...new Set(list.map((a) => [untilLabel(a), a.note?.trim() || a.teacher || "นัดหมาย"].filter(Boolean).join(" · ")))];
 
         return (
           <button
             key={key}
             type="button"
             onClick={() => onSelectDate(cellDate)}
-            title={list.length ? list.map((a) => `${a.time} ${a.note?.trim() || a.teacher || "นัดหมาย"}`).join("\n") : undefined}
+            title={list.length ? list.map((a) => `${a.time} ${a.note?.trim() || a.teacher || "นัดหมาย"}${untilLabel(a) ? ` (${untilLabel(a)})` : ""}`).join("\n") : undefined}
             className="h-14 min-w-0 !p-0 flex flex-col items-center justify-start gap-0.5 bg-transparent"
           >
             <span
@@ -713,8 +713,8 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
                   isPast ? "bg-pink-50 text-pink-400" : "bg-pink-100 text-pink-700"
                 }`}
               >
-                {firstTitle}
-                {list.length > 1 && ` +${list.length - 1}`}
+                {topics[0]}
+                {topics.length > 1 && ` +${topics.length - 1} เรื่อง`}
               </span>
             )}
           </button>

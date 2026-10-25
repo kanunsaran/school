@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { formatThaiTimeLabel } from "../utils/feedShared.js";
-import { toDateKey, keyToDate } from "../utils/appointmentRange.js";
+import { toDateKey, keyToDate, untilLabel } from "../utils/appointmentRange.js";
 
 // ตารางปฏิทินนัดหมาย (ใช้ทั้งหน้าปฏิทินครูและนักเรียน): 6 สัปดาห์เสมอ ช่องสูงคงที่,
-// ใต้ตัวเลขวันแสดงหัวข้อนัดแรกเป็นแถบชมพู (ผ่านไปแล้ว = ชมพูจาง) + จำนวนที่เหลือ
+// ใต้ตัวเลขวันแสดงหัวข้อนัดเป็นแถบชมพู เรื่องละ 1 แถบ (มือถือ 1 แถบ, จอใหญ่ 2 แถบ) + "+N เรื่อง"
+// หัวข้อเดียวกันหลายคนรวมเป็นแถบเดียว (×จำนวน) • นัดหลายวันขึ้นต้นด้วย "ถึง 29 ต.ค." (ไว้หน้าหัวข้อ ช่องแคบจะได้ไม่ถูกตัด) • ผ่านไปแล้ว = ชมพูจาง
 // titleOf(appointment) => ข้อความที่แสดงในแถบ
 
 // needsReply(appointment) => true = นัดที่รอเราตอบ (ไม่บังคับ) — วันนั้นมีจุดสีเหลืองและป้ายสีเหลือง
@@ -77,7 +78,7 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
     <div className={`grid grid-cols-7 gap-0.5 sm:gap-1 ${canRange ? "touch-none select-none" : ""}`}>
       {cells.map((day, i) => {
         // ช่องว่างสูงเท่าช่องวันที่ เพื่อให้ความสูงคงที่
-        if (day === null) return <div key={`blank-${i}`} className="h-14 sm:h-16" />;
+        if (day === null) return <div key={`blank-${i}`} className="h-16 sm:h-[5.25rem]" />;
 
         const cellDate = new Date(year, month, day);
         const key = toDateKey(cellDate);
@@ -88,9 +89,18 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
         const list = appointmentsByDate[key] || [];
         const count = list.length;
         const isPast = key < todayKey;
-        // หัวข้อนัดแรกของวัน (ไม่มีหัวข้อใช้ชื่อนักเรียน)
-        const firstTitle = count ? titleOf(list[0]) : "";
-        const waiting = !isPast && Boolean(needsReply) && list.some(needsReply);
+        // แยกเป็นเรื่อง: หัวข้อ + วันสุดท้าย (นัดหลายวัน) เดียวกัน = เรื่องเดียว
+        const topics = [];
+        list.forEach((a) => {
+          const label = [untilLabel(a), titleOf(a)].filter(Boolean).join(" · ");
+          const t = topics.find((x) => x.label === label);
+          const w = !isPast && Boolean(needsReply) && needsReply(a);
+          if (t) {
+            t.count++;
+            t.waiting ||= w;
+          } else topics.push({ label, count: 1, waiting: w });
+        });
+        const waiting = topics.some((t) => t.waiting);
 
         return (
           <button
@@ -104,8 +114,8 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
               onSelectDate(cellDate);
               if (canRange) onRangeChange(key, key);
             }}
-            title={count ? list.map((a) => `${formatThaiTimeLabel(a.time)} ${titleOf(a)}`).join("\n") : undefined}
-            className={`relative h-14 sm:h-16 min-w-0 !p-0 rounded-lg flex flex-col items-center justify-center gap-1 text-[15px] transition
+            title={count ? list.map((a) => `${formatThaiTimeLabel(a.time)} ${titleOf(a)}${untilLabel(a) ? ` (${untilLabel(a)})` : ""}`).join("\n") : undefined}
+            className={`relative h-16 sm:h-[5.25rem] min-w-0 !p-0 rounded-lg flex flex-col items-center justify-start pt-1.5 gap-0.5 text-[15px] transition
               ${
                 isSelected
                   ? `bg-pink-500 text-white ${isRange ? "cursor-ew-resize" : ""}`
@@ -118,20 +128,30 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
           >
             {waiting && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white" aria-label="มีนัดรอตอบ" />}
             <span className="leading-none">{day}</span>
-            {count > 0 && (
-              <span
-                className={`w-full max-w-full truncate text-center px-0.5 sm:px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-none ${
-                  isSelected
-                    ? "bg-white/25 text-white"
-                    : waiting
-                    ? "bg-amber-100 text-amber-800"
-                    : isPast
-                    ? "bg-pink-50 text-pink-400"
-                    : "bg-pink-100 text-pink-700"
-                }`}
-              >
-                {firstTitle}
-                {count > 1 && ` +${count - 1}`}
+            {topics.map((t, ti) =>
+              ti < 2 ? (
+                <span
+                  key={t.label}
+                  className={`${ti === 1 ? "hidden sm:block" : "block"} w-full max-w-full ${topics.length > 1 ? "truncate" : "line-clamp-2 break-all"} text-center px-0.5 sm:px-1 py-0.5 rounded text-[10px] sm:text-[11px] font-semibold leading-tight ${
+                    isSelected
+                      ? "bg-white/25 text-white"
+                      : t.waiting
+                      ? "bg-amber-100 text-amber-800"
+                      : isPast
+                      ? "bg-pink-50 text-pink-400"
+                      : "bg-pink-100 text-pink-700"
+                  }`}
+                >
+                  {t.label}
+                  {t.count > 1 && ` ×${t.count}`}
+                </span>
+              ) : null
+            )}
+            {/* เรื่องที่เหลือ (มือถือนับตั้งแต่เรื่องที่ 2) */}
+            {topics.length > 1 && (
+              <span className={`text-[10px] sm:text-[11px] leading-none ${isSelected ? "text-white/90" : "text-gray-400"} ${topics.length > 2 ? "" : "sm:hidden"}`}>
+                <span className="sm:hidden">+{topics.length - 1} เรื่อง</span>
+                {topics.length > 2 && <span className="hidden sm:inline">+{topics.length - 2} เรื่อง</span>}
               </span>
             )}
           </button>

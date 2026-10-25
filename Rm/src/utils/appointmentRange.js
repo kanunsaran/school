@@ -44,6 +44,12 @@ export const rangeLabel = (start, end) => {
     return `${s.getDate()} ${THAI_MONTHS_SHORT[s.getMonth()]} – ${e.getDate()} ${THAI_MONTHS_SHORT[e.getMonth()]} ${e.getFullYear() + 543}`;
   return `${s.getDate()}–${e.getDate()} ${THAI_MONTHS_SHORT[s.getMonth()]} ${s.getFullYear() + 543}`;
 };
+// ป้ายสั้นบอกวันสุดท้ายของนัดหลายวัน เช่น "ถึง 29 ต.ค." (นัดวันเดียว = "")
+export const untilLabel = (a) => {
+  if (!a.endDate || a.endDate === a.date) return "";
+  const e = keyToDate(a.endDate);
+  return `ถึง ${e.getDate()} ${THAI_MONTHS_SHORT[e.getMonth()]}`;
+};
 // ต่อท้ายป้ายนัด เช่น " (3 วัน)"
 export const durationSuffix = (start, end) => (end && end !== start ? ` (${daysBetween(start, end) + 1} วัน)` : "");
 

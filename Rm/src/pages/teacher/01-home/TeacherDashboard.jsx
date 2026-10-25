@@ -39,6 +39,7 @@ import { bigFilterSelectStyles } from "../../../utils/reactSelectStyles.js";
 import { gradeLabel } from "../../../utils/gradeLabel.js";
 import ScheduleImportModal from "../../../components/ScheduleImportModal.jsx";
 import PendingAppointmentsAlert from "../../../components/PendingAppointmentsAlert.jsx";
+import { daysOf, coversDay, rangeLabel, durationSuffix } from "../../../utils/appointmentRange.js";
 
 const CURRENT_TEACHER_ID = getCurrentUser()?.user_id ?? "2";
 
@@ -85,6 +86,7 @@ export default function TeacherDashboard() {
           active.map((a) => ({
             id: a.appointment_id,
             date: toDateKey(new Date(a.appointment_date)),
+            endDate: a.appointment_end_date || null,
             time: a.appointment_time,
             studentName: a.student_name || "-",
             note: a.note,
@@ -103,16 +105,15 @@ export default function TeacherDashboard() {
 
   const appointmentCountByDate = useMemo(() => {
     const map = {};
-    for (const a of appointments) {
-      map[a.date] = (map[a.date] || 0) + 1;
-    }
+    // นัดหลายวันนับทุกวันที่นัดครอบคลุม
+    for (const a of appointments) for (const k of daysOf(a)) map[k] = (map[k] || 0) + 1;
     return map;
   }, [appointments]);
 
   const selectedKey = toDateKey(selectedDate);
 
   const appointmentsForSelectedDate = appointments
-    .filter((a) => a.date === selectedKey)
+    .filter((a) => coversDay(a, selectedKey))
     .sort((a, b) => a.time.localeCompare(b.time));
 
   const [students, setStudents] = useState([]);
@@ -620,6 +621,7 @@ export default function TeacherDashboard() {
                         <div className="flex-1 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2 min-w-0">
                           <div className="text-[14px] font-medium text-gray-900 truncate">{a.studentName}</div>
                           <div className="text-[13px] text-gray-500 truncate">{a.note}</div>
+                          {a.endDate && <div className="text-[12.5px] text-pink-600">นัดหลายวัน: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
                         </div>
                       </div>
                     );

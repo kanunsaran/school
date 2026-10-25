@@ -1580,11 +1580,11 @@ export async function respondAppointment(id, body) {
   return response.data;
 }
 
-export async function createAppointment({ teacher_user_id, student_user_id, appointment_date, appointment_time, note }) {
+export async function createAppointment({ teacher_user_id, student_user_id, appointment_date, appointment_end_date = null, appointment_time, note }) {
   try {
     const response = await axios.post(
       `${api}/appointment`,
-      { teacher_user_id, student_user_id, appointment_date, appointment_time, note },
+      { teacher_user_id, student_user_id, appointment_date, appointment_end_date, appointment_time, note },
       { headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentUser()?.token}` } }
     );
     return response.data;

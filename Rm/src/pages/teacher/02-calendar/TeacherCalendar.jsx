@@ -308,12 +308,9 @@ export default function TeacherCalendar() {
       (a) => a.id !== excludeId && String(a.studentId) === String(studentId) && a.date === date && a.time === time
     );
 
-  const handleSaveEdit = async ({ date, time }) => {
+  const handleSaveEdit = async ({ date, endDate, time }) => {
     try {
-      // เลื่อนวันเริ่ม → นัดหลายวันเลื่อนทั้งช่วง (จำนวนวันเท่าเดิม)
-      const a = editingAppointment;
-      const appointment_end_date = a.endDate ? addDaysKey(date, daysBetween(a.date, a.endDate)) : null;
-      await updateAppointment(a.id, { appointment_date: date, appointment_end_date, appointment_time: time });
+      await updateAppointment(editingAppointment.id, { appointment_date: date, appointment_end_date: endDate && endDate > date ? endDate : null, appointment_time: time });
       await loadAppointments();
       setEditingAppointment(null);
     } catch (err) {
@@ -597,6 +594,12 @@ export default function TeacherCalendar() {
 
 function EditAppointmentModal({ appointment, studentName, isDuplicate, onClose, onSave }) {
   const [date, setDate] = useState(appointment.date);
+  // นัดหลายวัน: วันสุดท้าย (null = วันเดียว) • เลื่อนวันเริ่ม → เลื่อนทั้งช่วง จำนวนวันเท่าเดิม
+  const [endDate, setEndDate] = useState(appointment.endDate || null);
+  const changeStart = (d) => {
+    if (endDate && date) setEndDate(addDaysKey(d, daysBetween(date, endDate)));
+    setDate(d);
+  };
   const [time, setTime] = useState(appointment.time);
   const [saving, setSaving] = useState(false);
 
@@ -615,11 +618,11 @@ function EditAppointmentModal({ appointment, studentName, isDuplicate, onClose, 
       return;
     }
 
-    const [y, m, d] = date.split("-").map(Number);
+    const end = endDate && endDate > date ? endDate : null;
     const confirmResult = await Swal.fire({
       icon: "question",
       title: "ยืนยันการแก้ไขนัดหมาย?",
-      html: `${studentName || "-"}<br/>${d} ${THAI_MONTHS[m - 1]} ${y + 543} • ${formatThaiTimeLabel(time)}`,
+      html: `${studentName || "-"}<br/>${rangeLabel(date, end)}${durationSuffix(date, end)} • ${formatThaiTimeLabel(time)}`,
       showCancelButton: true,
       confirmButtonText: "บันทึก",
       cancelButtonText: "ยกเลิก",
@@ -629,7 +632,7 @@ function EditAppointmentModal({ appointment, studentName, isDuplicate, onClose, 
 
     setSaving(true);
     try {
-      await onSave({ date, time });
+      await onSave({ date, endDate: end, time });
     } finally {
       setSaving(false);
     }
@@ -649,9 +652,22 @@ function EditAppointmentModal({ appointment, studentName, isDuplicate, onClose, 
 
         <div className="px-5 py-5 flex flex-col gap-4">
           <div>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1.5">วันที่นัดหมาย</label>
-            <ThaiCalendarPicker value={date} min={toDateKey(new Date())} onChange={setDate} />
+            <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{endDate ? "วันเริ่มนัด" : "วันที่นัดหมาย"}</label>
+            <ThaiCalendarPicker value={date} min={toDateKey(new Date())} onChange={changeStart} />
           </div>
+
+          {endDate ? (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[13px] font-medium text-gray-700">ถึงวันที่</label>
+                <button type="button" onClick={() => setEndDate(null)} className="text-[12.5px] text-gray-500 hover:text-pink-600 bg-transparent">เปลี่ยนเป็นนัดวันเดียว</button>
+              </div>
+              <ThaiCalendarPicker value={endDate} min={date} onChange={setEndDate} />
+              <div className="mt-1 text-[12.5px] text-pink-600">{rangeLabel(date, endDate > date ? endDate : null)}{durationSuffix(date, endDate > date ? endDate : null)}</div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setEndDate(addDaysKey(date, 1))} className="self-start text-[13px] text-pink-600 hover:underline bg-transparent">+ นัดหลายวัน (เลือกวันสุดท้าย)</button>
+          )}
 
           <div>
             <label className="block text-[13px] font-medium text-gray-700 mb-1.5">เวลานัดหมาย</label>
