@@ -34,7 +34,7 @@ import { formatThaiTimeLabel } from "../../../utils/feedShared.js";
 import { primaryGoalOf } from "../../../utils/goals.js";
 import { latestResultOf, recommendedFaculties, loadRiasecData, RIASEC_NAME_TH } from "../../../utils/riasecResults.js";
 import PendingAppointmentsAlert from "../../../components/PendingAppointmentsAlert.jsx";
-import { groupByDay, coversDay, notOverBy, rangeLabel, durationSuffix, untilLabel } from "../../../utils/appointmentRange.js";
+import { groupByDay, coversDay, notOverBy, rangeLabel, durationSuffix, untilLabel, weekBars } from "../../../utils/appointmentRange.js";
 
 // ใช้ user จาก session จริงหลัง login ถ้ามี — ถ้ายังไม่ได้ login (เช่น เข้าตรงๆ ตอนทดสอบ) fallback เป็น placeholder เดิม
 const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
@@ -666,59 +666,62 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayKey = toDateKey(today);
   const selectedKey = toDateKey(selectedDate);
+  const labelOf = (a) => a.note?.trim() || a.teacher || "นัดหมาย";
 
-  // แสดง 6 สัปดาห์เสมอ (42 ช่อง) ช่องสูงเท่ากัน — ปฏิทินขนาดคงที่ทุกเดือน
+  // แสดง 6 สัปดาห์เสมอ (42 ช่อง) — ปฏิทินขนาดคงที่ทุกเดือน
   const cells = Array.from({ length: 42 }, (_, i) => {
     const day = i - firstWeekday + 1;
     return day >= 1 && day <= daysInMonth ? day : null;
   });
+  const allAppointments = [...new Map(Object.values(appointmentsByDate).flat().map((a) => [a.id, a])).values()];
 
   return (
-    <div className="grid grid-cols-7 gap-y-1">
-      {cells.map((day, i) => {
-        if (day === null) return <div key={`blank-${i}`} className="min-h-14" />;
-
-        const cellDate = new Date(year, month, day);
-        const key = toDateKey(cellDate);
-        const isToday = key === todayKey;
-        const isSelected = key === selectedKey;
-        const isPast = key < todayKey;
-        const list = appointmentsByDate[key] || [];
-        // แยกเป็นเรื่อง (หัวข้อ + วันสุดท้ายของนัดหลายวัน) — แสดงครบทุกเรื่อง
-        const topics = [...new Set(list.map((a) => [untilLabel(a), a.note?.trim() || a.teacher || "นัดหมาย"].filter(Boolean).join(" · ")))];
-
+    <div className="flex flex-col gap-1">
+      {Array.from({ length: 6 }, (_, w) => {
+        const week = cells.slice(w * 7, w * 7 + 7);
+        const weekKeys = week.map((day) => (day ? toDateKey(new Date(year, month, day)) : null));
+        // นัดหลายวัน = แถบยาวแถบเดียวพาดข้ามวัน (เหมือนหน้าปฏิทิน)
+        const { bars, lanes } = weekBars(weekKeys, allAppointments, { labelOf, todayKey });
         return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onSelectDate(cellDate)}
-            title={list.length ? list.map((a) => `${a.time} ${a.note?.trim() || a.teacher || "นัดหมาย"}${untilLabel(a) ? ` (${untilLabel(a)})` : ""}`).join("\n") : undefined}
-            className="min-h-14 h-full min-w-0 !p-0 pb-1 flex flex-col items-center justify-start gap-0.5 bg-transparent"
-          >
-            <span
-              className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[15px] transition
-                ${
-                  isSelected
-                    ? "bg-pink-500 text-white"
-                    : isToday
-                    ? "text-pink-600 font-medium"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-            >
-              {day}
-            </span>
-            {/* ทุกเรื่องของวันนั้น ข้อความเต็ม (ช่องสูงขึ้นตามจำนวนเรื่อง) */}
-            {topics.map((t) => (
+          <div key={w} className="grid grid-cols-7 min-h-14" style={{ gridTemplateRows: `2.25rem repeat(${lanes}, auto) minmax(0, 1fr)` }}>
+            {week.map((day, i) => {
+              if (day === null) return <div key={`blank-${i}`} style={{ gridColumn: i + 1, gridRow: "1 / -1" }} />;
+              const cellDate = new Date(year, month, day);
+              const key = weekKeys[i];
+              const isToday = key === todayKey;
+              const isSelected = key === selectedKey;
+              const list = appointmentsByDate[key] || [];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onSelectDate(cellDate)}
+                  title={list.length ? list.map((a) => `${a.time} ${labelOf(a)}${untilLabel(a) ? ` (${untilLabel(a)})` : ""}`).join("\n") : undefined}
+                  style={{ gridColumn: i + 1, gridRow: "1 / -1" }}
+                  className="min-w-0 !p-0 flex flex-col items-center justify-start bg-transparent"
+                >
+                  <span
+                    className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[15px] transition
+                      ${isSelected ? "bg-pink-500 text-white" : isToday ? "text-pink-600 font-medium" : "text-gray-700 hover:bg-gray-100"}`}
+                  >
+                    {day}
+                  </span>
+                </button>
+              );
+            })}
+            {bars.map((b) => (
               <span
-                key={t}
-                className={`block w-full max-w-full whitespace-normal break-words text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
-                  isPast ? "bg-pink-50 text-pink-400" : "bg-pink-100 text-pink-700"
+                key={`${b.label}-${b.s}-${b.e}`}
+                style={{ gridColumn: `${b.s + 1} / ${b.e + 2}`, gridRow: b.lane + 2 }}
+                className={`pointer-events-none mx-0.5 mb-0.5 self-start whitespace-normal break-words text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
+                  b.past ? "bg-pink-50 text-pink-400" : b.multi ? "bg-pink-200 text-pink-800" : "bg-pink-100 text-pink-700"
                 }`}
               >
-                {t}
+                {b.label}
+                {b.count > 1 && ` ×${b.count}`}
               </span>
             ))}
-          </button>
+          </div>
         );
       })}
     </div>

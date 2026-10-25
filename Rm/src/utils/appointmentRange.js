@@ -60,3 +60,41 @@ export const groupByDay = (appointments) => {
   Object.values(map).forEach((list) => list.sort((x, y) => String(x.time).localeCompare(String(y.time))));
   return map;
 };
+
+// ---------- แถบนัดในปฏิทินรายสัปดาห์ (นัดหลายวัน = แถบยาวแถบเดียวพาดข้ามวัน) ----------
+// weekKeys = คีย์วันที่ 7 ช่องของสัปดาห์ (ช่องว่างนอกเดือน = null)
+// คืน { bars: [{ s, e, lane, label, count, waiting, past, multi }], lanes }
+//   s/e = ช่องแรก/ช่องสุดท้ายในสัปดาห์ (0–6) • lane = แถวของแถบ (แถบที่ทับกันวางคนละแถว)
+//   นัดหลายวันที่ต่อไปสัปดาห์ถัดไป ต่อท้าย "(ถึง 12 พ.ย.)" • หัวข้อ+ช่วงวันเดียวกันหลายคน = แถบเดียว ×จำนวน
+export const weekBars = (weekKeys, appointments, { labelOf, needsReply, todayKey }) => {
+  const idx = weekKeys.map((k, i) => (k ? i : -1)).filter((i) => i >= 0);
+  if (!idx.length) return { bars: [], lanes: 0 };
+  const first = weekKeys[idx[0]];
+  const last = weekKeys[idx[idx.length - 1]];
+  const groups = new Map();
+  for (const a of appointments) {
+    const end = lastDayOf(a);
+    if (a.date > last || end < first) continue;
+    const s = weekKeys.indexOf(a.date < first ? first : a.date);
+    const e = weekKeys.indexOf(end > last ? last : end);
+    const multi = end > a.date;
+    const label = labelOf(a) + (multi && end > last ? ` (${untilLabel(a)})` : "");
+    const key = `${label}|${s}|${e}`;
+    const g = groups.get(key);
+    const waiting = Boolean(needsReply) && end >= todayKey && needsReply(a);
+    if (g) {
+      g.count++;
+      g.waiting ||= waiting;
+    } else groups.set(key, { s, e, label, count: 1, waiting, past: end < todayKey, multi });
+  }
+  // แถบยาวก่อน แล้ววางลงแถวแรกที่ว่างตลอดช่วง
+  const bars = [...groups.values()].sort((x, y) => y.e - y.s - (x.e - x.s) || x.s - y.s);
+  const used = [];
+  for (const b of bars) {
+    let lane = 0;
+    while ((used[lane] || []).some((c) => c >= b.s && c <= b.e)) lane++;
+    (used[lane] ||= []).push(...Array.from({ length: b.e - b.s + 1 }, (_, i) => b.s + i));
+    b.lane = lane;
+  }
+  return { bars, lanes: used.length };
+};
