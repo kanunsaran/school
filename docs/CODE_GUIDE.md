@@ -233,9 +233,9 @@ backend Express  app.js → routes/xxx.routes.js → db.js (mysql2)     projectr
 
 ### รันเอง / ขึ้นเว็บ
 - รันในเครื่อง (คำสั่งเดียว): `./scripts/dev.sh` → เปิด `http://localhost:5173/login`
-  - สคริปต์ทำ 3 อย่างตามลำดับ: (1) เช็ก MySQL ใน XAMPP ถ้าปิดอยู่จะสั่ง `xampp startmysql` (2) เปิด backend `node app.js` พอร์ต 3000 (3) เปิดหน้าเว็บ `vite` พอร์ต 5173 แล้วทดสอบ `/feed-posts` ว่าดึงข้อมูลได้
-  - `./scripts/dev.sh status` ดูว่าอะไรเปิดอยู่ • `./scripts/dev.sh stop` ปิด • log อยู่ที่ `/tmp/rm-backend.log`, `/tmp/rm-vite.log`
-  - เปิดแบบแยกขาดจาก Terminal (ปิดหน้าต่างแล้วยังรันต่อ)
-  - ถ้าขึ้น "โหลดข่าวสารไม่สำเร็จ" = backend พอร์ต 3000 ไม่ได้เปิด → รัน `./scripts/dev.sh` (หน้าข่าวจะลองโหลดใหม่เองทุก 3 วินาที 5 ครั้ง แล้วจึงขึ้นปุ่ม "ลองใหม่")
+  - ค่าเริ่มต้น **ใช้ backend + ฐานข้อมูลของเว็บจริง**: vite proxy `/api` → `http://178.128.58.65:5173/api` (ตั้งใน `Rm/vite.config.js` ด้วย `VITE_PROXY_TARGET`) — ข้อมูลตรงกับเว็บจริง ไม่ต้องเปิด XAMPP/backend
+  - `./scripts/dev.sh local` = ใช้ backend `node app.js` พอร์ต 3000 + MySQL ใน XAMPP บนเครื่อง
+  - `./scripts/dev.sh status` ดูว่าเปิดอะไรอยู่/ใช้ backend ตัวไหน • `./scripts/dev.sh stop` ปิด • log `/tmp/rm-vite.log`, `/tmp/rm-backend.log`
+  - วิธีแก้ปัญหาทีละอาการ: `docs/คำสั่งที่ต้องใช้.docx`
   - แบบเดิมทีละขั้น: เปิด MySQL ใน XAMPP → `cd projectrmb && npm run dev` → `cd Rm && npm run dev`
 - ขึ้นเว็บ: `git add …` → `git commit` → `git push origin main` → ดูสถานะที่ GitHub Actions (เขียว = ขึ้นแล้ว)
