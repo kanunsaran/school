@@ -8,8 +8,6 @@ import { getClasses, getStudent, getEnrollments } from "../../../callapi/callapi
 import { gradeLabel } from "../../../utils/gradeLabel.js";
 import { getCurrentUser } from "../../../utils/auth.js";
 
-// ใช้ user จาก session จริงหลัง login (เดิม hardcode "1" ทำให้บัญชีอื่นเห็นห้องเรียนผิดคน — บั๊กเดียวกับที่เจอใน StudentInfoForm.jsx/Classwork.jsx)
-const CURRENT_STUDENT_ID = getCurrentUser()?.user_id ?? "1";
 
 const BANNER_COLOR = "#ec4899";
 
@@ -26,9 +24,12 @@ export function StudentClassroomRedirect() {
 
   useEffect(() => {
     setTarget(undefined);
+    // อ่านผู้ใช้ตอนเปิดหน้า (ไม่ใช่ตอนโหลดไฟล์) — เปลี่ยนบัญชีแล้วไม่ค้างเป็นคนเดิม
+    const me = getCurrentUser();
+    if (!me?.user_id) return setTarget("nologin");
     getEnrollments()
       .then((enrollData) => {
-        const mine = (enrollData || []).filter((e) => String(e.user_user_id) === String(CURRENT_STUDENT_ID));
+        const mine = (enrollData || []).filter((e) => String(e.user_user_id) === String(me.user_id));
         setTarget(mine[0]?.grade_idgrade ?? null);
       })
       // โหลดไม่สำเร็จ ≠ ยังไม่เข้าห้อง — แยกข้อความ ไม่ให้นักเรียนเข้าใจผิด
@@ -45,7 +46,18 @@ export function StudentClassroomRedirect() {
         </button>
       </div>
     );
-  if (target === null) return <div className="p-10 text-center text-gray-400">ยังไม่ได้เข้าร่วมห้องเรียนใด — กรอกรหัสเข้าชั้นเรียนที่หน้าแรกก่อน</div>;
+  if (target === "nologin") return <Navigate to="/login" replace />;
+  if (target === null) {
+    const me = getCurrentUser();
+    return (
+      <div className="p-10 text-center text-gray-500">
+        <div>ยังไม่ได้เข้าร่วมห้องเรียนใด — กรอกรหัสเข้าชั้นเรียนที่หน้าแรกก่อน</div>
+        {/* บอกว่ากำลังดูของบัญชีไหน — ล็อกอินผิดบัญชีจะเห็นทันที */}
+        <div className="mt-1 text-[13px] text-gray-400">บัญชีที่ใช้อยู่: {me?.name || me?.email || "-"}{me?.email && me?.name ? ` (${me.email})` : ""}</div>
+        <a href="/" className="mt-3 inline-block h-9 leading-9 px-4 rounded-lg bg-pink-500 text-white hover:bg-pink-600">ไปหน้าแรกเพื่อกรอกรหัสเข้าชั้นเรียน</a>
+      </div>
+    );
+  }
   return <Navigate to={`/studentclassroom/${target}`} replace />;
 }
 
