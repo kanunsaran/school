@@ -13,51 +13,6 @@ axios.interceptors.response.use(
   }
 );
 
-// import DatatableStrig from "../component/strig";
-export async function GetLogin(email, password) {
-  // console.log(id_strategic.data)
-  try {
-    const response = await axios.post(
-      `${api}/api/login-admin`,
-      { email, password },
-      {
-        headers: {
-          "Content-Type": `application/json`, // ส่ง Token ผ่าน Header
-        },
-      }
-    );
-
-    // const json = await response.json();
-    console.log("data : ", response.data);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching user data:", error);
-    // Swal.fire("Error", "ไม่สามารถดึงข้อมูลได้", "error");
-    const message =
-      error.response?.data?.message || "เกิดข้อผิดพลาดขณะส่งข้อมูล";
-
-    throw message; // ส่ง Error ออกไปให้จัดการในที่เรียกใช้
-  }
-}
-
-export async function getAnnouncements() {
-  try {
-    const response = await axios.get(`${api}/announcements`, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error getAnnouncements:", error);
-    throw error;
-  }
-}
-
-
-
 export async function getdatayc() {
     //   console.log(id_actionplan);
 
@@ -160,44 +115,6 @@ export async function getSubmissionsByAssignment(ass_id) {
   
 // ================== ASSIGNMENT SUBMIT ==================
 
-// คนที่ส่งแล้ว
-export async function getSubmittedUsers(assId) {
-  try {
-    const response = await axios.get(
-      `${api}/send_ass/submitted/${assId}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error("Error getSubmittedUsers:", error);
-    throw error;
-  }
-}
-
-// คนที่ยังไม่ส่ง
-export async function getNotSubmittedUsers(assId) {
-  try {
-    const response = await axios.get(
-      `${api}/send_ass/not-submit/${assId}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error("Error getNotSubmittedUsers:", error);
-    throw error;
-  }
-}
-
 // นับจำนวนคนที่ส่ง
 export async function countSubmitted(assId) {
   try {
@@ -213,25 +130,6 @@ export async function countSubmitted(assId) {
     return response.data.total;
   } catch (error) {
     console.error("Error countSubmitted:", error);
-    throw error;
-  }
-}
-
-// นับจำนวนคนที่ยังไม่ส่ง
-export async function countNotSubmitted(assId) {
-  try {
-    const response = await axios.get(
-      `${api}/send_ass/count/not-submit/${assId}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data.total;
-  } catch (error) {
-    console.error("Error countNotSubmitted:", error);
     throw error;
   }
 }
@@ -380,42 +278,6 @@ export async function createSubmissionGroup({ assignment_ass_id, group_name, mem
   }
 }
 
-export async function updateSubmissionGroup(groupId, { group_name, member_user_ids }) {
-  try {
-    const response = await axios.put(
-      `${api}/submission-groups/${groupId}`,
-      { group_name, member_user_ids },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error updateSubmissionGroup:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function deleteSubmissionGroup(groupId) {
-  try {
-    const response = await axios.delete(`${api}/submission-groups/${groupId}`, {
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error deleteSubmissionGroup:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function getTeachers() {
-  const res = await axios.get(`${api}/auth/teachers`);
-  return res.data;
-}
-
-export async function getStudents() {
-  const res = await axios.get(`${api}/auth/students`);
-  return res.data;
-}
-
 // นำเข้ารายชื่อนักเรียนแบบหลายคนพร้อมกัน (หน้า /ImportStudents) — ⚠️ backend ยังไม่มี endpoint นี้จริง
 // (ยืนยันแล้วว่าตอนนี้ /auth/students มีแค่ GET อย่างเดียว ไม่มีทางสร้างบัญชีผู้ใช้ผ่าน API เลย)
 // ต้องขอให้ backend เพิ่ม route นี้ก่อนฟีเจอร์นำเข้าจะทำงานได้จริง
@@ -433,147 +295,12 @@ export async function importStudents(students) {
 }
 
 
-export async function createAnnouncement(data) {
-  try {
-    const response = await axios.post(`${api}/announcements`, data, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error createAnnouncement:", error);
-    throw error;
-  }
-}
-
-
-export async function loginUser(email, password) {
-  try {
-    const response = await axios.post(
-      `${api}/login`,
-      { email, password },   // ✅ ต้องเป็น email
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    localStorage.setItem("token", response.data.token);
-    return response.data;
-
-  } catch (error) {
-    console.error("Error login:", error.response?.data || error);
-    throw error;
-  }
-}
 // ================= ANNOUNCEMENT UPDATE =================
-
-export async function updateAnnouncement(id, data) {
-  try {
-
-    const response = await axios.put(
-      `${api}/announcements/${id}`,
-      data,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error updateAnnouncement:", error);
-    throw error;
-  }
-}
 
 // ================= ANNOUNCEMENT SOFT DELETE =================
 
-export async function deleteAnnouncement(id) {
-  try {
-
-    const response = await axios.patch(
-      `${api}/announcements/${id}/delete`,
-      {},
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error deleteAnnouncement:", error);
-    throw error;
-  }
-}
-
 // ================= REACTIONS =================
 
-// กด Like
-export async function addReaction(type, postId) {
-  try {
-    const response = await axios.post(
-      `${api}/api/reactions`,
-      {
-        type: type,
-        postit_post_id: postId
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error addReaction:", error);
-    throw error;
-  }
-}
-
-// โหลด reaction ของโพสต์
-export async function getReactions() {
-  try {
-    const response = await axios.get(
-      `${api}/api/reactions`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return response.data;
-
-  } catch (error) {
-    console.error("Error getReactions:", error);
-    throw error;
-  }
-}
-export async function countReaction(postId) {
-  try {
-    const response = await axios.get(
-      `${api}/api/reactions/count/${postId}`
-    );
-
-    return response.data.total;
-
-  } catch (error) {
-    console.error("Error countReaction:", error);
-    throw error;
-  }
-}
 // ================= COMMENTS =================
 
 export async function getComments() {
@@ -1028,7 +755,7 @@ export async function updateGoal(goalId, { goal_text, faculty_name, university_n
   }
 }
 
-// ผลแบบทดสอบแนวทาง (Holland) — [{result_id, user_user_id, type_type_id, result_code, test_date, recommended_faculty_id}]
+// ผลแบบประเมินความสนใจ RIASEC — [{result_id, user_user_id, type_type_id, result_code, holland_code, scores_json, test_date}]
 export async function getTypeResults() {
   try {
     const response = await axios.get(`${api}/user_type_result`, { headers: { "Content-Type": "application/json" } });
@@ -1063,17 +790,6 @@ export async function getTypes() {
     return response.data;
   } catch (error) {
     console.error("Error getTypes:", error);
-    throw error;
-  }
-}
-
-// คณะ/มหาวิทยาลัยแนะนำ — [{faculty_id, faculty_name, university_name, Type_type_id}]
-export async function getFaculties() {
-  try {
-    const response = await axios.get(`${api}/faculty`, { headers: { "Content-Type": "application/json" } });
-    return response.data;
-  } catch (error) {
-    console.error("Error getFaculties:", error);
     throw error;
   }
 }
@@ -1305,133 +1021,10 @@ export async function toggleNewsLike(newsId, userId) {
 }
 
 // ================= ANNOUNCEMENT FILES (หน้ากิจกรรม) =================
-// รองรับหลายไฟล์พร้อมกัน ผลลัพธ์: { message, files: [{ file_id, file_url or file, file_name, file_type }] }
-export async function uploadAnnouncementFiles(newsId, files) {
-  try {
-    const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
-
-    const response = await axios.post(
-      `${api}/announcements/${newsId}/upload`,
-      formData,
-      { headers: { "Content-Type": "multipart/form-data" } }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error("Error uploadAnnouncementFiles:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function getAnnouncementFiles(newsId) {
-  try {
-    const response = await axios.get(`${api}/announcements/${newsId}/files`, {
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error getAnnouncementFiles:", error);
-    throw error;
-  }
-}
-
-export async function deleteAnnouncementFile(fileId) {
-  try {
-    const response = await axios.delete(`${api}/announcements/files/${fileId}`, {
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error deleteAnnouncementFile:", error.response?.data || error);
-    throw error;
-  }
-}
 
 // ================= ANNOUNCEMENT COMMENTS (announcement_comments table — แยกจาก newcomment กันไอดีชนกับหน้า news) =================
 
-export async function getAnnouncementComments(newsId) {
-  try {
-    const response = await axios.get(`${api}/announcement-comments`, {
-      params: { news_id: newsId },
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error getAnnouncementComments:", error);
-    throw error;
-  }
-}
-
-export async function createAnnouncementComment({ news_id, user_id, content, parent_comment_id = null }) {
-  try {
-    const response = await axios.post(
-      `${api}/announcement-comments/new`,
-      { news_id, user_id, content, parent_comment_id },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error createAnnouncementComment:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function updateAnnouncementComment(commentId, { user_id, content }) {
-  try {
-    const response = await axios.put(
-      `${api}/announcement-comments/${commentId}`,
-      { user_id, content },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error updateAnnouncementComment:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function deleteAnnouncementComment(commentId, user_id) {
-  try {
-    const response = await axios.delete(`${api}/announcement-comments/${commentId}`, {
-      params: { user_id },
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error deleteAnnouncementComment:", error.response?.data || error);
-    throw error;
-  }
-}
-
 // ================= ANNOUNCEMENT LIKES (announcement_likes table — แยกจาก news_likes กันไอดีชนกับหน้า news) =================
-
-export async function getAnnouncementLikes(newsId, userId) {
-  try {
-    const response = await axios.get(`${api}/announcement-likes`, {
-      params: { news_id: newsId, user_id: userId },
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error getAnnouncementLikes:", error);
-    throw error;
-  }
-}
-
-export async function toggleAnnouncementLike(newsId, userId) {
-  try {
-    const response = await axios.post(
-      `${api}/announcement-likes/toggle`,
-      { news_id: newsId, user_id: userId },
-      { headers: { "Content-Type": "application/json" } }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Error toggleAnnouncementLike:", error.response?.data || error);
-    throw error;
-  }
-}
 
 // ================= ATTENDANCE (การเข้าเรียน) =================
 
@@ -2314,28 +1907,6 @@ export async function duplicateAssessmentApi(id) {
     return response.data;
   } catch (error) {
     console.error("Error duplicateAssessmentApi:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function getAssessmentResponses(id) {
-  try {
-    const response = await axios.get(`${api}/assessments/${id}/responses`);
-    return response.data;
-  } catch (error) {
-    console.error("Error getAssessmentResponses:", error.response?.data || error);
-    throw error;
-  }
-}
-
-export async function submitAssessmentResponse(id, { user_user_id, answers }) {
-  try {
-    const response = await axios.post(`${api}/assessments/${id}/responses`, { user_user_id, answers }, {
-      headers: { "Content-Type": "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error submitAssessmentResponse:", error.response?.data || error);
     throw error;
   }
 }

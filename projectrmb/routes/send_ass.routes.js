@@ -173,25 +173,6 @@ router.get('/not-submit/:ass_id', async (req, res) => {
   }
 });
 
-router.get('/submitted/:ass_id', async (req, res) => {
-  try {
-    const assId = req.params.ass_id;
-
-    const [rows] = await pool.query(`
-      SELECT u.user_id, u.fullname, s.send_id, s.file_path, s.timestamp, s.score,
-             s.group_id, s.teacher_comment, s.is_released
-      FROM send_ass s
-      JOIN users u ON u.user_id = s.user_user_id
-      WHERE s.assignment_ass_id = ?
-      AND s.deleted_at IS NULL
-    `, [assId]);
-
-    res.json(rows);
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-});
-
 router.get('/count/submitted/:ass_id', async (req, res) => {
   try {
     const assId = req.params.ass_id;
@@ -202,21 +183,6 @@ router.get('/count/submitted/:ass_id', async (req, res) => {
       WHERE assignment_ass_id = ?
       AND deleted_at IS NULL
     `, [assId]);
-
-    res.json(row);
-  } catch (e) {
-    res.status(500).json({ message: e.message });
-  }
-});
-
-router.get('/count/not-submit/:ass_id', async (req, res) => {
-  try {
-    const assId = req.params.ass_id;
-
-    const [[row]] = await pool.query(
-      targetAudienceCTE('SELECT COUNT(*) AS total'),
-      [assId, assId, assId, assId, assId]
-    );
 
     res.json(row);
   } catch (e) {

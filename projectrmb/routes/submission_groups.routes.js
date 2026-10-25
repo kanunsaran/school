@@ -45,30 +45,6 @@ router.get('/', async (req, res) => {
 });
 
 // ---------------------- GET กลุ่มเดียว ----------------------
-router.get('/:id', async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT group_id, assignment_ass_id, group_name, created_at
-       FROM submission_groups
-       WHERE group_id = ?`,
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ message: 'Not found' });
-
-    const [members] = await pool.query(
-      `SELECT m.user_user_id, u.fullname
-       FROM submission_group_members m
-       JOIN users u ON u.user_id = m.user_user_id
-       WHERE m.group_id = ?`,
-      [req.params.id]
-    );
-
-    res.json({ ...rows[0], members });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- POST สร้างกลุ่มใหม่ (พร้อมสมาชิกในคำขอเดียว) ----------------------
 router.post('/', async (req, res) => {
@@ -106,46 +82,7 @@ router.post('/', async (req, res) => {
 });
 
 // ---------------------- PUT แก้ไขชื่อกลุ่ม/สมาชิก ----------------------
-router.put('/:id', async (req, res) => {
-  try {
-    const { group_name = null, member_user_ids = null } = req.body;
-    const id = req.params.id;
-
-    if (group_name) {
-      await pool.query(`UPDATE submission_groups SET group_name = ? WHERE group_id = ?`, [group_name, id]);
-    }
-
-    if (Array.isArray(member_user_ids)) {
-      await pool.query(`DELETE FROM submission_group_members WHERE group_id = ?`, [id]);
-      for (const userId of member_user_ids) {
-        await pool.query(
-          `INSERT INTO submission_group_members (group_id, user_user_id) VALUES (?, ?)`,
-          [id, userId]
-        );
-      }
-    }
-
-    res.json({ message: 'Updated' });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- DELETE ลบกลุ่ม ----------------------
-router.delete('/:id', async (req, res) => {
-  try {
-    const [result] = await pool.query(`DELETE FROM submission_groups WHERE group_id = ?`, [req.params.id]);
-
-    if (!result.affectedRows) {
-      return res.status(404).json({ message: 'Not found' });
-    }
-
-    res.json({ message: 'Deleted' });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 module.exports = router;

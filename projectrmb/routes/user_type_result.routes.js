@@ -23,15 +23,13 @@ const validScores = (s) => s && typeof s === 'object' && RIASEC.every((c) => Num
 const SELECT_JOINED = `
   SELECT r.result_id, r.user_user_id, u.fullname,
          r.type_type_id, t.type_code, t.type_name,
-         r.result_code, r.holland_code, r.test_date, r.scores_json,
-         r.recommended_faculty_id, f.faculty_name, f.university_name
+         r.result_code, r.holland_code, r.test_date, r.scores_json
   FROM user_type_result r
   JOIN users u ON u.user_id = r.user_user_id
   LEFT JOIN types t ON t.type_id = r.type_type_id
-  LEFT JOIN faculty f ON f.faculty_id = r.recommended_faculty_id
 `;
 
-// ---------------------- GET ทั้งหมด (join ชื่อ type/faculty มาด้วย) ----------------------
+// ---------------------- GET ทั้งหมด (join ชื่อ type มาด้วย) ----------------------
 router.get('/', async (req, res) => {
   try {
     const { user_user_id } = req.query;
@@ -51,24 +49,11 @@ router.get('/', async (req, res) => {
 });
 
 // ---------------------- GET ของ user คนเดียว (แทน /me เดิมที่ต้องใช้ JWT) ----------------------
-router.get('/user/:user_id', async (req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `${SELECT_JOINED} WHERE r.user_user_id = ? AND r.deleted_at IS NULL ORDER BY r.result_id DESC`,
-      [req.params.user_id]
-    );
-    res.json(rows);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- POST ----------------------
 router.post('/', async (req, res) => {
   try {
     const { user_user_id, type_type_id, result_code, test_date, scores, holland_code } = req.body;
-    let { recommended_faculty_id } = req.body;
 
     if (!user_user_id || !type_type_id) {
       return res.status(400).json({ message: 'user_user_id และ type_type_id จำเป็น' });
@@ -80,17 +65,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'holland_code ต้องเป็นรหัส 3 ตัวจาก R I A S E C' });
     }
 
-    // ไม่ระบุคณะ → ใช้คณะที่ผูกกับกลุ่มบุคลิกภาพนี้ (ตาราง faculty.Type_type_id)
-    if (!recommended_faculty_id) {
-      const [fac] = await pool.query('SELECT faculty_id FROM faculty WHERE Type_type_id = ? AND deleted_at IS NULL ORDER BY faculty_id LIMIT 1', [type_type_id]);
-      recommended_faculty_id = fac[0]?.faculty_id || null;
-    }
-
+    // สาขาที่แนะนำไม่เก็บในฐานข้อมูล — หน้าเว็บคำนวณจาก holland_code + data/riasec.json (ไฟล์ Excel ของงานแนะแนว)
     const [result] = await pool.query(`
       INSERT INTO user_type_result
-      (user_user_id, type_type_id, result_code, holland_code, test_date, recommended_faculty_id, scores_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [user_user_id, type_type_id, result_code || null, holland_code || null, test_date ? new Date(test_date) : new Date(), recommended_faculty_id || null, scores ? JSON.stringify(scores) : null]);
+      (user_user_id, type_type_id, result_code, holland_code, test_date, scores_json)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, [user_user_id, type_type_id, result_code || null, holland_code || null, test_date ? new Date(test_date) : new Date(), scores ? JSON.stringify(scores) : null]);
 
     res.status(201).json({
       result_id: result.insertId,
@@ -99,7 +79,6 @@ router.post('/', async (req, res) => {
       result_code,
       holland_code: holland_code || null,
       test_date,
-      recommended_faculty_id,
       scores: scores || null,
     });
   } catch (e) {
@@ -109,44 +88,7 @@ router.post('/', async (req, res) => {
 });
 
 // ---------------------- PUT ----------------------
-router.put('/:id', async (req, res) => {
-  try {
-    const { result_code = null, recommended_faculty_id = null } = req.body;
-
-    const [result] = await pool.query(`
-      UPDATE user_type_result
-      SET result_code = COALESCE(?, result_code),
-          recommended_faculty_id = COALESCE(?, recommended_faculty_id)
-      WHERE result_id = ? AND deleted_at IS NULL
-    `, [result_code, recommended_faculty_id, req.params.id]);
-
-    if (!result.affectedRows)
-      return res.status(404).json({ message: 'Not found' });
-
-    res.json({ message: 'Updated' });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- DELETE (Soft) ----------------------
-router.delete('/:id', async (req, res) => {
-  try {
-    const [result] = await pool.query(`
-      UPDATE user_type_result
-      SET deleted_at = NOW()
-      WHERE result_id = ?
-    `, [req.params.id]);
-
-    if (!result.affectedRows)
-      return res.status(404).json({ message: 'Not found' });
-
-    res.json({ message: 'Deleted' });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 module.exports = router;

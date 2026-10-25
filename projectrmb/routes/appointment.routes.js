@@ -2,12 +2,20 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
 const { authRequired, requireRole } = require('../middlewares/auth');
-const { notifyAppointment } = require('../utils/appointmentMail');
+const { notifyAppointment: sendAppointmentMail } = require('../utils/appointmentMail');
+
+// อีเมลแจ้งนัดหมาย — ปิดไว้ก่อน (เปิดใหม่: ตั้ง APPOINTMENT_EMAIL=on ใน .env) โค้ดส่งอีเมลยังอยู่ใน utils/appointmentMail.js
+const notifyAppointment = (...args) => (process.env.APPOINTMENT_EMAIL === 'on' ? sendAppointmentMail(...args) : null);
 
 // คอลัมน์ผู้สร้างนัด (ครูนัดนักเรียน / นักเรียนขอนัดครู) — เพิ่มให้อัตโนมัติถ้ายังไม่มี (ไม่กระทบข้อมูลเดิม)
 pool
   .query('ALTER TABLE appointment ADD COLUMN IF NOT EXISTS created_by_user_id INT NULL')
   .catch((e) => console.error('add appointment.created_by_user_id failed:', e.message));
+
+// นัดหลายวัน: วันสุดท้ายของนัด (NULL = นัดวันเดียว)
+pool
+  .query('ALTER TABLE appointment ADD COLUMN IF NOT EXISTS appointment_end_date DATE NULL AFTER appointment_date')
+  .catch((e) => console.error('add appointment.appointment_end_date failed:', e.message));
 
 // การตอบรับนัด: ฝ่ายที่ถูกนัดกดยืนยัน/ปฏิเสธ — ปฏิเสธพร้อมเหตุผลและวันเวลาที่สะดวกแทนได้
 // status: pending (รอยืนยัน) | confirmed | declined | cancelled
@@ -25,6 +33,12 @@ const RESPONSE_COLS = `a.response_note, DATE_FORMAT(a.proposed_date, '%Y-%m-%d')
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // ผู้สร้างนัด (นัดเก่าที่ไม่ได้บันทึกผู้สร้าง ถือว่าครูเป็นผู้นัด) — อีกฝ่ายคือผู้ถูกนัด
+// วันสิ้นสุดของนัด: ว่าง/วันเดียวกัน → null (นัดวันเดียว) • ก่อนวันเริ่ม/รูปแบบผิด → false
+const endDateOf = (start, end) => {
+  if (!end || end === start) return null;
+  if (!DATE_RE.test(String(end)) || String(end) < String(start)) return false;
+  return end;
+};
 const creatorOf = (a) => String(a.created_by_user_id ?? a.teacher_user_id);
 const inviteeOf = (a) => (creatorOf(a) === String(a.teacher_user_id) ? String(a.student_user_id) : String(a.teacher_user_id));
 
@@ -63,7 +77,7 @@ router.get('/', async (req, res) => {
       `SELECT a.appointment_id,
               a.teacher_user_id, t.fullname AS teacher_name,
               a.student_user_id, s.fullname AS student_name,
-              a.appointment_date, a.appointment_time, a.note, a.status,
+              a.appointment_date, DATE_FORMAT(a.appointment_end_date, '%Y-%m-%d') AS appointment_end_date, a.appointment_time, a.note, a.status,
               a.created_by_user_id,
               ${RESPONSE_COLS},
               a.created_at, a.updated_at
@@ -128,7 +142,7 @@ router.get('/:id', async (req, res) => {
       `SELECT a.appointment_id,
               a.teacher_user_id, t.fullname AS teacher_name,
               a.student_user_id, s.fullname AS student_name,
-              a.appointment_date, a.appointment_time, a.note, a.status,
+              a.appointment_date, DATE_FORMAT(a.appointment_end_date, '%Y-%m-%d') AS appointment_end_date, a.appointment_time, a.note, a.status,
               a.created_by_user_id,
               ${RESPONSE_COLS},
               a.created_at, a.updated_at
@@ -153,6 +167,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', authRequired, async (req, res) => {
   try {
     const { teacher_user_id, appointment_date, appointment_time, note } = req.body;
+    const appointment_end_date = endDateOf(appointment_date, req.body.appointment_end_date);
     // นักเรียนนัดได้เฉพาะตัวเอง (ไม่เชื่อ student_user_id จาก body)
     const student_user_id = req.user?.role === 'student' ? req.user.id : req.body.student_user_id;
     const created_by_user_id = req.user?.id || null;
@@ -160,11 +175,12 @@ router.post('/', authRequired, async (req, res) => {
     if (!teacher_user_id || !student_user_id || !appointment_date || !appointment_time) {
       return res.status(400).json({ message: 'teacher_user_id, student_user_id, appointment_date, appointment_time จำเป็น' });
     }
+    if (appointment_end_date === false) return res.status(400).json({ message: 'วันสิ้นสุดต้องเป็นวันเดียวกันหรือหลังวันเริ่มนัด' });
 
     const [result] = await pool.query(
-      `INSERT INTO appointment (teacher_user_id, student_user_id, appointment_date, appointment_time, note, created_by_user_id, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
-      [teacher_user_id, student_user_id, appointment_date, appointment_time, note || null, created_by_user_id]
+      `INSERT INTO appointment (teacher_user_id, student_user_id, appointment_date, appointment_end_date, appointment_time, note, created_by_user_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [teacher_user_id, student_user_id, appointment_date, appointment_end_date, appointment_time, note || null, created_by_user_id]
     );
 
     // แจ้งอีกฝ่ายทางอีเมล (ไม่ได้ตั้งค่า SMTP / ไม่มีอีเมล → ข้าม แต่สร้างนัดสำเร็จตามปกติ)
@@ -176,6 +192,7 @@ router.post('/', authRequired, async (req, res) => {
       teacher_user_id,
       student_user_id,
       appointment_date,
+      appointment_end_date,
       appointment_time,
       note: note || null,
       status: 'pending',
@@ -192,18 +209,23 @@ router.put('/:id', authRequired, async (req, res) => {
   try {
     const {
       appointment_date = null,
+      appointment_end_date,
       appointment_time = null,
       note = null,
       status = null,
     } = req.body;
     const id = req.params.id;
     const [[before]] = await pool.query(
-      `SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS d, TIME_FORMAT(appointment_time, '%H:%i') AS t, status FROM appointment WHERE appointment_id = ?`,
+      `SELECT DATE_FORMAT(appointment_date, '%Y-%m-%d') AS d, DATE_FORMAT(appointment_end_date, '%Y-%m-%d') AS e, TIME_FORMAT(appointment_time, '%H:%i') AS t, status FROM appointment WHERE appointment_id = ?`,
       [id]
     );
+    // ส่ง appointment_end_date มา = กำหนดช่วงวันใหม่ (null/วันเดียวกัน = นัดวันเดียว) • ไม่ส่งมา = คงเดิม
+    const endGiven = appointment_end_date !== undefined;
+    const newEnd = endGiven ? endDateOf(appointment_date || before?.d, appointment_end_date) : before?.e || null;
+    if (newEnd === false) return res.status(400).json({ message: 'วันสิ้นสุดต้องเป็นวันเดียวกันหรือหลังวันเริ่มนัด' });
 
     // เลื่อนวัน/เวลา → อีกฝ่ายต้องยืนยันใหม่ (ล้างคำขอเปลี่ยนเวลาเดิม)
-    const movedNow = (appointment_date && appointment_date !== before?.d) || (appointment_time && String(appointment_time).slice(0, 5) !== before?.t);
+    const movedNow = (appointment_date && appointment_date !== before?.d) || (endGiven && newEnd !== (before?.e || null)) || (appointment_time && String(appointment_time).slice(0, 5) !== before?.t);
     if (movedNow && !status && before?.status !== 'cancelled') {
       await pool.query(
         `UPDATE appointment SET status = 'pending', response_note = NULL, proposed_date = NULL, proposed_time = NULL, responded_at = NULL WHERE appointment_id = ?`,
@@ -214,12 +236,13 @@ router.put('/:id', authRequired, async (req, res) => {
     const [result] = await pool.query(
       `UPDATE appointment
        SET appointment_date = COALESCE(?, appointment_date),
+           appointment_end_date = ?,
            appointment_time = COALESCE(?, appointment_time),
            note = COALESCE(?, note),
            status = COALESCE(?, status),
            updated_at = NOW()
        WHERE appointment_id = ?`,
-      [appointment_date, appointment_time, note, status, id]
+      [appointment_date, newEnd, appointment_time, note, status, id]
     );
 
     if (!result.affectedRows) {
@@ -227,7 +250,7 @@ router.put('/:id', authRequired, async (req, res) => {
     }
 
     // แจ้งทางอีเมลเมื่อเลื่อนวัน/เวลา หรือยกเลิก (แก้แค่หมายเหตุไม่ส่ง)
-    const moved = (appointment_date && appointment_date !== before?.d) || (appointment_time && String(appointment_time).slice(0, 5) !== before?.t);
+    const moved = (appointment_date && appointment_date !== before?.d) || (endGiven && newEnd !== (before?.e || null)) || (appointment_time && String(appointment_time).slice(0, 5) !== before?.t);
     const cancelled = status === 'cancelled' && before?.status !== 'cancelled';
     const email = cancelled || moved ? await notifyAppointment(id, cancelled ? 'cancelled' : 'updated', req.user?.id) : null;
 
@@ -304,7 +327,8 @@ router.post('/:id/respond', authRequired, async (req, res) => {
       if (creatorOf(a) !== me) return res.status(403).json({ message: 'ผู้นัดเท่านั้นที่เลื่อนตามคำขอได้' });
       if (a.status !== 'declined' || !a.proposed_date || !a.proposed_time) return res.status(409).json({ message: 'ไม่มีวันเวลาที่อีกฝ่ายเสนอไว้' });
       await pool.query(
-        `UPDATE appointment SET appointment_date = proposed_date, appointment_time = proposed_time, status = 'confirmed',
+        `UPDATE appointment SET appointment_end_date = IF(appointment_end_date IS NULL, NULL, DATE_ADD(proposed_date, INTERVAL DATEDIFF(appointment_end_date, appointment_date) DAY)),
+                appointment_date = proposed_date, appointment_time = proposed_time, status = 'confirmed',
                 response_note = NULL, proposed_date = NULL, proposed_time = NULL, responded_at = NOW()
          WHERE appointment_id = ?`,
         [a.appointment_id]

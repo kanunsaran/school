@@ -157,21 +157,18 @@ const sectionBlocks = (d, key, n) => {
   if (key === "goal") return [{ html: box(n, SECTIONS.goal, kv(goalRows(d))) }];
   if (key === "holland") {
     const ranked = rankRiasec(d);
-    if (!ranked.length) return [{ html: box(n, SECTIONS.holland, `<div class="empty">นักเรียนยังไม่ได้ทำแบบประเมิน Holland</div>`) }];
-    const typeBox = `<div class="typebox">กลุ่มบุคลิกภาพเด่น: <b>${esc(d.type?.type_name || `${ranked[0][0]} – ${RIASEC_TH[ranked[0][0]]}`)}</b>${d.faculty ? ` • คณะแนะนำ: <b>${esc(`${d.faculty.faculty_name} (${d.faculty.university_name})`)}</b>` : ""}<br/><span style="color:#6b7280">ทำแบบประเมินเมื่อ ${esc(thaiDate(d.result?.test_date))}</span></div>`;
-    if (!d.scores) {
-      return [{ html: box(n, SECTIONS.holland, `${typeBox}<div class="empty" style="margin-top:6px">* ผลนี้บันทึกไว้ก่อนระบบเก็บคะแนนรายด้าน จึงยังไม่มีกราฟ (ให้นักเรียนทำแบบทดสอบใหม่เพื่อแสดงกราฟ)</div>`) }];
-    }
+    if (!ranked.length) return [{ html: box(n, SECTIONS.holland, `<div class="empty">นักเรียนยังไม่ได้ทำแบบประเมินความสนใจ</div>`) }];
+    const typeBox = `<div class="typebox">ความสนใจเด่น 3 อันดับ: <b>${esc(ranked.slice(0, 3).map(([c]) => `${c} ${RIASEC_TH[c]}`).join(", "))}</b>${d.faculties?.length ? `<br/>สาขาที่แนะนำสำหรับรหัสนี้: <b>${esc(d.faculties.join(", "))}</b>` : ""}<br/><span style="color:#6b7280">ทำแบบประเมินเมื่อ ${esc(thaiDate(d.result?.test_date))}</span></div>`;
     const max = Math.max(10, Math.ceil(Math.max(...RIASEC.map((c) => Number(d.scores[c]) || 0)) / 10) * 10);
     const bars = RIASEC.map((c) => {
       const v = Number(d.scores[c]) || 0;
       return `<div class="bar"><span class="lb"><b>${c}</b> ${RIASEC_TH[c]}</span><span class="tr"><span class="fl" style="display:block;width:${(v / max) * 100}%"></span></span><span class="nv">${v}</span></div>`;
     }).join("");
-    return [{ html: box(n, SECTIONS.holland, `<div class="holland">${radarSvg(d.scores)}<div class="bars">${bars}<div style="font-size:17px;color:#6b7280;margin-top:4px">รหัส Holland: <b style="color:#831843">${ranked.slice(0, 3).map(([c]) => c).join("-")}</b></div></div></div>${typeBox}`) }];
+    return [{ html: box(n, SECTIONS.holland, `<div class="holland">${radarSvg(d.scores)}<div class="bars">${bars}<div style="font-size:17px;color:#6b7280;margin-top:4px">รหัส RIASEC: <b style="color:#831843">${esc(riasecCode(d))}</b></div></div></div>${typeBox}`) }];
   }
   if (key === "analysis") {
     const a = analysisOf(d);
-    const cls = { สูง: "hi", ปานกลาง: "mid", ควรทบทวน: "lo" }[a.alignment.level] || "na";
+    const cls = { สูง: "hi", ปานกลาง: "mid", ต่ำ: "lo" }[a.alignment.level] || "na";
     const ul = (arr) => `<ul>${arr.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
     return [{
       html: box(n, SECTIONS.analysis, `<div class="an">
@@ -217,7 +214,7 @@ const studentCard = (d, typeKey) => {
   const s = d.student;
   const initial = (s.fullname || "?").replace(/^(นางสาว|เด็กหญิง|เด็กชาย|นาย|นาง)\s*/, "").charAt(0);
   const chips = [];
-  if (typeKey === "guidance" && d.type) chips.push(`กลุ่ม ${d.type.type_name}`);
+  if (typeKey === "guidance" && d.riasec) chips.push(`RIASEC ${d.riasec.code}`);
   if (typeKey === "guidance" && d.goal?.faculty_name) chips.push(`เป้าหมาย: ${d.goal.faculty_name}`);
   return `<div class="card">
     <div class="photo">${d.avatarUrl ? `<img src="${d.avatarUrl}" />` : esc(initial)}</div>
@@ -375,15 +372,15 @@ export const buildClassSummary = async (list, typeKey, roomText, onProgress) => 
       { ...name, width: "22%" },
       { label: "เป้าหมาย / คณะที่อยากเข้า", width: "29%", get: (r) => [r.d.goal?.faculty_name, r.d.goal?.goal_text].filter(Boolean).join(" • ") || "-" },
       { label: "RIASEC", width: "10%", align: "center", get: (r) => riasecCode(r.d) },
-      { label: "กลุ่มเด่น", width: "16%", get: (r) => r.d.type?.type_name || (rankRiasec(r.d)[0] ? RIASEC_TH[rankRiasec(r.d)[0][0]] : "ยังไม่ได้ทำ") },
+      { label: "กลุ่มเด่น", width: "16%", get: (r) => (r.d.riasec ? r.d.riasec.code.split("").map((c) => RIASEC_TH[c]).join(" ") : "ยังไม่ได้ทำ") },
       { label: "ความสอดคล้อง", width: "16%", align: "center", get: (r) => goalAlignment(r.d).level },
     ];
     summary = [
       { label: "นักเรียน", value: list.length, tone: "gray" },
       { label: "มีเป้าหมายแล้ว", value: list.filter((d) => d.goal).length, tone: "blue" },
-      { label: "ทำ Holland แล้ว", value: list.filter((d) => d.result).length },
+      { label: "ทำแบบประเมินแล้ว", value: list.filter((d) => d.riasec).length },
       { label: "สอดคล้องสูง", value: levels.filter((l) => l === "สูง").length, tone: "green" },
-      { label: "ควรทบทวน", value: levels.filter((l) => l === "ควรทบทวน").length, tone: "red" },
+      { label: "สอดคล้องต่ำ", value: levels.filter((l) => l === "ต่ำ").length, tone: "red" },
     ];
   } else if (typeKey === "submissions") {
     const st = (d) => {

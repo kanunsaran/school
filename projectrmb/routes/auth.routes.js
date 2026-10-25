@@ -69,34 +69,6 @@ const router = express.Router();
 // ------------------------------
 //   สมัครสมาชิก (Register)
 // ------------------------------
-router.post('/register', async (req, res) => {
-  try {
-    const { username, password, fullname, email, dob, role, role_role_id } = req.body;
-
-    // เดิม field นี้อ่านแค่ role_role_id (ตัวเลข) เท่านั้น ถ้า frontend ส่ง role เป็น string
-    // (เช่น "student"/"teacher") มาแทน จะถูกเพิกเฉยเงียบๆ แล้ว fallback เป็น teacher เสมอ
-    let roleId = role_role_id;
-    if (!roleId) {
-      roleId = role === 'teacher' ? 1 : 2; // ไม่ระบุ = ค่าเริ่มต้นเป็นนักเรียน
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-
-    const [result] = await pool.query(
-      `INSERT INTO users (username, password, fullname, email, dob, role_role_id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [username, hash, fullname, email, dob, roleId]
-    );
-
-    res.status(201).json({ 
-      message: 'Registered',
-      id: result.insertId
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: 'Email or Username already exists' });
-  }
-});
 
 // ------------------------------
 //   ล็อกอิน (Login) → ส่ง token
@@ -189,39 +161,6 @@ router.post('/login', async (req, res) => {
 // ------------------------------
 //   ออกจากระบบ (Logout)
 // ------------------------------
-router.post('/logout', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const [rows] = await pool.query(
-      'SELECT user_id, email, password, role_role_id FROM users WHERE email = ?',
-      [email.trim()]
-    );
-
-    if (rows.length === 0)
-      return res.status(401).json({ message: 'User not found' });
-
-    const user = rows[0];
-
-    // ✅ compare bcrypt
-    const match = await bcrypt.compare(password, user.password);
-
-    if (!match)
-      return res.status(401).json({ message: 'Wrong password' });
-
-    const token = jwt.sign(
-      { user_id: user.user_id, role: user.role_role_id },
-      "secretkey",
-      { expiresIn: "1d" }
-    );
-
-    res.json({ token });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 
 // ── Google Login ──────────────────────────────────────────

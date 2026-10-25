@@ -14,7 +14,7 @@ const SCOPES = [
 ];
 const scopeIcon = (i) => [<FaUser key="u" className="mx-auto mb-1" size={18} />, <FaUsers key="m" className="mx-auto mb-1" size={18} />, <FaSchool key="c" className="mx-auto mb-1" size={18} />][i];
 const TYPE_DESC = {
-  guidance: "ข้อมูลทั่วไป เป้าหมาย ผล Holland (RIASEC) และคำแนะนำครู",
+  guidance: "ข้อมูลทั่วไป เป้าหมาย ผลแบบประเมินความสนใจ (RIASEC) และคำแนะนำครู",
   submissions: "งานที่มอบหมาย การส่งงาน ส่งช้า/ค้างส่ง และคะแนน",
   attendance: "สรุป มา/สาย/ลา/ขาด และรายการเช็กชื่อรายวัน",
 };

@@ -1,0 +1,449 @@
+
+import { useSidebarOpen, setSidebarOpen, registerSidebar } from "../utils/sidebarStore.js";
+import { useEffect, useMemo, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  FaHome,
+  FaRegCalendarAlt,
+  FaChevronDown,
+  FaNewspaper,
+  FaTasks,
+  FaUserFriends,
+  FaUsers,
+  FaSignOutAlt,
+  FaChalkboardTeacher,
+  FaFolderOpen,
+  FaClipboardCheck,
+  FaChartBar,
+  FaListUl,
+  FaCommentDots,
+  FaFileImport,
+  FaClipboardList,
+} from "react-icons/fa";
+import { getClasses, getAssignmentClasses } from "../callapi/callapi_user.jsx";
+
+const gradeLabel = (c) => `${c.grade_name}/${c.section}${c.track ? ` (${c.track})` : ""}`;
+
+// เช็คว่า pathname อยู่ในห้องเรียนนี้ไหม (รวมทุกแท็บ เช่น /classroom/1/work) โดยไม่ชนกับห้องอื่นที่ id ขึ้นต้นเหมือนกัน เช่น 1 กับ 12
+const isCurrentClassroom = (pathname, id) =>
+  pathname === `/classroom/${id}` || pathname.startsWith(`/classroom/${id}/`);
+
+export default function SidebarNav() {
+  const location = useLocation();
+  const sidebarOpen = useSidebarOpen();
+  useEffect(registerSidebar, []);
+  // เปลี่ยนหน้าแล้วปิดเมนูลิ้นชัก
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+  const navigate = useNavigate();
+
+  const [classrooms, setClassrooms] = useState([]);
+
+  useEffect(() => {
+    getClasses()
+      .then((data) => {
+        const list = (data || []).map((c) => ({ ...c, id: c.id ?? c.grade_id ?? c.idgrade }));
+        setClassrooms(list);
+      })
+      .catch((err) => console.error("โหลดรายชื่อห้องเรียนไม่สำเร็จ:", err));
+  }, []);
+
+  // เข้าดูรายละเอียดงาน (/work/:id) แบบแยกหน้า (ไม่ได้อยู่ใต้ /classroom/:id) — หาว่างานนี้ผูกกับห้องไหน
+  // เพื่อไฮไลต์เมนู "ห้องเรียนของฉัน" กับห้องนั้นให้ถูกต้อง ไม่งั้นเมนูจะไม่บอกว่าตอนนี้อยู่ห้องไหน
+  const workDetailAssId = location.pathname.match(/^\/work\/(\d+)$/)?.[1] || null;
+  const [linkedGradeId, setLinkedGradeId] = useState(null);
+
+  useEffect(() => {
+    if (!workDetailAssId) {
+      setLinkedGradeId(null);
+      return;
+    }
+    getAssignmentClasses({ ass_id: workDetailAssId })
+      .then((rows) => setLinkedGradeId(rows?.[0]?.grade_id ?? null))
+      .catch(() => setLinkedGradeId(null));
+  }, [workDetailAssId]);
+
+  const groups = useMemo(
+    () => ({
+      activity: ["/newsfeed", "/image", "/about"],
+    }),
+    []
+  );
+
+  const isInGroup = (key) => {
+    if (key === "classrooms") return location.pathname.startsWith("/classroom") || !!workDetailAssId;
+    if (key === "assessment") return location.pathname.startsWith("/assessments");
+    if (key === "students") return location.pathname.startsWith("/student") || location.pathname === "/ImportStudents";
+    return groups[key]?.some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`));
+  };
+
+  const [openMenu, setOpenMenu] = useState({
+    activity: false,
+    classrooms: false,
+    assessment: false,
+    students: false,
+  });
+
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const toggleMenu = (key) => {
+    setOpenMenu((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  useEffect(() => {
+    setOpenMenu((prev) => ({
+      ...prev,
+      activity: prev.activity || isInGroup("activity"),
+      classrooms: prev.classrooms || isInGroup("classrooms"),
+      assessment: prev.assessment || isInGroup("assessment"),
+      students: prev.students || isInGroup("students"),
+    }));
+  }, [location.pathname]);
+
+  // 🎨 clean smooth
+  const menuNormal =
+    "flex items-center px-4 py-2.5 rounded-xl transition-colors duration-200";
+
+  const menuWithArrow =
+    "flex items-center justify-between px-4 py-2.5 rounded-xl transition-colors duration-200";
+
+  const mainInactive =
+    "text-gray-900 hover:text-pink-600 hover:bg-pink-50";
+
+  const mainActive =
+    "bg-pink-50 text-pink-700 font-semibold";
+
+  const subBase =
+    "flex items-center gap-3 px-3 py-2 rounded-xl text-[15px] transition-colors duration-200";
+
+  const subInactive =
+    "text-gray-900 hover:text-pink-600 hover:bg-pink-50";
+
+  const subActive =
+    "bg-pink-50 text-pink-700 font-semibold";
+
+  const iconInactive = "text-gray-500";
+  const iconActive = "text-pink-500";
+
+  return (
+    <>
+      {/* จอเล็ก (< lg): เมนูเป็นลิ้นชักเลื่อนออกมาจากซ้าย เปิดด้วยปุ่ม ☰ ใน Header */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      {/* จอใหญ่: เมนูยึดติดซ้ายตลอดเวลาเลื่อน (fixed) — ช่องว่างนี้กันที่ให้เนื้อหา เพราะหลายหน้ามี overflow-hidden ที่ทำให้ sticky ไม่ทำงาน */}
+      <div aria-hidden className="hidden lg:block w-[270px] shrink-0" />
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-[270px] max-w-[85vw] shrink-0 bg-white border-r border-gray-200 h-screen overflow-y-auto pt-20 lg:pt-23 transition-transform duration-200 lg:z-30 lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
+        }`}
+      >
+        <nav className="px-3 pb-6 text-[17px] space-y-2">
+
+<NavLink
+  to="/TeacherDashboard"
+  className={({ isActive }) =>
+    `${menuNormal} ${isActive ? mainActive : mainInactive}`
+  }
+>
+  <FaHome
+    className={
+      location.pathname === "/TeacherDashboard"
+        ? iconActive
+        : iconInactive
+    }
+  />
+  <span className="ml-3">หน้าหลัก</span>
+</NavLink>
+
+<NavLink
+  to="/TeacherCalendar"
+  className={({ isActive }) =>
+    `${menuNormal} ${isActive ? mainActive : mainInactive}`
+  }
+>
+  <FaRegCalendarAlt
+    className={
+      location.pathname === "/TeacherCalendar"
+        ? iconActive
+        : iconInactive
+    }
+  />
+  <span className="ml-3">ปฏิทิน</span>
+</NavLink>
+
+          {/* ห้องเรียน
+          <NavLink
+            to="/classroom"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive || location.pathname.startsWith("/classroom") ? mainActive : mainInactive}`
+            }
+          >
+            <FaChalkboardTeacher className={location.pathname.startsWith("/classroom") ? iconActive : iconInactive} />
+            <span className="ml-3">ห้องเรียน</span>
+          </NavLink> */}
+
+          {/* ===== จัดการนักเรียน ===== */}
+          <div>
+            <div
+              onClick={() => toggleMenu("students")}
+              className={`${menuWithArrow} ${
+                isInGroup("students") ? mainActive : mainInactive
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FaUserFriends className={isInGroup("students") ? iconActive : iconInactive} />
+                <span className="font-medium">จัดการนักเรียน</span>
+              </div>
+
+              <FaChevronDown
+                className={`text-[13px] transition-transform duration-200 ${
+                  openMenu.students ? "rotate-180" : ""
+                } ${isInGroup("students") ? "text-pink-500" : "text-gray-400"}`}
+              />
+            </div>
+
+            {openMenu.students && (
+              <div className="ml-4 pl-4 border-l border-gray-100 mt-1 space-y-1">
+                <NavLink to="/student" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaListUl className={location.pathname === "/student" ? iconActive : iconInactive} />
+                  รายชื่อนักเรียน
+                </NavLink>
+
+                <NavLink to="/ImportStudents" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaFileImport className={location.pathname === "/ImportStudents" ? iconActive : iconInactive} />
+                  นำเข้ารายชื่อนักเรียน
+                </NavLink>
+              </div>
+            )}
+          </div>
+
+          {/* ===== กิจกรรม ===== */}
+          <div>
+            <div
+              onClick={() => toggleMenu("activity")}
+              className={`${menuWithArrow} ${
+                isInGroup("activity") ? mainActive : mainInactive
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FaRegCalendarAlt className={isInGroup("activity") ? iconActive : iconInactive} />
+                <span className="font-medium">กิจกรรม</span>
+              </div>
+
+              <FaChevronDown
+                className={`text-[13px] transition-transform duration-200 ${
+                  openMenu.activity ? "rotate-180" : ""
+                } ${isInGroup("activity") ? "text-pink-500" : "text-gray-400"}`}
+              />
+            </div>
+
+            {openMenu.activity && (
+              <div className="ml-4 pl-4 border-l border-gray-100 mt-1 space-y-1">
+                <NavLink to="/newsfeed" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaNewspaper className={location.pathname === "/post" ? iconActive : iconInactive} />
+                  โพสต์
+                </NavLink>
+
+                <NavLink to="/image" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaTasks className={location.pathname.startsWith("/image") ? iconActive : iconInactive} />
+                  รูปภาพ
+                </NavLink>
+
+                <NavLink to="/about" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaUserFriends className={location.pathname === "/about" ? iconActive : iconInactive} />
+                  เกี่ยวกับ
+                </NavLink>
+              </div>
+            )}
+          </div>
+
+          {/* ===== ห้องเรียนของฉัน ===== */}
+          <div>
+            <div
+              onClick={() => toggleMenu("classrooms")}
+              className={`${menuWithArrow} ${
+                isInGroup("classrooms") ? mainActive : mainInactive
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FaChalkboardTeacher className={isInGroup("classrooms") ? iconActive : iconInactive} />
+                <span className="font-medium">ห้องเรียนที่ดูแล</span>
+              </div>
+
+              <FaChevronDown
+                className={`text-[13px] transition-transform duration-200 ${
+                  openMenu.classrooms ? "rotate-180" : ""
+                } ${isInGroup("classrooms") ? "text-pink-500" : "text-gray-400"}`}
+              />
+            </div>
+
+            {openMenu.classrooms && (
+              <div className="ml-4 pl-4 border-l border-gray-100 mt-1 space-y-1">
+                {classrooms.length === 0 && (
+                  <div className="px-3 py-2 text-[14px] text-gray-400">ไม่พบห้องเรียน</div>
+                )}
+                {classrooms.map((c) => {
+                  const roomIsActive =
+                    isCurrentClassroom(location.pathname, c.id) ||
+                    (linkedGradeId != null && String(linkedGradeId) === String(c.id));
+                  return (
+                    <Link
+                      key={c.id}
+                      to={`/classroom/${c.id}`}
+                      className={`${subBase} ${roomIsActive ? subActive : subInactive}`}
+                    >
+                      <FaNewspaper className={roomIsActive ? iconActive : iconInactive} />
+                      {gradeLabel(c)}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ภาพรวมการมอบหมายงาน */}
+          <NavLink
+            to="/AssignmentOverview"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive ? mainActive : mainInactive}`
+            }
+          >
+            <FaClipboardList className={location.pathname === "/AssignmentOverview" ? iconActive : iconInactive} />
+            <span className="ml-3">ภาพรวมการมอบหมายงาน</span>
+          </NavLink>
+
+          {/* ===== แบบประเมิน ===== */}
+          <div>
+            <div
+              onClick={() => toggleMenu("assessment")}
+              className={`${menuWithArrow} ${
+                isInGroup("assessment") ? mainActive : mainInactive
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <FaClipboardCheck className={isInGroup("assessment") ? iconActive : iconInactive} />
+                <span className="font-medium">แบบประเมิน</span>
+              </div>
+
+              <FaChevronDown
+                className={`text-[13px] transition-transform duration-200 ${
+                  openMenu.assessment ? "rotate-180" : ""
+                } ${isInGroup("assessment") ? "text-pink-500" : "text-gray-400"}`}
+              />
+            </div>
+
+            {openMenu.assessment && (
+              <div className="ml-4 pl-4 border-l border-gray-100 mt-1 space-y-1">
+                <NavLink to="/assessments" end className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaListUl className={location.pathname === "/assessments" ? iconActive : iconInactive} />
+                  แบบประเมินทั้งหมด
+                </NavLink>
+
+                <NavLink to="/assessments/results" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaChartBar className={location.pathname === "/assessments/results" ? iconActive : iconInactive} />
+                  ผลการประเมิน
+                </NavLink>
+
+                <NavLink to="/assessments/stats" className={({ isActive }) =>
+                  `${subBase} ${isActive ? subActive : subInactive}`}>
+                  <FaChartBar className={location.pathname === "/assessments/stats" ? iconActive : iconInactive} />
+                  สถิติ
+                </NavLink>
+              </div>
+            )}
+          </div>
+
+          {/* คำขอปรึกษา */}
+          <NavLink
+            to="/consultations"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive ? mainActive : mainInactive}`
+            }
+          >
+            <FaCommentDots className={location.pathname === "/consultations" ? iconActive : iconInactive} />
+            <span className="ml-3">คำขอปรึกษา</span>
+          </NavLink>
+
+          {/* แฟ้มสะสมผลงาน */}
+          <NavLink
+            to="/portfolio"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive ? mainActive : mainInactive}`
+            }
+          >
+            <FaFolderOpen className={location.pathname === "/portfolio" ? iconActive : iconInactive} />
+            <span className="ml-3">แฟ้มสะสมผลงาน</span>
+          </NavLink>
+
+          {/* ชุมนุม */}
+          <NavLink
+            to="/YC/"
+            className={({ isActive }) =>
+              `${menuNormal} ${isActive ? mainActive : mainInactive}`
+            }
+          >
+            <FaUsers className={location.pathname === "/YC/" ? iconActive : iconInactive} />
+            <span className="ml-3">ชุมนุม (YC)</span>
+          </NavLink>
+
+          {/* Logout */}
+          <button style={{backgroundColor: "white"}}
+            onClick={() => setShowLogoutModal(true)}
+            className="w-full text-left flex items-center px-4 py-2.5 rounded-xl text-gray-900 hover:text-red-500 hover:bg-red-50 transition-colors duration-200 "
+          >
+            <FaSignOutAlt />
+            <span className="ml-3">ออกจากระบบ</span>
+          </button>
+
+        </nav>
+      </aside>
+
+      {/* ===== Modal ===== */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          
+          {/* background blur */}
+          <div
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity"
+            onClick={() => setShowLogoutModal(false)}
+          />
+
+          {/* modal box */}
+          <div className="relative bg-white rounded-2xl shadow-xl w-[320px] p-5 animate-fadeIn">
+            <h2 className="text-[16px] font-semibold text-gray-800">
+              ออกจากระบบ
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              คุณต้องการออกจากระบบจริงหรือไม่?
+            </p>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 rounded-lg text-gray-500 hover:bg-gray-100"
+              >
+                ยกเลิก
+              </button>
+
+              <button
+                onClick={() => navigate("/login")}
+                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+              >
+                ออกจากระบบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

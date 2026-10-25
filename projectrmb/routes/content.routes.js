@@ -16,14 +16,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-async function getClassIds(contentId) {
-  const [rows] = await pool.query(
-    `SELECT grade_id FROM content_classes WHERE content_id = ?`,
-    [contentId]
-  );
-  return rows.map((r) => r.grade_id);
-}
-
 async function attachClassIds(rows) {
   if (!rows.length) return rows;
   const ids = rows.map((r) => r.content_id);
@@ -157,14 +149,6 @@ router.get('/:id', async (req, res) => {
 });
 
 // ---------------------- GET ห้องเรียนที่ผูกกับเนื้อหานี้ ----------------------
-router.get('/:id/classes', async (req, res) => {
-  try {
-    res.json(await getClassIds(req.params.id));
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- GET ไฟล์แนบของเนื้อหา ----------------------
 router.get('/:id/files', async (req, res) => {

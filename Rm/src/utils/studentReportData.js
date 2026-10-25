@@ -1,8 +1,6 @@
 import {
   getGoals,
   getTypeResults,
-  getTypes,
-  getFaculties,
   getAssAll,
   getAllSubmissions,
   getAssignmentClasses,
@@ -11,6 +9,8 @@ import {
   getAssessmentAdvice,
 } from "../callapi/callapi_user.jsx";
 import { primaryGoalOf } from "./goals.js";
+import { latestResultOf, loadRiasecData, recommendedFaculties } from "./riasecResults.js";
+import { goalTargets, analyzeTarget } from "./riasecScoring.js";
 
 // รวบรวมข้อมูลสำหรับ "รายงานรายบุคคล / ตารางสรุปทั้งห้อง" จากฐานข้อมูล แล้ววิเคราะห์ให้ครู
 // (จุดเด่น, ความสอดคล้องเป้าหมายกับ RIASEC, สิ่งที่ควรพัฒนา) — ใช้กับระบบสร้างรายงานตัวเดียว
@@ -18,7 +18,7 @@ import { primaryGoalOf } from "./goals.js";
 export const SECTIONS = {
   general: "ข้อมูลทั่วไป",
   goal: "เป้าหมายการศึกษาต่อ",
-  holland: "ผลการประเมิน Holland (RIASEC)",
+  holland: "ผลแบบประเมินความสนใจ (RIASEC)",
   analysis: "ผลการวิเคราะห์และคำแนะนำครู",
   submissions: "ผลการส่งงานวิชาแนะแนว",
   attendance: "การเข้าเรียน / เช็กชื่อ",
@@ -57,16 +57,6 @@ export const RIASEC_TH = {
   E: "ผู้นำ",
   C: "นักจัดระเบียบ",
 };
-// คำที่บ่งบอกสายคณะ/อาชีพของแต่ละด้าน — ใช้ประเมินความสอดคล้องของเป้าหมายกับผล RIASEC
-const RIASEC_KEYWORDS = {
-  R: ["วิศวกรรม", "ช่าง", "เกษตร", "เทคนิค", "อุตสาหกรรม", "สถาปัตย", "ทหาร", "ตำรวจ", "กีฬา", "พละ", "ประมง", "ป่าไม้", "ซ่อม", "นักบิน"],
-  I: ["วิทยาศาสตร์", "แพทย", "เภสัช", "ทันต", "วิจัย", "คอมพิวเตอร์", "วิทยาการ", "ไอที", "ฟิสิกส์", "เคมี", "ชีว", "คณิต", "สัตวแพทย", "เทคนิคการแพทย์", "โปรแกรม", "ข้อมูล"],
-  A: ["ศิลป", "ออกแบบ", "สถาปัตย", "ดนตรี", "นิเทศ", "การแสดง", "กราฟิก", "แฟชั่น", "สื่อ", "ภาพยนตร์", "วรรณ", "อักษร", "นักเขียน", "ช่างภาพ", "ดีไซน์"],
-  S: ["ครุ", "ศึกษาศาสตร์", "ครู", "พยาบาล", "จิตวิทยา", "สังคม", "แนะแนว", "สาธารณสุข", "กายภาพ", "สังคมสงเคราะห์", "มนุษย", "บริการ", "โรงแรม", "ท่องเที่ยว"],
-  E: ["บริหาร", "ธุรกิจ", "นิติ", "กฎหมาย", "การตลาด", "เศรษฐ", "รัฐศาสตร์", "การเมือง", "ผู้ประกอบการ", "ขาย", "การจัดการ", "นักการทูต", "ทนาย"],
-  C: ["บัญชี", "การเงิน", "สถิติ", "เลขานุการ", "ธนาคาร", "ภาษี", "ประกัน", "ธุรการ", "คลัง", "สารสนเทศ", "เอกสาร"],
-};
-
 const parseJson = (v) => {
   if (!v) return null;
   if (typeof v === "object") return v;
@@ -83,11 +73,10 @@ const thaiDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "num
 // ---------- โหลดข้อมูลทั้งหมดของนักเรียนชุดนี้ ----------
 // students: [{ user_id, fullname, student_code, gradeId, seatNo }], classes: [{ id, grade_name, section, track }]
 export const loadReportData = async (students, classes, onProgress) => {
-  const [goals, results, types, faculties, assignments, submissions] = await Promise.all([
+  const [goals, results, riasecData, assignments, submissions] = await Promise.all([
     getGoals().catch(() => []),
     getTypeResults().catch(() => []),
-    getTypes().catch(() => []),
-    getFaculties().catch(() => []),
+    loadRiasecData(),
     getAssAll().catch(() => []),
     getAllSubmissions().catch(() => []),
   ]);
@@ -111,9 +100,8 @@ export const loadReportData = async (students, classes, onProgress) => {
     ]);
     const fd = parseJson(info?.form_data) || {};
     const goal = primaryGoalOf(goals, s.user_id);
-    const result = (results || []).filter((r) => String(r.user_user_id) === String(s.user_id)).sort((a, b) => new Date(b.test_date) - new Date(a.test_date))[0] || null;
-    const type = result ? (types || []).find((t) => String(t.type_id) === String(result.type_type_id)) : null;
-    const faculty = result ? (faculties || []).find((f) => String(f.faculty_id) === String(result.recommended_faculty_id)) : null;
+    // ผลแบบประเมินความสนใจล่าสุดที่มีคะแนนครบ 6 ด้าน (ชุดเดียวกับหน้าผลของนักเรียน)
+    const result = latestResultOf(results, s.user_id);
     const cls = (classes || []).find((c) => String(c.id ?? c.idgrade) === String(s.gradeId));
 
     // งานที่มอบหมายให้ห้องของนักเรียน (ถ้าระบบยังไม่ได้ผูกงานกับห้อง ใช้งานทั้งหมด)
@@ -154,10 +142,10 @@ export const loadReportData = async (students, classes, onProgress) => {
       fd,
       goal,
       result,
-      scores: parseJson(result?.scores_json),
-      type,
-      faculty,
-      types: types || [],
+      scores: result?.scores || null,
+      riasec: result?.riasec || null,
+      faculties: recommendedFaculties(riasecData, result?.riasec),
+      riasecData,
       advice: advice || [],
       work,
       attendance: { ...att, records: (records || []).filter((r) => r.status !== "not_checked") },
@@ -168,40 +156,35 @@ export const loadReportData = async (students, classes, onProgress) => {
 };
 
 // ---------- วิเคราะห์ ----------
-export const rankRiasec = (d) => {
-  if (d.scores) return RIASEC.map((c) => [c, Number(d.scores[c]) || 0]).sort((a, b) => b[1] - a[1]);
-  if (d.result?.result_code) return [[d.result.result_code, null]];
-  return [];
-};
+export const rankRiasec = (d) => (d.riasec ? d.riasec.ranked.map((c) => [c, Number(d.scores[c]) || 0]) : []);
 
-export const riasecCode = (d) => {
-  const r = rankRiasec(d);
-  if (!r.length) return "-";
-  return d.scores ? r.slice(0, 3).map(([c]) => c).join("-") : r[0][0];
-};
+export const riasecCode = (d) => (d.riasec ? d.riasec.code.split("").join("-") : "-");
 
-const goalText = (d) =>
-  [d.goal?.faculty_name, d.goal?.career_field, d.goal?.goal_text, ...(d.fd.interests?.interested_careers || [])].filter(Boolean).join(" ");
-
+// ความสอดคล้องเป้าหมายกับผล — ใช้ goalTargets + analyzeTarget เดียวกับหน้าผลของนักเรียนและหน้าผลการประเมินของครู
+const LEVEL_TH = { high: "สูง", medium: "ปานกลาง", low: "ต่ำ" };
 export const goalAlignment = (d) => {
-  const ranked = rankRiasec(d);
-  const text = goalText(d);
-  if (!ranked.length || !text) return { level: "ยังประเมินไม่ได้", detail: !ranked.length ? "นักเรียนยังไม่ได้ทำแบบประเมิน Holland" : "นักเรียนยังไม่ได้ตั้งเป้าหมาย" };
-  const hit = (code) => RIASEC_KEYWORDS[code].some((k) => text.includes(k));
-  const top = ranked.slice(0, d.scores ? 3 : 1).map(([c]) => c);
-  if (hit(top[0])) return { level: "สูง", detail: `เป้าหมายตรงกับด้านที่โดดเด่นที่สุด (${top[0]} – ${RIASEC_TH[top[0]]})` };
-  const second = top.slice(1).find(hit);
-  if (second) return { level: "ปานกลาง", detail: `เป้าหมายสอดคล้องกับด้านรอง (${second} – ${RIASEC_TH[second]})` };
-  return { level: "ควรทบทวน", detail: "เป้าหมายยังไม่สอดคล้องกับด้านที่โดดเด่น ควรพูดคุยเพื่อสำรวจทางเลือกเพิ่มเติม" };
+  if (!d.riasec) return { level: "ยังประเมินไม่ได้", detail: "นักเรียนยังไม่ได้ทำแบบประเมินความสนใจ" };
+  if (!d.goal || ![d.goal.faculty_name, d.goal.goal_text, d.goal.career_field].some((v) => String(v || "").trim())) return { level: "ยังประเมินไม่ได้", detail: "นักเรียนยังไม่ได้ตั้งเป้าหมาย" };
+  const target = d.riasecData ? goalTargets(d.riasecData, d.goal)[0] : null;
+  if (!target) return { level: "ยังประเมินไม่ได้", detail: "ไม่พบคณะของเป้าหมายนี้ในข้อมูลของงานแนะแนว" };
+  const a = analyzeTarget(d.riasecData, d.riasec, target);
+  const dim = `${a.faculty.dim} – ${RIASEC_TH[a.faculty.dim]}`;
+  const detail =
+    a.kind === "recommended"
+      ? `ตาราง 120 รหัสของงานแนะแนวแนะนำ${a.faculty.name}สำหรับรหัส ${a.viaCode || d.riasec.code}`
+      : a.kind === "main"
+      ? `${a.faculty.name}เป็นสาขาด้าน ${dim} ซึ่งเป็นความสนใจเด่นอันดับ ${a.rank} ของนักเรียน`
+      : `${a.faculty.name}เป็นสาขาด้าน ${dim} ซึ่งไม่อยู่ในความสนใจเด่น 3 อันดับแรก ควรพูดคุยเพื่อสำรวจทางเลือกเพิ่มเติม`;
+  return { level: LEVEL_TH[a.displayLevel] || "ยังประเมินไม่ได้", detail };
 };
 
 export const analysisOf = (d) => {
   const ranked = rankRiasec(d);
   const strengths = [];
   if (ranked.length) {
-    ranked.slice(0, d.scores ? 2 : 1).forEach(([c]) => {
-      const t = d.types.find((x) => x.type_code === c);
-      strengths.push(`${c} – ${RIASEC_TH[c]}${t?.description ? `: ${t.description}` : ""}`);
+    ranked.slice(0, 2).forEach(([c]) => {
+      const traits = d.riasecData?.dimensions?.[c]?.traits;
+      strengths.push(`${c} – ${RIASEC_TH[c]}${traits ? `: ${traits}` : ""}`);
     });
   }
   if (d.fd.interests?.special_ability) strengths.push(`ความสามารถพิเศษ: ${d.fd.interests.special_ability}`);

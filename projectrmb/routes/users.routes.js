@@ -4,27 +4,6 @@ const { pool } = require('../db');
 
 
 // ---------------------- GET users ทั้งหมด ----------------------
-router.get('/', async (_req, res) => {
-
-    try {
-
-        const [rows] = await pool.query(
-            `SELECT user_id, username, fullname, email, dob, role_role_id, student_code, created_at
-             FROM users
-             WHERE deleted_at IS NULL
-             ORDER BY created_at DESC`
-        );
-
-        res.json(rows);
-
-    } catch (e) {
-
-        console.error(e);
-        res.status(500).json({ message: 'Server error' });
-
-    }
-
-});
 
 router.get('/student', async (_req, res) => {
 
@@ -100,39 +79,6 @@ router.get('/:id', async (req, res) => {
 
 
 // ---------------------- POST สร้าง user ----------------------
-router.post('/', async (req, res) => {
-
-    try {
-
-        const { username, password, fullname, email, dob, role_role_id, student_code } = req.body;
-
-        if (!username || !password || !fullname || !email) {
-            return res.status(400).json({ message: 'Missing required fields' });
-        }
-
-        const [result] = await pool.query(
-            `INSERT INTO users
-            (username, password, fullname, email, dob, role_role_id, student_code)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [username, password, fullname, email, dob || null, role_role_id || 1, student_code || null]
-        );
-
-        res.status(201).json({
-            user_id: result.insertId,
-            username,
-            fullname,
-            email,
-            student_code
-        });
-
-    } catch (e) {
-
-        console.error(e);
-        res.status(500).json({ message: 'Server error' });
-
-    }
-
-});
 
 
 // ---------------------- PUT แก้ user ----------------------

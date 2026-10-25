@@ -18,17 +18,14 @@ app.use('/uploads',express.static(path.join(__dirname,'uploads')))
 
 
 const authRouter = require('./routes/auth.routes');
-const announcementsRouter = require('./routes/announcements.routes');
 const yearRouter = require('./routes/year.routes');
 const assignmentRouter = require('./routes/assignment.routes');
 const chapterRouter = require('./routes/chapter.routes');
 const enrollRouter = require('./routes/enroll.routes');
-const facultyRouter = require('./routes/faculty.routes');
 const goalRouter = require('./routes/goal.routes');
 const postitRouter = require('./routes/postit.routes');
 const post_commentRouter = require('./routes/post_comment.routes');
 const reactionRouter = require('./routes/reaction.routes');
-const rolesRouter = require('./routes/roles.routes');
 const send_assRouter = require('./routes/send_ass.routes');
 const typesRouter = require('./routes/types.routes');
 const newsRouter = require('./routes/news.routes');
@@ -36,8 +33,6 @@ const usersRouter = require('./routes/users.routes');
 const user_type_resultRouter = require('./routes/user_type_result.routes');
 const comments = require('./routes/comments.routes');
 const likesRouter = require('./routes/likes.routes');
-const announcementCommentsRouter = require('./routes/announcementcomments.routes');
-const announcementLikesRouter = require('./routes/announcementlikes.routes');
 const gradesRouter = require('./routes/grades.routes');
 const studentGradesRouter = require('./routes/student_grades.routes');
 const attendanceRouter = require('./routes/attendance.routes');
@@ -62,7 +57,6 @@ const feedCategoriesRouter = require('./routes/feed_categories.routes');
 const schoolInfoRouter = require('./routes/school_info.routes');
 const aiReviewRouter = require('./routes/ai_review.routes');
 
-const scoreAssignmentRouter = require('./routes/score_assignment.routes');
 
 
 app.get('/',(req,res)=>{
@@ -72,27 +66,21 @@ app.get('/',(req,res)=>{
 })
 
 app.use('/auth',authRouter)
-app.use('/announcements', announcementsRouter)
 app.use('/year', yearRouter)
 app.use('/assignment', assignmentRouter)
 app.use('/chapter', chapterRouter)
 app.use('/enroll', enrollRouter)
-app.use('/faculty', facultyRouter)
 app.use('/goal', goalRouter)
 app.use('/postit', postitRouter)
 app.use('/post_comment', post_commentRouter)
 app.use('/reaction', reactionRouter)
-app.use('/roles', rolesRouter)
 app.use('/send_ass', send_assRouter)
 app.use('/types', typesRouter)
 app.use('/news', newsRouter)
 app.use('/users', usersRouter)
 app.use('/user_type_result', user_type_resultRouter)
-app.use('/score-assignment', scoreAssignmentRouter);
 app.use('/comments', comments);
 app.use('/likes', likesRouter);
-app.use('/announcement-comments', announcementCommentsRouter);
-app.use('/announcement-likes', announcementLikesRouter);
 app.use('/grades', gradesRouter);
 app.use('/student-grades', studentGradesRouter);
 app.use('/attendance', attendanceRouter);

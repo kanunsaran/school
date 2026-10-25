@@ -159,7 +159,6 @@ export default function FeedPostComposerModal({ initialData, onClose, onConfirm,
       return;
     }
 
-    const categoryLabel = categories.find((c) => c.key === category)?.label;
     const confirmResult = await Swal.fire({
       title: isEditMode ? "ยืนยันบันทึกการแก้ไข?" : "ยืนยันโพสต์นี้?",
       icon: "question",

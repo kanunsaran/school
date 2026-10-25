@@ -38,6 +38,7 @@ const guide = [
   ["", ""],
   ["ลำดับความสำคัญ", "สิ่งที่ควรตรวจ"],
   ["1 (สำคัญที่สุด)", "ชีต 2-สาขาขัดกับONET: ด้านหลักของสาขาในไฟล์โรงเรียนต่างจาก O*NET — ครูตัดสินว่าใช้ด้านใด (ระบบยังใช้ของโรงเรียน)"],
+  ["1", "ชีต 11-ข้อคำถาม60ข้อ: ผู้เชี่ยวชาญ 3 คนให้คะแนนแต่ละข้อว่าวัดด้านที่ระบุจริงไหม (+1 ตรง / 0 ไม่แน่ใจ / −1 ไม่ตรง) — IOC ≥ 0.5 ใช้ได้ ข้อที่ต่ำกว่าควรปรับ"],
   ["1", "ชีต 1-เกณฑ์ระบบ: เกณฑ์ที่ผู้พัฒนาตั้งขึ้นเอง (ระดับความสอดคล้อง, ใกล้เคียง = ห่าง ≤ 2 คะแนน, การนับอันดับร่วม ฯลฯ) — ยังไม่มีแหล่งอ้างอิงรับรอง"],
   ["1", "ชีต 4-ข้อความที่ระบบเขียน: กิจกรรมทั่วไป 6 ด้าน คำถามทบทวนตัวเอง ประโยคแม่แบบ และคำอธิบายทักษะ 216 ข้อ — เขียนโดยระบบ ยังไม่ผ่านครู"],
   ["2", "ชีต 3-ข้อมูลสาขา: เนื้อหาจาก Excel ของโรงเรียน (คุณลักษณะ ทักษะ คำแนะนำ วิชา อาชีพ มหาวิทยาลัย) — ยังไม่ได้ตรวจกับแหล่งภายนอก"],
@@ -195,10 +196,67 @@ XLSX.utils.book_append_sheet(
   "10-แหล่งข้อมูล"
 );
 
+// 11) ข้อคำถามแบบประเมิน 60 ข้อ — อ่านจากหน้าแบบทดสอบโดยตรง (ไฟล์ JSX import ใน node ไม่ได้)
+const testSrc = fs.readFileSync(path.join(root, "Rm/src/student/ASS/aptitudeTest.jsx"), "utf8");
+const bankSrc = testSrc.match(/const QUESTION_BANK = (\{[\s\S]*?\n\});/)?.[1];
+if (!bankSrc) throw new Error("ไม่พบ QUESTION_BANK ใน aptitudeTest.jsx");
+const bank = Function(`return ${bankSrc}`)();
+const scale = R.ANSWER_SCALE.map((s) => `${s.value} = ${s.label}`).join(" • ");
+const IOC = { "ผู้เชี่ยวชาญ 1 (+1/0/−1)": "", "ผู้เชี่ยวชาญ 2 (+1/0/−1)": "", "ผู้เชี่ยวชาญ 3 (+1/0/−1)": "", "IOC (เฉลี่ย ≥ 0.5 ใช้ได้)": "" };
+const itemRows = Object.entries(bank).flatMap(([code, items]) =>
+  items.map((q, i) => ({ ข้อ: `${code}${i + 1}`, ด้าน: `${code} – ${data.dimensions[code].nameTh}`, ข้อคำถาม: q, "มาตรวัดคำตอบ": i === 0 ? scale : "", ...IOC, "ข้อเสนอแก้ไข": "", "ผู้ตรวจ / วันที่": "" }))
+);
+const wsItems = sheet(itemRows, [6, 22, 60, 30, 16, 16, 16, 18, 40, 20]);
+itemRows.forEach((_, i) => {
+  const r = i + 2;
+  wsItems[`H${r}`] = { t: "s", v: "", f: `IF(COUNT(E${r}:G${r})=0,"",AVERAGE(E${r}:G${r}))` };
+});
+XLSX.utils.book_append_sheet(wb, wsItems, "11-ข้อคำถาม60ข้อ");
+
 const outDir = path.join(root, "docs/teacher-review");
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, "ครูตรวจสอบ-ระบบแนะแนว-RIASEC.xlsx");
 XLSX.writeFile(wb, out);
 console.log(`เขียน ${out}`);
 console.log(`ชีต: ${wb.SheetNames.join(", ")}`);
+
+// ฉบับย่อ — เฉพาะส่วนที่ต้องใช้วิจารณญาณของครูแนะแนว (~240 แถว) ส่วนเทคนิค/ข้อมูลที่โรงเรียนให้มาอยู่ในฉบับเต็ม
+const shortTexts = texts.filter((x) => x.หมวด !== "คำอธิบายทักษะที่ควรพัฒนา");
+const shortGuide = [
+  ["ไฟล์ตรวจสอบระบบแนะแนว RIASEC (ฉบับย่อสำหรับครูแนะแนว)", ""],
+  ["สร้างเมื่อ", today],
+  ["วิธีตรวจ", "ใส่ ✓ ถ้าเห็นด้วย หรือ ✗ พร้อมข้อเสนอแก้ไขในคอลัมน์ทางขวา แล้วส่งไฟล์คืนผู้พัฒนา (ชีต 1 ให้คะแนน +1/0/−1 แทน)"],
+  ["", ""],
+  ["ชีต", "ตรวจอะไร"],
+  ["1-ข้อคำถาม60ข้อ", `ข้อคำถามแต่ละข้อวัดด้านที่ระบุจริงไหม (+1 ตรง / 0 ไม่แน่ใจ / −1 ไม่ตรง) ผู้เชี่ยวชาญ 3 คน — IOC ≥ 0.5 ใช้ได้ (${itemRows.length} ข้อ)`],
+  ["2-สาขาขัดกับONET", `ด้านหลักของสาขาในไฟล์โรงเรียนต่างจาก O*NET — ระบุว่าควรใช้ด้านใด (${conflicts.length} สาขา)`],
+  ["3-เกณฑ์ระบบ", `เกณฑ์ที่ระบบใช้ตัดสินผล เช่น ระดับความสอดคล้อง ความหมายของ “ใกล้เคียง” — เหมาะสมกับนักเรียนไหม (${rules.length} ข้อ)`],
+  ["4-ข้อความที่ระบบเขียน", `กิจกรรม คำถามทบทวนตัวเอง ประโยคแม่แบบที่นักเรียนเห็นบนหน้าผล — ภาษาและเนื้อหาเหมาะสมไหม (${shortTexts.length} ข้อ)`],
+  ["5-คำแนะนำรายสาขา", `คำแนะนำ ทักษะ วิชา สายการเรียน สิ่งที่ควรเตรียมสอบ และอาชีพ ของแต่ละสาขา — ถูกต้องและเหมาะกับนักเรียน ม.ปลายไหม (${fac.length} สาขา) • ชื่อมหาวิทยาลัย/หลักสูตร/ลิงก์ ผู้พัฒนาตรวจกับ myTCAS แล้ว`],
+  ["", ""],
+  ["ข้อจำกัด", "ผล RIASEC บอกความสนใจ ไม่ได้วัดความสามารถหรือโอกาสสอบติด • ยังไม่มีค่าความเชื่อมั่น (Cronbach's alpha) จากนักเรียนจริง"],
+];
+const wbShort = XLSX.utils.book_new();
+const wsShortGuide = XLSX.utils.aoa_to_sheet(shortGuide);
+wsShortGuide["!cols"] = [{ wch: 24 }, { wch: 120 }];
+XLSX.utils.book_append_sheet(wbShort, wsShortGuide, "0-วิธีใช้");
+XLSX.utils.book_append_sheet(wbShort, wsItems, "1-ข้อคำถาม60ข้อ");
+XLSX.utils.book_append_sheet(wbShort, wb.Sheets["2-สาขาขัดกับONET"], "2-สาขาขัดกับONET");
+XLSX.utils.book_append_sheet(wbShort, sheet(rules.map(({ "อยู่ในโค้ด": _, ...r }) => r), [26, 90, 42, 22, 40, 20]), "3-เกณฑ์ระบบ");
+XLSX.utils.book_append_sheet(wbShort, sheet(shortTexts.map((x) => ({ ...x, ...REVIEW })), [30, 6, 22, 110, 22, 40, 20]), "4-ข้อความที่ระบบเขียน");
+const advice = fac.map((f) => ({
+  สาขา: f.สาขา,
+  "ด้านหลัก": `${f["ด้านหลัก"]} – ${data.dimensions[f["ด้านหลัก"]].nameTh}`,
+  "คำแนะนำสำหรับนักเรียน": f["คำแนะนำสำหรับนักเรียน"],
+  "ทักษะที่ควรพัฒนา": f["ทักษะที่ควรพัฒนา"],
+  "วิชาที่ควรเน้น": f["วิชาที่ควรเน้น"],
+  "สายการเรียน": f["สายการเรียน"],
+  "สิ่งที่ควรเตรียมสอบ": f["สิ่งที่ควรเตรียมสอบ"],
+  "อาชีพที่เกี่ยวข้อง": f["อาชีพที่เกี่ยวข้อง"],
+  ...REVIEW,
+}));
+XLSX.utils.book_append_sheet(wbShort, sheet(advice, [30, 20, 60, 40, 26, 22, 40, 40, 22, 40, 20]), "5-คำแนะนำรายสาขา");
+const outShort = path.join(outDir, "ครูตรวจสอบ-ฉบับย่อ-RIASEC.xlsx");
+XLSX.writeFile(wbShort, outShort);
+console.log(`เขียน ${outShort} (${itemRows.length + conflicts.length + rules.length + shortTexts.length + advice.length} แถว)`);
 console.log(`เกณฑ์ ${rules.length} • สาขาขัดกับ O*NET ${conflicts.length} • สาขา ${fac.length} • ข้อความระบบ ${texts.length} • การจับคู่วลี ${linkRows.length} แถว`);

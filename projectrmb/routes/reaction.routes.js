@@ -1,57 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../db');
-const { authRequired } = require('../middlewares/auth');
 
 // ---------------------- GET ทั้งหมด ----------------------
-router.get('/', async (_req, res) => {
-  try {
-    const [rows] = await pool.query(
-      `SELECT reaction_id, type, user_user_id, postit_post_id, postcomment_comment_id, created_at
-       FROM reaction
-       WHERE deleted_at IS NULL
-       ORDER BY reaction_id DESC`
-    );
-    res.json(rows);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- POST เพิ่ม Reaction ----------------------
-router.post('/', async (req, res) => {
-  try {
-    const { type, postit_post_id = null, postcomment_comment_id = null } = req.body;
-    const userId = null;
-
-    if (!type) {
-      return res.status(400).json({ message: 'type is required' });
-    }
-
-    if ((!postit_post_id && !postcomment_comment_id) || (postit_post_id && postcomment_comment_id)) {
-      return res.status(400).json({ message: 'Must provide either postit_post_id or postcomment_comment_id' });
-    }
-
-    const [result] = await pool.query(
-      `INSERT INTO reaction (type, user_user_id, postit_post_id, postcomment_comment_id)
-       VALUES (?, ?, ?, ?)`,
-      [type, userId, postit_post_id, postcomment_comment_id]
-    );
-
-    res.status(201).json({
-      reaction_id: result.insertId,
-      type,
-      user_user_id: userId,
-      postit_post_id,
-      postcomment_comment_id
-    });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: e.message || 'Server error' });
-  }
-});
 
 // ---------------------- DELETE (Soft delete reaction) ----------------------
 router.delete('/:id', async (req, res) => {
@@ -78,26 +31,6 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ---------------------- COUNT LIKE ของโพสต์ ----------------------
-router.get('/count/:postId', async (req, res) => {
-  try {
-    const postId = req.params.postId;
-
-    const [rows] = await pool.query(
-      `SELECT COUNT(*) AS total
-       FROM reaction
-       WHERE postit_post_id = ?
-       AND type = 'like'
-       AND deleted_at IS NULL`,
-      [postId]
-    );
-
-    res.json({ total: rows[0].total });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // ---------------------- สถานะไลก์ + จำนวนไลก์ของโพสต์ ----------------------
 // GET /reaction/like-status?postit_post_id=14&user_user_id=1

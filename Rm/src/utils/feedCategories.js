@@ -4,7 +4,7 @@
 // เพราะฟังก์ชัน getAllCategories/getCategoryMetaMap/getFilterOptions ถูกเรียกแบบ sync
 // ที่จุดใช้งานเดิมจำนวนมาก — loadFeedCategories() คืออันเดียวที่ต้อง await เพื่อเติมแคชนี้
 // ================================================================
-import { CATEGORY_LIST } from "../learning/newsFeedMockData.js";
+import { CATEGORY_LIST } from "../data/newsFeedMockData.js";
 import { getFeedCategories, createFeedCategory } from "../callapi/callapi_user.jsx";
 import { getCurrentUser } from "./auth.js";
 

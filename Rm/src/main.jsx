@@ -6,75 +6,71 @@ import { GOOGLE_CLIENT_ID } from './config/api.js';
 import './index.css';
 import './App.css'; // Tailwind + Flowbite (เดิมโหลดผ่าน App.jsx ที่ไม่ได้ใช้แล้ว)
 import RequireAuth from './components/RequireAuth.jsx';
-import {Dash,Dash2} from './dashbord.jsx';
 
-import ClassworkPage from "./learning/work.jsx";
-import WorkDetailPage from "./learning/WorkDetail.jsx";
-import AttendancePage from "./learning/Attendance.jsx";
-import NewsFeedPage from "./learning/NewsFeed.jsx";
-import AboutPage from "./activity/about.jsx";
-import ClassroomListPage from "./learning/ClassroomList.jsx";
-import ClassroomShell from "./learning/ClassroomShell.jsx";
-import ClassroomNewsTab from "./learning/ClassroomNewsTab.jsx";
+import ClassworkPage from "./pages/teacher/05-classrooms/work/ClassroomWork.jsx";
+import WorkDetailPage from "./pages/teacher/05-classrooms/work/WorkDetail.jsx";
+import NewsFeedPage from "./pages/shared/activities/NewsFeed.jsx";
+import AboutPage from "./pages/shared/activities/About.jsx";
+import ClassroomListPage from "./pages/teacher/05-classrooms/ClassroomList.jsx";
+import ClassroomShell from "./pages/teacher/05-classrooms/ClassroomShell.jsx";
+import ClassroomNewsTab from "./pages/teacher/05-classrooms/news/ClassroomNewsTab.jsx";
 import {
   ClassroomWorkTab,
   ClassroomStudentsTab,
   ClassroomAttendanceTab,
-} from "./learning/ClassroomTabRoutes.jsx";
-import AssessmentListPage from "./learning/AssessmentList.jsx";
-import AssessmentCreatePage from "./learning/AssessmentCreate.jsx";
-import AssessmentResultsPage from "./learning/AssessmentResults.jsx";
-import AssessmentStatsPage from "./learning/AssessmentStats.jsx";
-import ConsultationsPage from "./learning/Consultations.jsx";
-import PortfolioTeacherPage from "./learning/Portfolio.jsx";
-import StudentPortfolioPage from "./student/learning/StudentPortfolio.jsx";
-import StudentListPage from "./learning/students.jsx";
-import WorkCreatePage from "./learning/WorkCreate.jsx";
-import QuestionCreatePage from "./learning/QuestionCreate.jsx";
-import QuestionDetailPage from "./learning/QuestionDetail.jsx";
-import StudentQuestionDetailPage from "./student/learning/StudentQuestionDetail.jsx";
-import ContentCreatePage from "./learning/ContentCreate.jsx";
-import ContentDetailPage from "./learning/ContentDetail.jsx";
-import StudentContentDetailPage from "./student/learning/StudentContentDetail.jsx";
-import YCCommunityPage from "./yc/yc1.jsx";
-import YCPostDetailPage from "./yc/yc2.jsx";
-import LoginPage from "./login.jsx";
-import ImagePage from "./activity/image.jsx"
-import ImagePostDetailPage from './activity/ImagePostDetail.jsx'
-import StudentNewsPage from './student/learning/StudentNews.jsx';
+} from "./pages/teacher/05-classrooms/ClassroomTabRoutes.jsx";
+import AssessmentListPage from "./pages/teacher/07-assessments/AssessmentList.jsx";
+import AssessmentCreatePage from "./pages/teacher/07-assessments/AssessmentCreate.jsx";
+import AssessmentResultsPage from "./pages/teacher/07-assessments/AssessmentResults.jsx";
+import AssessmentStatsPage from "./pages/teacher/07-assessments/AssessmentStats.jsx";
+import ConsultationsPage from "./pages/teacher/08-consultations/Consultations.jsx";
+import PortfolioTeacherPage from "./pages/teacher/09-portfolio/Portfolio.jsx";
+import StudentPortfolioPage from "./pages/student/06-portfolio/StudentPortfolio.jsx";
+import StudentListPage from "./pages/teacher/03-students/StudentList.jsx";
+import WorkCreatePage from "./pages/teacher/05-classrooms/work/WorkCreate.jsx";
+import QuestionCreatePage from "./pages/teacher/05-classrooms/work/QuestionCreate.jsx";
+import QuestionDetailPage from "./pages/teacher/05-classrooms/work/QuestionDetail.jsx";
+import StudentQuestionDetailPage from "./pages/student/04-my-classroom/work/StudentQuestionDetail.jsx";
+import ContentCreatePage from "./pages/teacher/05-classrooms/work/ContentCreate.jsx";
+import ContentDetailPage from "./pages/teacher/05-classrooms/work/ContentDetail.jsx";
+import StudentContentDetailPage from "./pages/student/04-my-classroom/work/StudentContentDetail.jsx";
+import YCCommunityPage from "./pages/teacher/10-yc/YCCommunity.jsx";
+import YCPostDetailPage from "./pages/shared/yc/YCPostDetail.jsx";
+import LoginPage from "./pages/login/Login.jsx";
+import ImagePage from "./pages/shared/activities/ImageGallery.jsx"
+import ImagePostDetailPage from './pages/shared/activities/ImagePostDetail.jsx'
 
 
-import Studentclassworkpage from './student/learning/Classwork.jsx';
-import Studentworkdetailpage from './student/learning/StudentWorkDetail.jsx';
-import Studentclassmatespage from './student/learning/StudentClassmates.jsx';
-import StudentClassroomShell, { StudentClassroomRedirect } from './student/learning/StudentClassroomShell.jsx';
-import StudentClassroomNewsTab from './student/learning/StudentClassroomNewsTab.jsx';
-import { StudentClassroomWorkTab, StudentClassroomClassmatesTab } from './student/learning/StudentClassroomTabRoutes.jsx';
+import Studentclassworkpage from './pages/student/04-my-classroom/work/Classwork.jsx';
+import Studentworkdetailpage from './pages/student/04-my-classroom/work/StudentWorkDetail.jsx';
+import StudentClassroomShell, { StudentClassroomRedirect } from './pages/student/04-my-classroom/StudentClassroomShell.jsx';
+import StudentClassroomNewsTab from './pages/student/04-my-classroom/news/StudentClassroomNewsTab.jsx';
+import { StudentClassroomWorkTab, StudentClassroomClassmatesTab } from './pages/student/04-my-classroom/StudentClassroomTabRoutes.jsx';
 
-import AptitudeIntroPage from './student/ASS/AptitudeIntro.jsx'
-import AptitudeTestPage from './student/ASS/aptitudeTest.jsx'
-import ResultPage from './student/ASS/result.jsx'
+import AptitudeIntroPage from './pages/student/05-assessment/AptitudeIntro.jsx'
+import AptitudeTestPage from './pages/student/05-assessment/AptitudeTest.jsx'
+import ResultPage from './pages/student/05-assessment/AssessmentResult.jsx'
 //แดชบอร์ดครู
-import TeacherDashboardPage from "./Teacher/TeacherDashboard.jsx";
+import TeacherDashboardPage from "./pages/teacher/01-home/TeacherDashboard.jsx";
 //นำเข้ารายชื่อนักเรียน
-import ImportStudentsPage from "./Teacher/ImportStudents.jsx";
+import ImportStudentsPage from "./pages/teacher/03-students/ImportStudents.jsx";
 //ปฏิทินนัดหมาย
-import TeacherCalendarPage from "./Teacher/TeacherCalendar.jsx";
-import TeacherProfilePage from "./Teacher/TeacherProfile.jsx";
-import AssignmentOverviewPage from "./Teacher/AssignmentOverview.jsx";
+import TeacherCalendarPage from "./pages/teacher/02-calendar/TeacherCalendar.jsx";
+import TeacherProfilePage from "./pages/teacher/profile/TeacherProfile.jsx";
+import AssignmentOverviewPage from "./pages/teacher/06-assignment-overview/AssignmentOverview.jsx";
 
 
 //yc
-import StudentCommunityPage from './student/yc/StudentCommunity.jsx'
+import StudentCommunityPage from './pages/student/07-yc/StudentCommunity.jsx'
 
 //เป้าหมายของฉัน
-import StudentGoalPage from './student/StudentGoal.jsx'
-import StudentConsultationsPage from './student/StudentConsultations.jsx'
-import StudentDashboardPage from './student/StudentDashboard.jsx'
-import AttendanceCheckinPage from './student/AttendanceCheckin.jsx'
-import StudentInfoFormPage from './student/StudentInfoForm.jsx'
-import StudentProfilePage from './student/StudentProfile.jsx'
-import StudentCalendarPage from './student/StudentCalendar.jsx'
+import StudentGoalPage from './pages/student/08-goal/StudentGoal.jsx'
+import StudentConsultationsPage from './pages/student/09-consultations/StudentConsultations.jsx'
+import StudentDashboardPage from './pages/student/01-home/StudentDashboard.jsx'
+import AttendanceCheckinPage from './pages/student/04-my-classroom/attendance/AttendanceCheckin.jsx'
+import StudentInfoFormPage from './pages/student/profile/StudentInfoForm.jsx'
+import StudentProfilePage from './pages/student/profile/StudentProfile.jsx'
+import StudentCalendarPage from './pages/student/02-calendar/StudentCalendar.jsx'
 
 
 
@@ -91,16 +87,6 @@ const router = createBrowserRouter([
     ),
   },
 
-    {
-    path: "/StudentNews",
-    element: (
-
-      <StudentNewsPage />
-
-    ),
-
-  },
-  
   {
     path: "/classwork",
     element: (
@@ -115,15 +101,6 @@ const router = createBrowserRouter([
     element: (
 
       <Studentworkdetailpage/>
-
-    ),
-
-  },
-   {
-    path: "/studentclassmates",
-    element: (
-
-      <Studentclassmatespage/>
 
     ),
 
@@ -201,10 +178,6 @@ const router = createBrowserRouter([
   {
     path: "/work/:id",
     element: <WorkDetailPage/>
-  },
-  {
-    path: "/attendance",
-    element: <AttendancePage/>
   },
   {
     path: "/newsfeed",
