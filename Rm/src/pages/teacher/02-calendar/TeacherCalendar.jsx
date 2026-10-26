@@ -424,7 +424,7 @@ export default function TeacherCalendar() {
                 rangeEnd={rangeEnd}
                 onRangeChange={handleRangeChange}
               />
-              <p className="mt-2 text-[13px] text-gray-400">นัดหลายวัน: กดค้างที่วันแรกแล้วลากไปวันสุดท้าย • ลากวันแรก/วันสุดท้ายเพื่อหดหรือขยายช่วง</p>
+              <p className="mt-2 text-[13px] text-gray-400">การนัดหมายหลายวัน: กดค้างที่วันเริ่มต้นแล้วลากไปยังวันสิ้นสุด • ปรับช่วงวันได้โดยลากวันเริ่มต้นหรือวันสิ้นสุด</p>
 
               {/* คำอธิบายป้ายในปฏิทิน */}
               <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-gray-500">
@@ -471,7 +471,7 @@ export default function TeacherCalendar() {
                             <div className="text-[15px] text-gray-400 truncate">
                               {student?.classroom} • {a.note}
                             </div>
-                            {a.endDate && <div className="text-[13.5px] text-pink-600">นัดหลายวัน: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
+                            {a.endDate && <div className="text-[13.5px] text-pink-600">ระยะเวลานัดหมาย: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
                           </div>
                           <div className="text-[15px] text-gray-500 flex items-center gap-1 shrink-0">
                             <FaClock className="text-[15px]" />
@@ -652,21 +652,21 @@ function EditAppointmentModal({ appointment, studentName, isDuplicate, onClose, 
 
         <div className="px-5 py-5 flex flex-col gap-4">
           <div>
-            <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{endDate ? "วันเริ่มนัด" : "วันที่นัดหมาย"}</label>
+            <label className="block text-[13px] font-medium text-gray-700 mb-1.5">{endDate ? "วันเริ่มต้น" : "วันที่นัดหมาย"}</label>
             <ThaiCalendarPicker value={date} min={toDateKey(new Date())} onChange={changeStart} />
           </div>
 
           {endDate ? (
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[13px] font-medium text-gray-700">ถึงวันที่</label>
-                <button type="button" onClick={() => setEndDate(null)} className="text-[12.5px] text-gray-500 hover:text-pink-600 bg-transparent">เปลี่ยนเป็นนัดวันเดียว</button>
+                <label className="block text-[13px] font-medium text-gray-700">วันสิ้นสุด</label>
+                <button type="button" onClick={() => setEndDate(null)} className="text-[12.5px] text-gray-500 hover:text-pink-600 bg-transparent">เปลี่ยนเป็นนัดหมายวันเดียว</button>
               </div>
               <ThaiCalendarPicker value={endDate} min={date} onChange={setEndDate} />
               <div className="mt-1 text-[12.5px] text-pink-600">{rangeLabel(date, endDate > date ? endDate : null)}{durationSuffix(date, endDate > date ? endDate : null)}</div>
             </div>
           ) : (
-            <button type="button" onClick={() => setEndDate(addDaysKey(date, 1))} className="self-start text-[13px] text-pink-600 hover:underline bg-transparent">+ นัดหลายวัน (เลือกวันสุดท้าย)</button>
+            <button type="button" onClick={() => setEndDate(addDaysKey(date, 1))} className="self-start text-[13px] text-pink-600 hover:underline bg-transparent">+ กำหนดวันสิ้นสุดการนัดหมาย</button>
           )}
 
           <div>

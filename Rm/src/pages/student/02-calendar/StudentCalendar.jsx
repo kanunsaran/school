@@ -305,7 +305,7 @@ export default function StudentCalendarPage() {
                 onRangeChange={handleRangeChange}
                 needsReply={needsReply}
               />
-              <p className="mt-2 text-[13px] text-gray-400">นัดหลายวัน: กดค้างที่วันแรกแล้วลากไปวันสุดท้าย • ลากวันแรก/วันสุดท้ายเพื่อหดหรือขยายช่วง</p>
+              <p className="mt-2 text-[13px] text-gray-400">การนัดหมายหลายวัน: กดค้างที่วันเริ่มต้นแล้วลากไปยังวันสิ้นสุด • ปรับช่วงวันได้โดยลากวันเริ่มต้นหรือวันสิ้นสุด</p>
 
               {/* คำอธิบายป้ายในปฏิทิน */}
               <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-gray-500">
@@ -352,7 +352,7 @@ export default function StudentCalendarPage() {
                             </span>
                           </div>
                           <div className="text-[15px] text-gray-400 truncate">{a.note}</div>
-                          {a.endDate && <div className="text-[13.5px] text-pink-600">นัดหลายวัน: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
+                          {a.endDate && <div className="text-[13.5px] text-pink-600">ระยะเวลานัดหมาย: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
                         </div>
                         <div className="text-[15px] text-gray-500 flex items-center gap-1 shrink-0">
                           <FaClock className="text-[15px]" />

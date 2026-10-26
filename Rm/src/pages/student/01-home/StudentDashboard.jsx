@@ -470,7 +470,7 @@ export default function StudentDashboard() {
                         <div className="min-w-0 flex-1">
                           <div className="text-gray-900 text-[14px] truncate">{a.teacher}</div>
                           <div className="text-[13px] text-gray-400 truncate">{a.note}</div>
-                          {a.endDate && <div className="text-[12.5px] text-pink-600">นัดหลายวัน: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
+                          {a.endDate && <div className="text-[12.5px] text-pink-600">ระยะเวลานัดหมาย: {rangeLabel(a.date, a.endDate)}{durationSuffix(a.date, a.endDate)}</div>}
                         </div>
                         <div className="text-[13px] text-gray-500 flex items-center gap-1 shrink-0">
                           <FaClock className="text-[13px]" />
