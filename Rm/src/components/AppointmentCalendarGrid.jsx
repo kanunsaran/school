@@ -151,8 +151,6 @@ export default function AppointmentCalendarGrid({ viewDate, today, selectedDate,
                     ? "bg-amber-100 text-amber-800"
                     : b.past
                     ? "bg-pink-50 text-pink-400"
-                    : b.multi
-                    ? "bg-pink-200 text-pink-800"
                     : "bg-pink-100 text-pink-700"
                 }`}
               >

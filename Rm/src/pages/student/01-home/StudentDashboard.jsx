@@ -713,12 +713,15 @@ function MiniCalendarGrid({ viewDate, today, selectedDate, appointmentsByDate, o
               <span
                 key={`${b.label}-${b.s}-${b.e}`}
                 style={{ gridColumn: `${b.s + 1} / ${b.e + 2}`, gridRow: b.lane + 2 }}
-                className={`pointer-events-none mx-0.5 mb-0.5 self-start whitespace-normal break-words text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
-                  b.past ? "bg-pink-50 text-pink-400" : b.multi ? "bg-pink-200 text-pink-800" : "bg-pink-100 text-pink-700"
+                className={`pointer-events-none mx-0.5 mb-0.5 self-start text-center px-0.5 py-0.5 rounded text-[10px] font-semibold leading-tight ${
+                  b.past ? "bg-pink-50 text-pink-400" : "bg-pink-100 text-pink-700"
                 }`}
               >
-                {b.label}
-                {b.count > 1 && ` ×${b.count}`}
+                {/* ไม่เกิน 3 บรรทัด ยาวกว่านั้นตัดด้วย … (ดูข้อความเต็มได้เมื่อชี้ที่วันนั้น) */}
+                <span className="block overflow-hidden break-words line-clamp-3 max-h-[3.75em]">
+                  {b.label}
+                  {b.count > 1 && ` ×${b.count}`}
+                </span>
               </span>
             ))}
           </div>
