@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaArrowRight, FaCheck, FaMinus, FaChevronDown, FaChevronUp, FaExternalLinkAlt, FaInfoCircle, FaRegCalendarAlt,
@@ -47,7 +47,14 @@ const DIM_THEME = {
 const LEVEL_TONE = {
   high: { ring: "border-emerald-200", head: "bg-emerald-50/80 border-emerald-100", label: "text-emerald-700", pill: "bg-emerald-500", title: "text-emerald-700", bar: "bg-emerald-400", marker: "marker:text-emerald-400" },
   medium: { ring: "border-amber-200", head: "bg-amber-50/80 border-amber-100", label: "text-amber-700", pill: "bg-amber-500", title: "text-amber-700", bar: "bg-amber-400", marker: "marker:text-amber-400" },
-  low: { ring: "border-slate-200", head: "bg-slate-50 border-slate-200", label: "text-slate-600", pill: "bg-slate-500", title: "text-slate-700", bar: "bg-slate-400", marker: "marker:text-slate-400" },
+  low: { ring: "border-rose-200", head: "bg-rose-50/80 border-rose-100", label: "text-rose-700", pill: "bg-rose-500", title: "text-rose-700", bar: "bg-rose-400", marker: "marker:text-rose-400" },
+};
+// สีของกรอบ "แนวทางเตรียมตัว" แต่ละกรอบ
+const PREP_TONE = {
+  violet: { card: "from-violet-50 to-white", bar: "from-violet-400 to-fuchsia-300", icon: "bg-violet-100 text-violet-600", iconActive: "bg-violet-500 text-white", title: "text-violet-700", preview: "bg-violet-100/60", ring: "ring-violet-100", activeBorder: "border-violet-300", panel: "!border-l-violet-400" },
+  amber: { card: "from-amber-50 to-white", bar: "from-amber-400 to-orange-300", icon: "bg-amber-100 text-amber-600", iconActive: "bg-amber-500 text-white", title: "text-amber-700", preview: "bg-amber-100/60", ring: "ring-amber-100", activeBorder: "border-amber-300", panel: "!border-l-amber-400" },
+  sky: { card: "from-sky-50 to-white", bar: "from-sky-400 to-cyan-300", icon: "bg-sky-100 text-sky-600", iconActive: "bg-sky-500 text-white", title: "text-sky-700", preview: "bg-sky-100/60", ring: "ring-sky-100", activeBorder: "border-sky-300", panel: "!border-l-sky-400" },
+  emerald: { card: "from-emerald-50 to-white", bar: "from-emerald-400 to-teal-300", icon: "bg-emerald-100 text-emerald-600", iconActive: "bg-emerald-500 text-white", title: "text-emerald-700", preview: "bg-emerald-100/60", ring: "ring-emerald-100", activeBorder: "border-emerald-300", panel: "!border-l-emerald-400" },
 };
 // คำนามของแต่ละด้าน ใช้แต่งประโยคอธิบาย (ข้อความแม่แบบของระบบ)
 const TRAIT_NOUN = { R: "การลงมือปฏิบัติ", I: "การคิดวิเคราะห์", A: "การสร้างสรรค์", S: "การช่วยเหลือผู้อื่น", E: "ภาวะผู้นำ", C: "ความเป็นระบบ" };
@@ -124,7 +131,7 @@ function SectionHeader({ icon, title, subtitle }) {
   );
 }
 
-const CARD = "bg-white/60 border border-white/60 backdrop-blur-xl p-5 rounded-2xl shadow-sm";
+const CARD = "bg-white/70 border border-white/70 backdrop-blur-xl p-5 rounded-2xl shadow-[0_12px_32px_-20px_rgba(15,23,42,0.4)]";
 const thaiDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" }) : "");
 
 
@@ -526,7 +533,18 @@ export default function ResultPage() {
   const [showScores, setShowScores] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [more, setMore] = useState({}); // { activities, majors, careers, steps, sources }
-  const toggleMore = (k) => setMore((m) => ({ ...m, [k]: !m[k] }));
+  // การ์ด "สิ่งที่น่าสนใจ": จำความสูงตอนยังไม่เปิด แล้วล็อกไว้ให้การ์ดที่ไม่ได้เปิดสูงเท่าเดิม (เปิดใบไหนขยายเฉพาะใบนั้น)
+  const topicGridRef = useRef(null);
+  const [topicLockH, setTopicLockH] = useState(null);
+  const toggleMore = (k) => {
+    if (["activities", "majors", "careers"].includes(k) && !more.activities && !more.majors && !more.careers) {
+      // จอใหญ่เท่านั้น (3 การ์ดเรียงแถวเดียว) — มือถือการ์ดเรียงลงมาอยู่แล้ว ไม่ต้องล็อก
+      const wide = window.matchMedia("(min-width: 1024px)").matches;
+      setTopicLockH(wide ? topicGridRef.current?.firstElementChild?.offsetHeight || null : null);
+    }
+    setMore((m) => ({ ...m, [k]: !m[k] }));
+  };
+  const topicOpen = Boolean(more.activities || more.majors || more.careers);
   const [showAlign, setShowAlign] = useState(false);
   const [prepTab, setPrepTab] = useState(null);
   const [showConsult, setShowConsult] = useState(false);
@@ -610,11 +628,12 @@ export default function ResultPage() {
   const goalUni = myGoal?.university_name ? fullUniName(myGoal.university_name) : null;
   const pf = advice?.usesGoal ? advice.perFaculty[0] : null;
   const PREP_TABS = [
-    { key: "subjects", title: "วิชาที่ควรเน้น", desc: "วิชาและทักษะที่ควรให้ความสำคัญ", icon: FaBookOpen, preview: pf?.subjects?.slice(0, 3).join(" · ") },
-    { key: "exam", title: "การเตรียมสอบ / Portfolio", desc: "แนวทางเตรียมสอบและแฟ้มสะสมผลงาน", icon: FaClipboardList, preview: pf?.exam },
-    { key: "programs", title: "หลักสูตรและมหาวิทยาลัย", desc: "ข้อมูลหลักสูตร รอบการรับสมัคร", icon: FaUniversity, preview: goalUni ? `${goalUni} · ดูเกณฑ์รับเข้าแต่ละรอบ` : "เลือกมหาวิทยาลัยเพื่อดูเกณฑ์รับเข้า" },
-    { key: "careers", title: "อาชีพที่เกี่ยวข้องเพิ่มเติม", desc: "อาชีพอื่น ๆ ที่เกี่ยวข้องกับเป้าหมาย", icon: FaBriefcase, preview: goalCareers.map((c) => c.title).slice(0, 3).join(" · ") || "ดูอาชีพที่เกี่ยวข้อง" },
+    { key: "subjects", tone: "violet", title: "วิชาที่ควรเน้น", desc: "วิชาและทักษะที่ควรให้ความสำคัญ", icon: FaBookOpen, preview: pf?.subjects?.slice(0, 3).join(" · ") },
+    { key: "exam", tone: "amber", title: "การเตรียมสอบ / Portfolio", desc: "แนวทางเตรียมสอบและแฟ้มสะสมผลงาน", icon: FaClipboardList, preview: pf?.exam },
+    { key: "programs", tone: "sky", title: "หลักสูตรและมหาวิทยาลัย", desc: "ข้อมูลหลักสูตร รอบการรับสมัคร", icon: FaUniversity, preview: goalUni ? `${goalUni} · ดูเกณฑ์รับเข้าแต่ละรอบ` : "เลือกมหาวิทยาลัยเพื่อดูเกณฑ์รับเข้า" },
+    { key: "careers", tone: "emerald", title: "อาชีพที่เกี่ยวข้องเพิ่มเติม", desc: "อาชีพอื่น ๆ ที่เกี่ยวข้องกับเป้าหมาย", icon: FaBriefcase, preview: goalCareers.map((c) => c.title).slice(0, 3).join(" · ") || "ดูอาชีพที่เกี่ยวข้อง" },
   ];
+  const activePrep = PREP_TABS.find((t) => t.key === prepTab);
 
   return (
     <Shell>
@@ -748,8 +767,9 @@ export default function ResultPage() {
 
       {/* ===== ① สิ่งที่น่าสนใจสำหรับคุณ ===== */}
       <NumHeader n="1" title="สิ่งที่น่าสนใจสำหรับคุณ" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <TopicCard tone="emerald" title="กิจกรรมที่แนะนำ" subtitle="ลองเริ่มจาก 1–2 กิจกรรมนี้" open={more.activities} onToggle={() => toggleMore("activities")} canExpand={activities.length > 0}>
+      {/* เปิด "ดูเพิ่มเติม" การ์ดไหน ขยายเฉพาะการ์ดนั้น — ล็อกความสูงการ์ดตอนยังไม่เปิดไว้ การ์ดอื่นจึงสูงเท่าเดิม */}
+      <div ref={topicGridRef} className={`grid grid-cols-1 lg:grid-cols-3 gap-4 ${topicOpen ? "lg:items-start" : ""}`}>
+        <TopicCard tone="emerald" title="กิจกรรมที่แนะนำ" subtitle="ลองเริ่มจาก 1–2 กิจกรรมนี้" open={more.activities} lockH={topicOpen ? topicLockH : null} onToggle={() => toggleMore("activities")} canExpand={activities.length > 0}>
           {activities.length === 0 ? (
             <p className="text-[14px] text-gray-500">ยังไม่มีกิจกรรมแนะนำ</p>
           ) : (
@@ -771,7 +791,7 @@ export default function ResultPage() {
           )}
         </TopicCard>
 
-        <TopicCard tone="sky" title={`สาขาที่ควรสำรวจ${explore.length ? ` (${explore.length} อันดับ)` : ""}`} subtitle="เลือกสาขาที่ตรงกับความสนใจ" open={more.majors} onToggle={() => toggleMore("majors")} canExpand={explore.length > 0}>
+        <TopicCard tone="sky" title={`สาขาที่ควรสำรวจ${explore.length ? ` (${explore.length} อันดับ)` : ""}`} subtitle="เลือกสาขาที่ตรงกับความสนใจ" open={more.majors} lockH={topicOpen ? topicLockH : null} onToggle={() => toggleMore("majors")} canExpand={explore.length > 0}>
           {explore.length === 0 ? (
             <p className="text-[14px] text-gray-500">ยังไม่มีสาขาที่เชื่อมกับความสนใจเด่นได้ชัดเจน ลองปรึกษาครูแนะแนวเพื่อสำรวจเพิ่มเติม</p>
           ) : (
@@ -805,7 +825,7 @@ export default function ResultPage() {
           )}
         </TopicCard>
 
-        <TopicCard tone="orange" title={`อาชีพตัวอย่าง${resultCareers.length ? ` (${resultCareers.length} อาชีพ)` : ""}`} subtitle="อาชีพที่สอดคล้องกับคุณ" open={more.careers} onToggle={() => toggleMore("careers")} canExpand={resultCareers.length > 0}>
+        <TopicCard tone="orange" title={`อาชีพตัวอย่าง${resultCareers.length ? ` (${resultCareers.length} อาชีพ)` : ""}`} subtitle="อาชีพที่สอดคล้องกับคุณ" open={more.careers} lockH={topicOpen ? topicLockH : null} onToggle={() => toggleMore("careers")} canExpand={resultCareers.length > 0}>
           {resultCareers.length === 0 ? (
             <p className="text-[14px] text-gray-500">ยังไม่มีข้อมูลอาชีพที่เกี่ยวข้อง</p>
           ) : (
@@ -837,17 +857,28 @@ export default function ResultPage() {
       {/* ===== ② เป้าหมายการศึกษาต่อ ===== */}
       <NumHeader n="2" title="เป้าหมายการศึกษาต่อของฉัน" />
       {myGoals?.length > 1 && (
-        <div className="-mt-2 flex flex-wrap gap-2">
-          {myGoals.map((g, i) => (
-            <button
-              key={g.goal_id}
-              type="button"
-              onClick={() => setGoalIdx(i)}
-              className={`rounded-full border px-3.5 py-1.5 text-[13.5px] ${myGoal?.goal_id === g.goal_id ? "!bg-pink-500 border-pink-500 text-white" : "bg-white border-gray-200 text-gray-700 hover:border-pink-300"}`}
-            >
-              {GOAL_RANK_LABEL[i]}: {g.faculty_name || g.career_field}
-            </button>
-          ))}
+        <div className="-mt-2">
+          <div className="text-[13.5px] text-gray-500 mb-2">กดเลือกเป้าหมายที่ต้องการดูผล</div>
+          <div className="flex flex-wrap gap-2.5">
+            {myGoals.map((g, i) => {
+              const active = myGoal?.goal_id === g.goal_id;
+              return (
+                <button
+                  key={g.goal_id}
+                  type="button"
+                  onClick={() => setGoalIdx(i)}
+                  aria-pressed={active}
+                  className={`cursor-pointer rounded-full border px-4 py-2 text-[15.5px] font-medium shadow-sm transition-all ${
+                    active
+                      ? "!bg-pink-500 border-pink-500 text-white shadow-pink-200"
+                      : "bg-white border-gray-200 text-gray-700 hover:!bg-pink-50 hover:border-pink-300 hover:text-pink-700 hover:-translate-y-px"
+                  }`}
+                >
+                  <span className={active ? "text-pink-100" : "text-gray-400"}>{GOAL_RANK_LABEL[i]}:</span> {g.faculty_name || g.career_field}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
       {!ready ? (
@@ -890,35 +921,42 @@ export default function ResultPage() {
             {PREP_TABS.map((t) => {
               const active = prepTab === t.key;
               const TabIcon = t.icon;
+              const c = PREP_TONE[t.tone];
               return (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => setPrepTab(active ? null : t.key)}
-                  className={`text-left rounded-2xl border bg-white px-4 py-4 transition-all flex flex-col ${active ? "border-pink-300 ring-2 ring-pink-100 shadow-sm" : "border-gray-100 hover:border-pink-200 hover:shadow-sm"}`}
+                  className={`relative overflow-hidden text-left rounded-2xl border px-4 py-4 transition-all duration-200 flex flex-col bg-gradient-to-br ${c.card} ${
+                    active
+                      ? `${c.activeBorder} ring-2 ${c.ring} -translate-y-0.5 shadow-[0_16px_36px_-18px_rgba(15,23,42,0.45)]`
+                      : "border-white shadow-[0_10px_28px_-18px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_18px_38px_-18px_rgba(15,23,42,0.45)]"
+                  }`}
                 >
+                  <span aria-hidden className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${c.bar}`} />
                   <div className="flex items-start gap-3">
-                    <span className={`h-10 w-10 shrink-0 rounded-xl grid place-items-center transition-colors ${active ? "bg-pink-500 text-white" : "bg-pink-50 text-pink-500"}`}>
-                      <TabIcon className="text-[16px]" />
+                    <span className={`h-11 w-11 shrink-0 rounded-xl grid place-items-center shadow-sm transition-colors ${active ? c.iconActive : c.icon}`}>
+                      <TabIcon className="text-[17px]" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[15px] font-semibold text-gray-800 leading-5">{t.title}</div>
+                      <div className={`text-[15.5px] font-semibold leading-5 ${c.title}`}>{t.title}</div>
                       <div className="text-[12.5px] text-gray-500 mt-0.5">{t.desc}</div>
                     </div>
-                    <span className={`mt-1 text-[12px] ${active ? "text-pink-500" : "text-gray-300"}`}>{active ? <FaChevronUp /> : <FaChevronDown />}</span>
+                    <span className={`mt-1 text-[12px] ${active ? c.title : "text-gray-300"}`}>{active ? <FaChevronUp /> : <FaChevronDown />}</span>
                   </div>
                   {t.preview && (
                     <div className="mt-auto pt-3">
-                      <div className="rounded-lg bg-pink-50/50 px-3 py-2 text-[13px] text-gray-600 leading-5 line-clamp-2">{t.preview}</div>
+                      <div className={`rounded-lg px-3 py-2 text-[13px] text-gray-700 leading-5 line-clamp-2 ${c.preview}`}>{t.preview}</div>
                     </div>
                   )}
+                  <div className={`mt-2 text-[12.5px] font-medium ${c.title}`}>{active ? "กำลังแสดงด้านล่าง" : "กดเพื่อดูรายละเอียด"}</div>
                 </button>
               );
             })}
           </div>
           {prepTab && (
-            <div className={`${CARD} mt-3 border-l-4 !border-l-pink-400`}>
-              <div className="text-[16px] font-semibold text-gray-900 mb-2">{PREP_TABS.find((t) => t.key === prepTab)?.title}</div>
+            <div className={`${CARD} mt-3 border-l-4 ${PREP_TONE[activePrep?.tone]?.panel || "!border-l-pink-400"}`}>
+              <div className={`text-[16px] font-semibold mb-2 ${PREP_TONE[activePrep?.tone]?.title || "text-gray-900"}`}>{activePrep?.title}</div>
               {advice.perFaculty.map((f) => (
                 <div key={f.name} className="text-[15px] text-gray-700 leading-7">
                   {advice.perFaculty.length > 1 && <div className="text-[13px] font-semibold text-pink-600">{f.name}</div>}
@@ -1111,14 +1149,18 @@ function NumHeader({ n, title, subtitle, tone = "pink" }) {
 
 // การ์ดหัวข้อในส่วน "สิ่งที่น่าสนใจ" — แสดงสาระก่อน กด "ดูเพิ่มเติม" เพื่อดูรายละเอียด
 const TOPIC_TONE = {
-  emerald: { card: "bg-emerald-50/50 border-emerald-100", title: "text-emerald-700", link: "text-emerald-700" },
-  sky: { card: "bg-sky-50/50 border-sky-100", title: "text-sky-700", link: "text-sky-700" },
-  orange: { card: "bg-orange-50/50 border-orange-100", title: "text-orange-600", link: "text-orange-600" },
+  emerald: { card: "bg-gradient-to-br from-emerald-50 to-white border-emerald-100", bar: "from-emerald-400 to-teal-300", title: "text-emerald-700", link: "text-emerald-700" },
+  sky: { card: "bg-gradient-to-br from-sky-50 to-white border-sky-100", bar: "from-sky-400 to-indigo-300", title: "text-sky-700", link: "text-sky-700" },
+  orange: { card: "bg-gradient-to-br from-orange-50 to-white border-orange-100", bar: "from-orange-400 to-amber-300", title: "text-orange-600", link: "text-orange-600" },
 };
-function TopicCard({ tone, title, subtitle, open, onToggle, canExpand, children }) {
+function TopicCard({ tone, title, subtitle, open, onToggle, canExpand, lockH, children }) {
   const t = TOPIC_TONE[tone];
   return (
-    <div className={`rounded-2xl border p-5 flex flex-col min-w-0 ${t.card}`}>
+    <div
+      style={lockH ? { minHeight: lockH } : undefined}
+      className={`relative overflow-hidden rounded-2xl border p-5 flex flex-col min-w-0 shadow-[0_10px_30px_-18px_rgba(15,23,42,0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-18px_rgba(15,23,42,0.4)] ${t.card}`}>
+      {/* แถบสีด้านบนของการ์ด */}
+      <span aria-hidden className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${t.bar}`} />
       <div className={`text-[17px] font-semibold ${t.title}`}>{title}</div>
       {subtitle && <div className="text-[13px] text-gray-500 mb-3">{subtitle}</div>}
       <div className="flex-1">{children}</div>
@@ -1133,16 +1175,16 @@ function TopicCard({ tone, title, subtitle, open, onToggle, canExpand, children 
 
 // สรุปความสอดคล้องกับเป้าหมายแบบย่อ 3 ช่อง (รายละเอียดเต็มอยู่ใน AlignmentCard เมื่อกดดูรายละเอียด)
 // ระบบไม่ให้เปอร์เซ็นต์ความเหมาะสม จึงแสดงระดับ สูง/ปานกลาง/ต่ำ ตามเกณฑ์เดิมแทน
-const RING = { high: { stroke: "#10b981", fill: 1, text: "text-emerald-600" }, medium: { stroke: "#f59e0b", fill: 0.66, text: "text-amber-600" }, low: { stroke: "#94a3b8", fill: 0.33, text: "text-slate-500" } };
+const RING = { high: { stroke: "#10b981", fill: 1, text: "text-emerald-600" }, medium: { stroke: "#f59e0b", fill: 0.66, text: "text-amber-600" }, low: { stroke: "#f43f5e", fill: 0.33, text: "text-rose-600" } };
 function GoalSummary({ a, latest, scores, goal, university }) {
   const f = a.faculty;
   const dimMine = denseRank(scores, f.dim) <= 3;
   const ring = RING[a.displayLevel];
-  // สีทั้งการ์ดตามระดับความสอดคล้อง: สูง = เขียว, ปานกลาง = เหลือง, ต่ำ = เทา
+  // สีทั้งการ์ดตามระดับความสอดคล้อง: สูง = เขียว, ปานกลาง = เหลือง, ต่ำ = ชมพูแดง
   const tone = {
     high: { box: "border-emerald-200 bg-emerald-50/50", label: "text-emerald-700", ok: "bg-emerald-500" },
     medium: { box: "border-amber-200 bg-amber-50/50", label: "text-amber-700", ok: "bg-amber-500" },
-    low: { box: "border-slate-200 bg-slate-50/70", label: "text-slate-600", ok: "bg-slate-500" },
+    low: { box: "border-rose-200 bg-rose-50/70", label: "text-rose-700", ok: "bg-rose-500" },
   }[a.displayLevel];
   const C = 2 * Math.PI * 30;
   const LEVEL_DESC = {
@@ -1156,7 +1198,7 @@ function GoalSummary({ a, latest, scores, goal, university }) {
     { ok: a.links.length > 0, text: a.links.length ? `เชื่อมด้าน ${a.links.map((l) => DIM_EN[l.code]).slice(0, 2).join(", ")}` : "ยังไม่พบคุณลักษณะที่เชื่อมกัน" },
   ];
   return (
-    <div className={`rounded-2xl border p-5 grid grid-cols-1 md:grid-cols-3 gap-5 ${tone.box}`}>
+    <div className={`rounded-2xl border p-5 grid grid-cols-1 md:grid-cols-3 gap-5 shadow-[0_12px_32px_-20px_rgba(15,23,42,0.45)] ${tone.box}`}>
       <div>
         <div className={`text-[13.5px] font-medium ${tone.label}`}>เป้าหมายของคุณ</div>
         <div className="mt-1 text-[22px] font-bold text-gray-900 leading-tight">{f.name}</div>
