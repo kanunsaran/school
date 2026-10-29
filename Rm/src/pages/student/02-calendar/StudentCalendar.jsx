@@ -19,6 +19,7 @@ import { bigFilterSelectStyles } from "../../../utils/reactSelectStyles.js";
 import ThaiTimeField from "../../../components/ThaiTimeField.jsx";
 import Avatar from "../../../components/Avatar.jsx";
 import AppointmentCalendarGrid from "../../../components/AppointmentCalendarGrid.jsx";
+import AdvisorSchedule from "../../../components/AdvisorSchedule.jsx";
 import ReplyThread from "../../../components/AppointmentReplyThread.jsx";
 import { groupByDay, notOverBy, rangeLabel, durationSuffix, keyToDate } from "../../../utils/appointmentRange.js";
 import AppointmentResponse from "../../../components/AppointmentResponse.jsx";
@@ -452,6 +453,11 @@ export default function StudentCalendarPage() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* ตารางสอนครูที่ปรึกษา — ดูคาบว่างก่อนขอนัด */}
+          <div className="mt-10">
+            <AdvisorSchedule />
           </div>
         </main>
       </div>
