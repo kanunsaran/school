@@ -11,7 +11,11 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
+env:
+  GOOGLE_CLIENT_ID: 959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com
+
 jobs:
+  # build ทั้งหมดบนเครื่องของ GitHub (RAM เยอะ เร็ว) — เซิร์ฟเวอร์ RAM 1 GB ไม่ต้อง build เอง เว็บจึงไม่ค้างระหว่าง deploy
   build:
     runs-on: ubuntu-latest
     steps:
@@ -21,27 +25,53 @@ jobs:
         run: docker build -t school-backend ./projectrmb
 
       - name: Build frontend image
-        run: docker build -t school-frontend ./Rm
+        run: docker build --build-arg VITE_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID -t school-frontend ./Rm
+
+      - name: Save images
+        if: github.event_name != 'pull_request'
+        run: docker save school-backend school-frontend | gzip -1 > images.tar.gz && ls -lh images.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: images
+          path: images.tar.gz
+          retention-days: 1
+          compression-level: 0
 
   deploy:
     needs: build
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy over SSH
+      - uses: actions/download-artifact@v4
+        with:
+          name: images
+
+      - name: Copy images to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: images.tar.gz
+          target: /tmp/school-deploy
+          timeout: 10m
+
+      - name: Load images and restart
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 60m
+          command_timeout: 20m
           script: |
             set -e
             cd ~/school
             git pull --ff-only origin main
-            # build one at a time: the server has only 1 GB RAM
-            docker compose build backend
-            docker compose build frontend
-            docker compose up -d --remove-orphans
+            # image ที่ build มาจาก GitHub ชื่อเดียวกับที่ docker compose ใช้ (school-backend / school-frontend)
+            gunzip -c /tmp/school-deploy/images.tar.gz | docker load
+            rm -rf /tmp/school-deploy
+            docker compose up -d --no-build --remove-orphans
             docker image prune -f
             docker compose ps
