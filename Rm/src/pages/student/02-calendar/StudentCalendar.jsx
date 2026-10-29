@@ -19,7 +19,7 @@ import { bigFilterSelectStyles } from "../../../utils/reactSelectStyles.js";
 import ThaiTimeField from "../../../components/ThaiTimeField.jsx";
 import Avatar from "../../../components/Avatar.jsx";
 import AppointmentCalendarGrid from "../../../components/AppointmentCalendarGrid.jsx";
-import AdvisorSchedule from "../../../components/AdvisorSchedule.jsx";
+import AdvisorScheduleButton from "../../../components/AdvisorSchedule.jsx";
 import ReplyThread from "../../../components/AppointmentReplyThread.jsx";
 import { groupByDay, notOverBy, rangeLabel, durationSuffix, keyToDate } from "../../../utils/appointmentRange.js";
 import AppointmentResponse from "../../../components/AppointmentResponse.jsx";
@@ -239,6 +239,8 @@ export default function StudentCalendarPage() {
           <div>
             <h1 className="page-title">ปฏิทินนัดหมาย</h1>
             <p className="page-subtitle mt-1">ดูนัดหมายที่ครูนัดคุณ และขอนัดพบครูได้ที่นี่</p>
+            {/* ดูตารางสอนครูที่ปรึกษา (ป๊อปอัป) — ดูคาบว่างก่อนขอนัด */}
+            <AdvisorScheduleButton className="mt-3" />
           </div>
 
           {/* นัดที่รอเราตอบ — กดแล้วไปที่วันนั้นเพื่อยืนยัน/ปฏิเสธ */}
@@ -453,11 +455,6 @@ export default function StudentCalendarPage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* ตารางสอนครูที่ปรึกษา — ดูคาบว่างก่อนขอนัด */}
-          <div className="mt-10">
-            <AdvisorSchedule />
           </div>
         </main>
       </div>
