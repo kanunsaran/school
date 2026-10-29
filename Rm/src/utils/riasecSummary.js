@@ -18,7 +18,7 @@ export const interestSummaryText = (scores, subject = "คุณ") => {
       : sum.rest.length === 1
       ? ` รองลงมาคือด้าน${plain(sum.rest)}`
       : sum.restClose
-      ? ` ขณะเดียวกันก็มีความสนใจด้าน${plain(sum.rest)}${sum.leadClose ? "พอ ๆ กัน" : "ในระดับใกล้เคียงกัน"}`
+      ? ` ขณะเดียวกันก็มีความสนใจด้าน${plain(sum.rest)}${sum.leadClose ? "ด้วย" : "ในระดับใกล้เคียงกัน"}`
       : ` รองลงมาคือด้าน${plain(sum.rest)}`)
   );
 };

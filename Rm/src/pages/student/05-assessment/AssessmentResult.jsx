@@ -19,7 +19,7 @@ import { goalsOf, GOAL_RANK_LABEL, MYTCAS_HOME, fullUniName } from "../../../uti
 import AdmissionInfo from "../../../components/AdmissionInfo.jsx";
 import {
   RIASEC_ORDER, MAX_SCORE, MIN_SCORE, scorePercent, goalTargets, analyzeTarget, personalAdvice, hasGoal,
-  denseRank, tiedWith, rankLabel, matchGoalFaculties, exploreFaculties, exploreActivities, adviceSteps, careersForGoal,
+  denseRank, tiedWith, rankLabel, matchGoalFaculties, exploreFaculties, exploreActivities, adviceSteps, careersForGoal, hexDistance,
 } from "../../../utils/riasecScoring.js";
 
 // หน้าผลแบบสำรวจความสนใจ RIASEC
@@ -436,7 +436,24 @@ function CareerList({ items }) {
 export default function ResultPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { loading, data, latest } = useMyRiasec(location.state);
+  const { loading, data, latest: rawLatest } = useMyRiasec(location.state);
+  // คะแนนเท่ากัน → รหัสเขียนได้หลายแบบ ให้นักเรียนกดสลับดูได้ (ทั้งหน้าคำนวณตามรหัสที่เลือก)
+  const [pickedCode, setPickedCode] = useState(null);
+  const latest = useMemo(() => {
+    if (!rawLatest || rawLatest.legacy || !rawLatest.alternativeCodes?.length) return rawLatest;
+    const all = [rawLatest.code, ...rawLatest.alternativeCodes];
+    const code = all.includes(pickedCode) ? pickedCode : rawLatest.code;
+    if (code === rawLatest.code) return rawLatest;
+    return {
+      ...rawLatest,
+      code,
+      alternativeCodes: all.filter((c) => c !== code),
+      // ด้านที่เสมอกันเรียงตามรหัสที่เลือก (ลำดับคะแนนไม่เปลี่ยน)
+      ranked: [...code, ...rawLatest.ranked.filter((c) => !code.includes(c))],
+      consistency: { 1: "high", 2: "medium", 3: "low" }[hexDistance(code[0], code[1])],
+    };
+  }, [rawLatest, pickedCode]);
+  const allCodesRaw = rawLatest && !rawLatest.legacy ? [rawLatest.code, ...(rawLatest.alternativeCodes || [])] : [];
   const [animated, setAnimated] = useState(false);
   // undefined = กำลังโหลด, [] = ยังไม่ได้ตั้งเป้าหมาย — นักเรียนตั้งได้หลายข้อ (เรียงตามลำดับ เป้าหมายหลักก่อน)
   const [myGoals, setMyGoals] = useState(undefined);
@@ -687,9 +704,21 @@ export default function ResultPage() {
           <div className="flex flex-col items-center justify-center text-center gap-2 px-5 py-6 border-b lg:border-b-0 lg:border-r border-pink-100/70">
             <div className="text-[15px] font-semibold text-gray-700">รหัส RIASEC ของคุณ</div>
             <div className="text-[54px] leading-none font-extrabold tracking-wide text-pink-500">{latest.code}</div>
-            {latest.hasTie && latest.alternativeCodes.length > 0 && (
-              <div className="text-[13px] text-gray-400">
-                {latest.alternativeCodes.length <= 2 ? `หรือ ${latest.alternativeCodes.join(", ")}` : `เขียนได้ ${latest.alternativeCodes.length + 1} แบบ`}
+            {allCodesRaw.length > 1 && (
+              <div className="w-full">
+                <div className="text-[12.5px] text-gray-500">คะแนนบางด้านเท่ากัน กดดูอีกรหัสได้</div>
+                <div className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+                  {allCodesRaw.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setPickedCode(c)}
+                      className={`rounded-full border px-3 py-1 text-[14px] font-bold tracking-wide transition ${c === latest.code ? "!bg-pink-500 border-pink-500 text-white" : "bg-white border-pink-200 text-pink-600 hover:!bg-pink-50"}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <span className="rounded-full bg-pink-50 border border-pink-100 px-3 py-1 text-[13px] font-medium text-pink-600">ความสนใจอันดับ 1–3</span>
@@ -721,7 +750,7 @@ export default function ResultPage() {
             </div>
             {codeTies.length > 0 && (
               <p className="mt-2 text-[12.5px] text-gray-400">
-                {codeTies.map((g) => `${g.dims.join(" และ ")} อันดับร่วม ${g.rank}`).join(" • ")} — ด้านที่คะแนนเท่ากันเรียงตามลำดับ R-I-A-S-E-C
+                {codeTies.map((g) => `${g.dims.join(" และ ")} อันดับร่วม ${g.rank}`).join(" • ")} — ด้านที่คะแนนเท่ากันสลับลำดับได้ (กดเลือกรหัสด้านซ้าย)
               </p>
             )}
             {latest.lowDifferentiation && <p className="mt-2 text-[13px] text-sky-800">คะแนนทุกด้านของคุณใกล้เคียงกัน ลองทำกิจกรรมหลายแบบก่อนตัดสินใจ</p>}
