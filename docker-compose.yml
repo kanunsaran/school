@@ -47,7 +47,7 @@ services:
       DB_PASS: ${BACKEND_DB_PASS-${DB_PASS}}
       DB_NAME: ${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-227111588323-0a9ruof7fu0at9rbep25orkm31hh8m13.apps.googleusercontent.com}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -61,7 +61,7 @@ services:
     build:
       context: ./Rm
       args:
-        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com}
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-227111588323-0a9ruof7fu0at9rbep25orkm31hh8m13.apps.googleusercontent.com}
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-5173}:80"

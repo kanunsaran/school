@@ -37,6 +37,7 @@ import StudentContentDetailPage from "./pages/student/04-my-classroom/work/Stude
 import YCCommunityPage from "./pages/teacher/10-yc/YCCommunity.jsx";
 import YCPostDetailPage from "./pages/shared/yc/YCPostDetail.jsx";
 import LoginPage from "./pages/login/Login.jsx";
+import PrivacyPage from "./pages/login/Privacy.jsx";
 import ImagePage from "./pages/shared/activities/ImageGallery.jsx"
 import ImagePostDetailPage from './pages/shared/activities/ImagePostDetail.jsx'
 
@@ -412,8 +413,13 @@ const router = createBrowserRouter([
   element: (
 
       <LoginPage />
-    
+
   ),
+},
+
+{
+  path: "/privacy",
+  element: <PrivacyPage />,
 },
 
 {

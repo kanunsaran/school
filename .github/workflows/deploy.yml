@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GOOGLE_CLIENT_ID: 959939148925-edrs5iq8sbum9m7ni0nmh7j8p89flgia.apps.googleusercontent.com
+  GOOGLE_CLIENT_ID: 227111588323-0a9ruof7fu0at9rbep25orkm31hh8m13.apps.googleusercontent.com
 
 jobs:
   # build ทั้งหมดบนเครื่องของ GitHub (RAM เยอะ เร็ว) — เซิร์ฟเวอร์ RAM 1 GB ไม่ต้อง build เอง เว็บจึงไม่ค้างระหว่าง deploy
