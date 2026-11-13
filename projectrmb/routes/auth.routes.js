@@ -194,7 +194,7 @@ router.post('/google', async (req, res) => {
     }
     if (!googleUser) return res.status(401).json({ message: 'ยืนยันตัวตนกับ Google ไม่สำเร็จ' });
 
-    const { email, name } = googleUser;
+    const { email } = googleUser;
 
     // ค้นหา user จาก email
     const [rows] = await pool.query(
@@ -202,23 +202,15 @@ router.post('/google', async (req, res) => {
       [email]
     );
 
-    let user, roleName;
-
-    if (rows.length > 0) {
-      // มี user อยู่แล้ว → login ได้เลย
-      user = rows[0];
-      roleName = user.role_name;
-    } else {
-      // ยังไม่มี user → สร้างใหม่ (role_role_id = 2 = student)
-      const username = email.split('@')[0];
-      const [result] = await pool.query(
-        `INSERT INTO users (username, password, fullname, email, role_role_id)
-         VALUES (?, ?, ?, ?, ?)`,
-        [username, '', name, email, 2]
-      );
-      user = { user_id: result.insertId, fullname: name, email };
-      roleName = 'student';
+    // ล็อกอินด้วย Google ได้เฉพาะอีเมลที่มีบัญชีในระบบอยู่แล้ว — ไม่สร้างบัญชีใหม่ให้อัตโนมัติ
+    if (rows.length === 0) {
+      return res.status(403).json({
+        message: `ไม่พบบัญชี ${email} ในระบบ กรุณาติดต่อครูหรือผู้ดูแลระบบให้เพิ่มบัญชีก่อน`,
+      });
     }
+
+    const user = rows[0];
+    const roleName = user.role_name;
 
     // สร้าง JWT
     const token = jwt.sign(
